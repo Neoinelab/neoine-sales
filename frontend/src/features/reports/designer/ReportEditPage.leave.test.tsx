@@ -2,7 +2,7 @@
 import './ReportEditPage'
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { addCountedColumn, openDesigner, openEditor, runQuery, saveButton, saveDialog, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
+import { addCountedColumn, openDesigner, openEditor, openEditorFromView, runQuery, saveButton, saveDialog, setupReportClock, typeName, UNSAVED_MARK } from '../../../test/reportScreen'
 import { MINE_PUBLIC, SAVED_SAMPLES } from '../../../test/savedReports'
 
 setupReportClock()
@@ -175,5 +175,62 @@ describe('편집 화면에서 떠날 때 확인', () => {
     // then: 묻지 않고 이동한다
     await waitFor(() => expect(location()).toMatch(/^\/deals/))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('편집 화면에서 브라우저 뒤로 가기', () => {
+  // 테스트 코드: RS-107
+  it('저장 안 됨이면 뒤로 가기에서 묻고 머물기면 남고 떠나기면 보기 화면으로 간다', async () => {
+    // given: 보기 화면에서 편집으로 들어와 설계를 바꿔 저장 안 됨이다
+    const { user, location, goTo } = await openEditorFromView(MINE_PUBLIC.id)
+    await addCountedColumn(user, 'Deal code')
+
+    // when: 뒤로 가기를 하고 머물기를 누른다
+    goTo(-1)
+    const dialog = await screen.findByRole('dialog', { name: LEAVE_TITLE })
+    expect(dialog).toHaveTextContent(LEAVE_MESSAGE)
+    await user.click(within(dialog).getByRole('button', { name: '머물기' }))
+
+    // then: 주소와 저장 안 됨이 그대로다
+    expect(location()).toBe('/reports/11/edit')
+    expect(screen.getByText(UNSAVED_MARK)).toBeVisible()
+
+    // when: 다시 뒤로 가기를 하고 떠나기를 누른다
+    goTo(-1)
+    await user.click(within(await screen.findByRole('dialog', { name: LEAVE_TITLE })).getByRole('button', { name: '떠나기' }))
+
+    // then: 보기 화면으로 간다
+    await waitFor(() => expect(location()).toBe('/reports/11'))
+  })
+
+  // 테스트 코드: RS-107
+  it('덮어쓴 직후에는 뒤로 가기에서 묻지 않는다', async () => {
+    // given: 설계를 바꿔 덮어쓴 편집 화면
+    const { user, location, goTo } = await openEditorFromView(MINE_PUBLIC.id)
+    await addCountedColumn(user, 'Deal code')
+    await overwrite(user)
+
+    // when: 뒤로 가기를 한다
+    goTo(-1)
+
+    // then: 묻지 않고 보기 화면으로 간다
+    await waitFor(() => expect(location()).toBe('/reports/11'))
+    expect(screen.queryByRole('dialog', { name: LEAVE_TITLE })).not.toBeInTheDocument()
+  })
+
+  // 테스트 코드: RS-107
+  it('되돌린 직후에는 뒤로 가기에서 묻지 않는다', async () => {
+    // given: 설계를 바꿨다가 되돌리기로 되돌렸다
+    const { user, location, goTo } = await openEditorFromView(MINE_PUBLIC.id)
+    await addCountedColumn(user, 'Deal code')
+    await user.click(screen.getByRole('button', { name: '되돌리기' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '저장된 설계로 되돌릴까요?' })).getByRole('button', { name: '되돌리기' }))
+
+    // when: 뒤로 가기를 한다
+    goTo(-1)
+
+    // then: 묻지 않고 보기 화면으로 간다
+    await waitFor(() => expect(location()).toBe('/reports/11'))
+    expect(screen.queryByRole('dialog', { name: LEAVE_TITLE })).not.toBeInTheDocument()
   })
 })

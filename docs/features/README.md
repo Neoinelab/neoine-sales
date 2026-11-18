@@ -78,8 +78,8 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | AT | [deal-attachments.md](deal-attachments.md) (Deal 첨부 파일) | 확정(2026-11-10) |
 | FC | [forecast.md](forecast.md) (Forecast: 실시간·월말 스냅숏) | 확정(2026-11-13 사용자 확인) |
 | DSH | [dashboard.md](dashboard.md) (Dashboard) | 확정(2026-11-16) |
-| RQ | [report-query.md](report-query.md) (Reports 조회 엔진·디자이너 작성) | 확정(2026-11-17 사용자 확인) |
-| RS | [saved-reports.md](saved-reports.md) (저장 리포트·결과 배치) | 확정(2026-11-11) |
+| RQ | [report-query.md](report-query.md) (Reports 조회 엔진·디자이너 작성) | 확정(2026-11-18) |
+| RS | [saved-reports.md](saved-reports.md) (저장 리포트·결과 배치) | 확정(2026-11-18) |
 | RC | [report-charts.md](report-charts.md) (Reports 차트) | 확정(2026-11-11) |
 | PA | [partner-activity.md](partner-activity.md) (파트너 Activity) | 확정(2026-11-11) |
 | LC | [license-contracts.md](license-contracts.md) (계약관리) | 확정(2026-11-16 사용자 확인) |

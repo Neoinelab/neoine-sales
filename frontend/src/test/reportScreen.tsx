@@ -37,6 +37,23 @@ export async function openDesigner(options: RenderAtOptions = {}): Promise<Desig
   return rendered
 }
 
+/** `/reports` 목록에서 "+ 새 리포트"를 눌러 디자이너에 들어온다(history에 목록 항목이 남아 뒤로 가기가 가능). */
+export async function openDesignerFromList(options: RenderAtOptions = {}): Promise<Designer> {
+  const rendered = await renderAt('/reports', options)
+  await rendered.user.click(await screen.findByRole('link', { name: '+ 새 리포트' }))
+  await screen.findByRole('button', { name: 'Deal code 컬럼에 추가' })
+  return rendered
+}
+
+/** 보기 화면 `/reports/<id>`에서 "편집"을 눌러 편집 화면에 들어온다(history에 보기 항목이 남는다). */
+export async function openEditorFromView(id: number, options: RenderAtOptions = {}): Promise<Designer> {
+  const rendered = await renderAt(`/reports/${id}`, { savedReports: SAVED_SAMPLES, ...options })
+  const edit = await screen.findByRole('link', { name: '편집' })
+  await rendered.user.click(edit)
+  await waitForHiddenResult()
+  return rendered
+}
+
 export const fieldLabel = (key: string): string => {
   const found = REPORT_CATALOG.fields.find((f) => f.key === key)
   if (!found) throw new Error(`필드 없음: ${key}`)

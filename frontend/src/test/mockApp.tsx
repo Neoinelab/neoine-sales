@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { act } from 'react'
-import { MemoryRouter, useLocation, useNavigate, type NavigateFunction } from 'react-router'
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useRouteError, type NavigateFunction } from 'react-router'
 import { App } from '../App'
 import { gateway } from '../gateway'
 import { mockControl } from './fake/default'
@@ -44,6 +44,11 @@ export interface RenderAtOptions {
   savedReports?: SavedReport[]
 }
 
+/** RouterProvider 기본 오류 화면이 렌더 오류를 삼키지 않도록 다시 던진다. */
+function RethrowRouteError(): never {
+  throw useRouteError()
+}
+
 function LocationProbe() {
   const location = useLocation()
   // <output>은 status 역할이라 화면의 알림(role=status) 질의와 겹치므로 쓰지 않는다.
@@ -76,13 +81,26 @@ export async function renderAt(url: string, options: RenderAtOptions = {}) {
 
   const navigateRef: { current: NavigateFunction | null } = { current: null }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  // useBlocker(뒤로·앞으로 가기 확인)는 데이터 라우터에서만 동작한다.
+  const router = createMemoryRouter(
+    [
+      {
+        path: '*',
+        element: (
+          <>
+            <LocationProbe />
+            <NavigateProbe onReady={(navigate) => (navigateRef.current = navigate)} />
+            <App />
+          </>
+        ),
+        ErrorBoundary: RethrowRouteError,
+      },
+    ],
+    { initialEntries: [url] },
+  )
   const result = render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[url]}>
-        <LocationProbe />
-        <NavigateProbe onReady={(navigate) => (navigateRef.current = navigate)} />
-        <App />
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
   const user = userEvent.setup()

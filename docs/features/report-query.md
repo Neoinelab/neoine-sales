@@ -1,8 +1,10 @@
-# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-17 사용자 확인))
+# Reports 조회 엔진·디자이너 작성   (feature 코드: RQ, 상태: 확정(2026-11-18 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`backend/src/app/domain/report/{vocabulary,fields,catalog,catalog_deal,catalog_action,labels,raw,parse,parse_columns,parse_conditions,condition_values,definition,errors,resolve,stored}.py`, `app/application/report/{list_fields,run_report,execution,views}.py`, `app/application/ports/report_query_runner.py`, `app/infra/db/{report_runner,report_select,report_grouped,report_parts,report_conditions,report_buckets,report_fields,report_fields_deal,report_fields_action,report_risk,report_render,read_only}.py`, `app/web/routers/reports.py`, `app/web/schemas/{report_fields,report_query}.py`, `app/web/error_handlers.py`의 Reports 처리, `frontend/src/features/reports/designer/**`(편집 화면 전용 부분 제외), `features/reports/result/{ResultPanel,TableTile}.tsx`의 표·SQL 부분, `data/reports.ts`의 카탈로그·조회 훅, `gateway/http/reports.ts`·`mappers/report.ts`의 카탈로그·조회, `test/fake/gateway/reports.ts`, `test/fake/seed/reportCatalog.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·안내서가 어긋나던 점은 2026-11-11 사용자 결정으로 정리했습니다: 조회 Fake 게이트웨이는 서버 동작에 맞추되 흉내 내는 위반의 범위는 넓히지 않고(RQ-R56), 금액 건수 집계 열의 `unit` `krw`는 현행대로 두며(RQ-R36), 저장 정의 JSON의 예전 형식 읽기 변환은 이 문서가 가집니다(RQ-R57). 안내서(`docs/user-guide.html` 15.7) 문구는 코드에 맞춥니다. 결정 목록은 계획(`artifacts/10-analysis/rq-plan.md`)에 있습니다. 저장 리포트(RS)·차트(RC)·공통 입력(UI)은 규칙 번호로 가리킵니다.
 >
 > 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
+>
+> 2026-11-18 변경(확정, 2026-11-18 사용자 확인): 바뀐 설계에서 브라우저 뒤로·앞으로 가기도 떠날 때 확인을 묻는다(RQ-R54, RQ-UC5, RQ-125~RQ-127). 프런트 전용, API·마이그레이션 변경 없음.
 
 ## 1. 개요
 
@@ -188,7 +190,7 @@
 - **RQ-R51** 셀 표시: null은 "—". 숫자는 천 단위 콤마·소수 없는 반올림(평균 포함), 포맷 year는 콤마 없이 그대로. 금액 열(단위 krw이고 집계가 건수·고유 건수가 아님)은 머리글 뒤에 " (원)"이 붙고 값은 원 그대로. 숫자 열(value_type integer·decimal)은 오른쪽 정렬. 날짜: weekday "YYYY-MM-DD (요일 한 글자)", relative는 앱 시계(TM-R12)의 오늘 기준 "오늘"·"N일 전"·"N일 후", 그 밖은 값 그대로. 시각: ymd_hm은 시각 표기(TM-R14), ymd는 날짜 부분, weekday "날짜 (요일)", relative는 상대 시각 표기(Deals 목록 최종 업데이트와 같음). 묶음 값(연도·분기·월 텍스트)은 그대로. 앞 N자: 포맷한 글자를 코드 포인트 기준 앞 N자만 보이고 넘치면 "…"를 붙이며(정확히 N자·"—"는 그대로) 셀 `title`에 전체 값을 둔다. 잘리지 않은 text·code·user 문자열 셀도 `title`이 값이다.
 - **RQ-R52** 다시 조회 안내: 마지막 성공 조회 뒤 컬럼(정렬·앞 N자 포함)·조건·결합·최대 행이 바뀌면 결과 탭 위에 "설계가 바뀌었습니다. 작성 탭에서 '조회'를 눌러 다시 조회하세요"(`aria-live`)를 보이고 결과는 이전 그대로다. 칩 선택·차트·보기 방식·배치만 바뀐 것은 해당하지 않는다. 조회 전과 다시 조회한 뒤에는 없다. 작성 탭에는 보이지 않는다.
 - **RQ-R53** 생성 SQL 보기(결과 탭 아래): 조회 전에는 "조회하면 서버가 만든 SQL이 여기에 보입니다", 조회 뒤에는 접힌 영역 "생성 SQL 보기(읽기 전용)" 안에 마지막 성공 조회의 `sql`을 키보드로 스크롤할 수 있는 읽기 전용 영역으로 보인다. SQL 입력 칸은 어디에도 없다.
-- **RQ-R54** 떠날 때 확인·초기화(새 리포트): 설계가 바뀐 상태(컬럼·조건이 있거나, 결합이 OR이거나, 최대 행이 기본값이 아니거나, 차트 초안이 있음 — 결과 배치만 바뀐 것은 제외, 넣었다 다시 빼면 바뀌지 않은 상태)에서 앱 안 다른 주소의 링크를 누르면 확인 대화상자 "저장하지 않은 변경이 있습니다" / "저장하지 않은 변경이 사라집니다. 이 화면을 떠날까요?"("떠나기"·"머물기")를 보이고, "떠나기"는 원래 링크 동작(이동·열린 메뉴 닫기 포함)을 이어 하며 "머물기"는 그대로 둔다. 바뀐 상태인 동안만 새로고침·탭 닫기에 브라우저 확인(`beforeunload`)을 건다(떠나면 해제). 브라우저 뒤로 가기와 코드의 직접 이동은 막지 않는다(2026-10-27 사용자 결정). 바뀌지 않았으면 묻지 않는다. "초기화": 바뀐 상태면 "설계를 모두 지울까요?" / "컬럼과 조건이 모두 사라집니다."("초기화"·"취소") 확인 뒤, 아니면 바로 설계·결과·위반 표시를 모두 지운다(취소하면 그대로). 편집 화면의 같은 동작은 RS-R32·RS-R33이고, 편집 화면에서 차트를 바꾼 경우의 저장 안 됨·되돌리기는 RC-R38이다.
+- **RQ-R54** 떠날 때 확인·초기화(새 리포트): 설계가 바뀐 상태(컬럼·조건이 있거나, 결합이 OR이거나, 최대 행이 기본값이 아니거나, 차트 초안이 있음 — 결과 배치만 바뀐 것은 제외, 넣었다 다시 빼면 바뀌지 않은 상태)에서 (1) 앱 안 다른 주소의 링크를 누르거나 (2) 브라우저 뒤로 가기·앞으로 가기(history 이동)로 다른 경로(pathname)로 가려 하면 확인 대화상자 "저장하지 않은 변경이 있습니다" / "저장하지 않은 변경이 사라집니다. 이 화면을 떠날까요?"("떠나기"·"머물기")를 보인다. 링크의 "떠나기"는 원래 링크 동작(이동·열린 메뉴 닫기 포함)을 이어 하고, 뒤로·앞으로 가기의 "떠나기"는 멈춘 history 이동을 마저 해 이전(다음) 화면으로 간다. "머물기"는 그대로 둔다 — 뒤로·앞으로 가기에서 머물면 주소도 이 화면 그대로이고 설계·결과·탭·위반 표시가 남으며, 다시 뒤로 가기를 하면 다시 묻는다. 경로가 같은 history 이동(검색어·해시만 다름)은 묻지 않는다. 확인 창은 한 번에 하나이고, 링크 "떠나기"로 시작한 이동에는 다시 묻지 않는다. 바뀐 상태인 동안만 새로고침·탭 닫기(그리고 앱 밖 문서로 가는 뒤로 가기)에 브라우저 확인(`beforeunload`)을 건다(떠나면 해제). 코드의 직접 이동(저장 뒤 편집 화면으로 이동, 로그아웃 등)은 막지 않는다(2026-10-27 사용자 결정 유지). 바뀌지 않았으면 묻지 않는다. 뒤로·앞으로 가기 확인은 2026-11-18 사용자 요청으로 추가했고 2026-10-27 결정(Q2=A)의 '뒤로 가기 제외'를 대체한다. 구현은 앱 라우터를 데이터 라우터(`createBrowserRouter` + `RouterProvider`)로 바꾸고 `useBlocker`를 history 이동(POP)에만 쓴다. "초기화": 바뀐 상태면 "설계를 모두 지울까요?" / "컬럼과 조건이 모두 사라집니다."("초기화"·"취소") 확인 뒤, 아니면 바로 설계·결과·위반 표시를 모두 지운다(취소하면 그대로). 편집 화면의 같은 동작은 RS-R32·RS-R33이고, 편집 화면에서 차트를 바꾼 경우의 저장 안 됨·되돌리기는 RC-R38이다.
 - **RQ-R55** 게이트웨이·데이터 훅: `reports.fields()` = `GET /reports/fields` → camelCase(`limits.columnsMax` 등, 연산자 `value` → `shape`, 필드의 모든 속성과 선택지, 포맷 없는 필드는 `formats: []`·`defaultFormat: null`). `reports.query(input)` = `POST /reports/query`에 snake_case 본문(설계가 비운 키는 보내지 않음) → camelCase 결과(`rowScope`·`actionFilter`·`dealNumbersOnce`·`totalCount`·`rowLimit`·`elapsedMs`, 열의 `valueType`·`unit`·`prefixLength`, `totals` null 유지). 오류: 401은 `unauthorized`, `invalid-report`는 본문 `errors`를 `problem.reportErrors`(`{location, code, message}`, 모양이 맞는 항목만)로 옮기고 일반 오류 변환에서 빼서 TypeError 없이 `ApiError`(문구 = detail), `request-validation`은 `validation`(칸 문구 포함, PL-R37), `report-timeout`은 서버 detail 유지, 연결 실패는 network(PL-R39). `useReportFields`는 키 `reportFields`·다시 받지 않음(staleTime 무한)·재시도 없음, `useRunReport`는 버튼으로만 실행하고 어떤 쿼리도 무효화하지 않는다. `reportRunFailure`: invalid-report → `{kind: invalid, message, issues(없으면 [])}`, report-timeout → timeout, network → network, 그 밖의 ApiError → other(문구), ApiError가 아닌 오류 → other(일반 문구).
 - **RQ-R56** 조회 Fake 게이트웨이(`test/fake/gateway/reports.ts`, 카탈로그 `test/fake/seed/reportCatalog.ts`): 카탈로그는 서버 카탈로그와 같은 내용의 사본(호출자가 바꿔도 원본 불변)을 주고, 미인증은 401이다. 서버와 다르던 곳은 **Fake를 서버 동작에 맞춘다(2026-11-11 결정)**. 조회는 테스트가 응답 처리기(`setReportQueryHandler`)를 정하면 그 결과·오류를 쓰고, 아니면 다음 위반만 서버와 같은 code·location·문구로 흉내 낸다: 컬럼 수, 컬럼·조건의 unknown-field, group-not-allowed, 그룹 컬럼 집계, grouping-required, 그룹핑 없는 집계, aggregate-required, 그룹핑 집계 허용 목록, conditions-count, row-limit-invalid("행 수 제한은 100, 1000, 10000 중 하나여야 합니다" — 서버 RQ-R19와 같은 문구). 위반이 있으면 `invalid-report`(detail = 첫 문구)이고, 없으면 합성 결과(3행, 값 형식별 결정적 값, 범위 판정은 서버 RQ-R20·RQ-R29와 같음, `today` = Fake 시계, `totalCount` 3, `truncated` false)를 준다. 조회 요청은 모두 기록하고 데이터 초기화 때 처리기·기록을 지운다. 포맷·표시 이름·앞 N자·정렬·연산자·값·결합 위반은 흉내 내지 않는다 — 이 범위는 넓히지 않고, 그런 위반이 필요한 화면 테스트는 처리기로 위반을 주입한다(2026-11-11 결정). 합계 행(`totals`)은 서버(RQ-R32)와 같이 그룹핑하고 비그룹(집계) 컬럼이 하나 이상일 때만 주고 그룹핑이 없거나 모든 컬럼이 그룹 컬럼이면 null이다. 합계 행의 그룹 칸은 null이고 집계 칸은 비우지 않는다: 합성 행에서 그 집계로 계산한 값(sum·count·count_distinct는 행 값의 합, avg는 행 값의 평균을 소수 둘째 자리에서 반올림, min·max는 행 값의 최소·최대)이다.
 
@@ -299,9 +301,9 @@ RQ-R38~RQ-R56.
 ### RQ-UC5 설계 버리기
 - 행위자: 로그인한 모든 역할
 - 사전 조건: 설계가 바뀐 상태
-- 기본 흐름: "초기화"를 누르고 확인한다, 또는 다른 메뉴 링크를 누르고 "떠나기"를 고른다(RQ-R54)
-- 대안: "취소"·"머물기"면 그대로, 바뀌지 않았으면 묻지 않음
-- 예외: 뒤로 가기는 묻지 않고 떠난다
+- 기본 흐름: "초기화"를 누르고 확인한다, 또는 다른 메뉴 링크를 누르거나 브라우저 뒤로·앞으로 가기를 하고 "떠나기"를 고른다(RQ-R54)
+- 대안: "취소"·"머물기"면 그대로(뒤로·앞으로 가기에서 머물면 주소도 그대로), 바뀌지 않았으면 묻지 않음
+- 예외: 코드의 직접 이동(저장 뒤 이동·로그아웃)은 묻지 않고 떠난다
 - 결과: 설계·결과가 사라지거나 다른 화면으로 이동
 
 ## 4. BDD 테스트 케이스
@@ -434,6 +436,9 @@ RQ-R38~RQ-R56.
 | RQ-122 | deal.comment만 쓴 리포트는 Deal 범위(action_filter none)로 Deal당 1행이다 | RQ-R61, RQ-UC1 | backend | `domain/test_report_definition_scope.py`, `repositories/test_report_query_comment_contract.py` |
 | RQ-123 | Action 행 범위 그룹핑에서 deal.comment 건수는 Deal당 한 번 센다 | RQ-R61, RQ-UC1 | backend | `repositories/test_report_query_comment_contract.py` |
 | RQ-124 | deal.comment contains 조건은 Deal Comment·Action Comment 어느 쪽 본문에 있어도 그 Deal을 고른다 | RQ-R61, RQ-UC1 | backend | `repositories/test_report_query_comment_contract.py` |
+| RQ-125 | 바뀐 설계에서 브라우저 뒤로 가기를 하면 떠날지 묻고 머물기면 주소·설계가 그대로다 | RQ-R54, RQ-UC5 | frontend | `features/reports/designer/ReportDesignerPage.leave.test.tsx` |
+| RQ-126 | 뒤로·앞으로 가기에서 떠나기를 고르면 멈춘 이동을 마저 해 이전·다음 화면으로 간다 | RQ-R54, RQ-UC5 | frontend | `features/reports/designer/ReportDesignerPage.leave.test.tsx` |
+| RQ-127 | 바뀌지 않았거나 되돌린 설계의 뒤로 가기와 링크로 떠난 이동은 묻지 않는다 | RQ-R54, RQ-UC5 | frontend | `features/reports/designer/ReportDesignerPage.leave.test.tsx` |
 
 ### RQ-001 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다
 - Given VIEWER가 로그인함
@@ -994,6 +999,21 @@ RQ-R38~RQ-R56.
 - When 조건 `deal.comment contains "예산"`으로 조회한다
 - Then X와 Y가 나오고 Z는 나오지 않는다
 
+### RQ-125 바뀐 설계에서 브라우저 뒤로 가기를 하면 떠날지 묻고 머물기면 주소·설계가 그대로다
+- Given KIM이 `/reports`에서 "+ 새 리포트"를 눌러 `/reports/new`에 왔고, 필드 하나를 컬럼으로 넣고 조건 하나를 넣어 "● 저장 안 됨"이 보인다
+- When 브라우저 뒤로 가기를 하고 "머물기"를 누른 뒤, 한 번 더 뒤로 가기를 한다
+- Then 첫 뒤로 가기에서 "저장하지 않은 변경이 있습니다" / "저장하지 않은 변경이 사라집니다. 이 화면을 떠날까요?" 창이 뜨고, "머물기" 뒤 창이 닫히며 주소는 `/reports/new`이고 컬럼 칩·조건·"● 저장 안 됨"이 그대로다. 두 번째 뒤로 가기에서 같은 창이 다시 뜬다
+
+### RQ-126 뒤로·앞으로 가기에서 떠나기를 고르면 멈춘 이동을 마저 해 이전·다음 화면으로 간다
+- Given ① RQ-125의 Given과 같다. ② KIM이 `/reports/new`(빈 설계)에서 상단 메뉴 "Deals"를 눌러 `/deals`로 갔다가 브라우저 뒤로 가기로 `/reports/new`에 돌아와 컬럼 하나를 넣었다
+- When ① 뒤로 가기를 하고 "떠나기"를 누른다. ② 브라우저 앞으로 가기를 하고 "떠나기"를 누른다
+- Then ① 창이 한 번만 뜨고 "떠나기" 뒤 주소가 `/reports`이고 Reports 목록이 보이며, 이후 새로고침(`beforeunload`)을 막지 않는다. ② 창이 뜨고 "떠나기" 뒤 주소가 `/deals`다
+
+### RQ-127 바뀌지 않았거나 되돌린 설계의 뒤로 가기와 링크로 떠난 이동은 묻지 않는다
+- Given KIM이 `/reports`에서 "+ 새 리포트"를 눌러 `/reports/new`에 왔다
+- When ① 아무것도 바꾸지 않고 뒤로 가기를 한다. ② 다시 들어와 컬럼을 넣었다 그 칩을 지우고 뒤로 가기를 한다. ③ 다시 들어와 컬럼을 넣고 상단 메뉴 "Deals"를 눌러 "떠나기"를 고른다
+- Then ①② 확인 창 없이 주소가 `/reports`가 된다. ③ 확인 창은 링크에서 한 번만 뜨고 "떠나기" 뒤 두 번째 창 없이 주소가 `/deals`다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -1007,3 +1027,4 @@ RQ-R38~RQ-R56.
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경. 카탈로그 3번 key `deal.product`·이름 "Product"(RQ-R59 신설), 요청의 예전 key는 unknown-field, 저장 정의의 예전 key는 읽을 때 변환(RQ-R57 ④). **API 응답(카탈로그) 호환 깨짐**(사용자 승인) | 신규 RQ-116, RQ-117. 변경(표기·키): RQ-002, RQ-032 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 카탈로그 `action.memo`를 `action.comment`(Comment(Action))로 바꾸고 `deal.comment`(Comment(Deal 전체))를 29번으로 추가(Deal 29·Action 12·전체 41, RQ-R60·R61 신설, RQ-R57 ⑤, RQ-R2, 2.2). 읽는 테이블에 `deal_comments` 추가. **API 응답(카탈로그) 호환 깨짐**(사용자 승인) | 신규 RQ-118~RQ-124. 변경 RQ-002 |
 | 2026-11-17 | 프런트 Fake 카탈로그를 `deal.comment`·`action.comment`로 맞춤(CM-084) | 없음 |
+| 2026-11-18 | 확정(2026-11-18 사용자 확인): 바뀐 설계에서 브라우저 뒤로·앞으로 가기도 떠날 때 확인(RQ-R54, RQ-UC5). 2026-10-27 결정 Q2=A의 '뒤로 가기 제외'를 대체, 코드의 직접 이동은 계속 묻지 않음. 앱 라우터를 데이터 라우터로 전환(프런트 전용, API·마이그레이션 없음) | 신규 RQ-125~RQ-127. 변경 없음(RQ-101·RQ-102 그대로) |

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { NavigationType, useBlocker, useLocation, useNavigate } from 'react-router'
 
 /**
  * 작성 중인 화면을 떠나기 전 확인(`active`일 때만).
- * react-router의 `useBlocker`는 데이터 라우터(createBrowserRouter)에서만 쓸 수 있고 이 앱은 선언형 `BrowserRouter`라서,
- * (1) 새로고침·탭 닫기는 `beforeunload`로, (2) 앱 안 링크 클릭은 문서 capture 단계에서 가로채 확인 대화상자로 묻는다.
- * 브라우저 뒤로 가기와 `navigate()` 직접 호출 이동은 막지 않는다(사용자 결정 Q2=A).
+ * (1) 새로고침·탭 닫기는 `beforeunload`로, (2) 앱 안 링크 클릭은 문서 capture 단계에서 가로채 확인 대화상자로,
+ * (3) 브라우저 뒤로·앞으로 가기(POP)는 데이터 라우터의 `useBlocker`로 막고 같은 확인 창을 띄운다(경로가 바뀔 때만).
+ * `navigate()` 직접 호출 이동은 막지 않는다. 확인 창은 한 번에 하나이며, 링크 "떠나기"는 PUSH 이동이라 blocker가 다시 막지 않는다.
  */
 export function useLeaveGuard(active: boolean): { pending: string | null; confirm: () => void; cancel: () => void } {
   const navigate = useNavigate()
@@ -13,6 +13,10 @@ export function useLeaveGuard(active: boolean): { pending: string | null; confir
   const [pending, setPending] = useState<string | null>(null)
   const anchorRef = useRef<HTMLAnchorElement | null>(null)
   const replaying = useRef(false)
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation, historyAction }) =>
+      active && historyAction === NavigationType.Pop && currentLocation.pathname !== nextLocation.pathname,
+  )
 
   useEffect(() => {
     if (!active) return
@@ -43,7 +47,10 @@ export function useLeaveGuard(active: boolean): { pending: string | null; confir
   }, [active, location.pathname])
 
   const confirm = useCallback(() => {
-    if (pending === null) return
+    if (pending === null) {
+      if (blocker.state === 'blocked') blocker.proceed()
+      return
+    }
     setPending(null)
     const anchor = anchorRef.current
     anchorRef.current = null
@@ -58,7 +65,11 @@ export function useLeaveGuard(active: boolean): { pending: string | null; confir
       return
     }
     void navigate(pending)
-  }, [navigate, pending])
-  const cancel = useCallback(() => setPending(null), [])
-  return { pending, confirm, cancel }
+  }, [blocker, navigate, pending])
+  const cancel = useCallback(() => {
+    setPending(null)
+    if (blocker.state === 'blocked') blocker.reset()
+  }, [blocker])
+  const blockedTo = blocker.state === 'blocked' ? blocker.location.pathname + blocker.location.search + blocker.location.hash : null
+  return { pending: pending ?? blockedTo, confirm, cancel }
 }
