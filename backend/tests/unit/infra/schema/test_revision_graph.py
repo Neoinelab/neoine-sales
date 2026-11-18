@@ -7,8 +7,8 @@
 (SC-R22). 2026-11-16에 `deals.solution`을 `deals.product`로 이름만 바꾸는 `a9d3f5c7e214`가
 head가 되었다(SC-R23). 2026-11-17에 `deal_actions.memo`를 `deal_comments`로 옮긴 뒤 없애는
 Deal Comment 리비전(`d2f6b8a4c931`)이 head가 되었고, 같은 날 그 뒤에 `deal_comments.read_at`을
-추가하고 기존 행을 `created_at`으로 채우는 읽음 리비전이 head가 되었다(CM-R31, 리비전 id는 구현 때
-정해져 그래프에서 읽는다).
+추가하는 읽음 리비전(`e7c1a5b9d482`)이, 2026-11-18에 `deal_history` 구분 CHECK에 comment를 넣는
+`b3a8d1f6c527`이 head가 되었다.
 """
 
 import ast
@@ -30,6 +30,8 @@ USER_COLUMNS_REVISION = "c8e3f1a7d295"
 VENDOR_REQUIRED_REVISION = "e6b1d4f8a302"
 PRODUCT_RENAME_REVISION = "a9d3f5c7e214"
 COMMENT_REVISION = "d2f6b8a4c931"
+READ_AT_REVISION = "e7c1a5b9d482"
+HISTORY_CATEGORY_REVISION = "b3a8d1f6c527"
 # ondelete·onupdate 같은 FK 규칙 인자는 단어 경계로 구분한다
 FORBIDDEN_IN_UPGRADE = (
     r"\bdelete\b",
@@ -49,10 +51,17 @@ def _comment_revision() -> Script:
 
 
 def _read_at_revision() -> Script:
-    """head인 Comment 읽음 리비전(리비전 id를 박아 두지 않고 그래프에서 읽는다)."""
-    script = ScriptDirectory.from_config(_alembic_config())
-    (head,) = script.get_heads()
-    revision = script.get_revision(head)
+    """Comment 읽음 리비전(`e7c1a5b9d482`, 더 이상 head가 아니다)."""
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(READ_AT_REVISION)
+    assert revision is not None
+    return revision
+
+
+def _history_category_revision() -> Script:
+    """head인 deal_history 구분 CHECK 리비전(`b3a8d1f6c527`, comment 추가)."""
+    revision = ScriptDirectory.from_config(_alembic_config()).get_revision(
+        HISTORY_CATEGORY_REVISION
+    )
     assert revision is not None
     return revision
 
@@ -63,8 +72,8 @@ def _baseline() -> Script:
     return revision
 
 
-def test_the_history_has_the_baseline_as_base_and_the_read_at_revision_as_head() -> None:
-    """리비전 그래프의 base는 기준선, head는 Comment 읽음 리비전 하나다(리비전 7개).
+def test_the_history_has_the_baseline_as_base_and_the_history_category_revision_as_head() -> None:
+    """리비전 그래프의 base는 기준선, head는 deal_history 구분 CHECK 리비전 하나다(리비전 8개).
 
     테스트 코드: SC-001
     """
@@ -74,11 +83,11 @@ def test_the_history_has_the_baseline_as_base_and_the_read_at_revision_as_head()
     # when: head와 base 목록을 읽는다
     heads, bases = script.get_heads(), script.get_bases()
 
-    # then: head는 Comment 읽음 리비전(부모는 Comment 리비전), base는 기준선이고 리비전은 7개다
-    assert heads == [_read_at_revision().revision]
+    # then: head는 구분 CHECK 리비전(부모는 읽음 리비전), base는 기준선이고 리비전은 8개다
+    assert heads == [HISTORY_CATEGORY_REVISION]
     assert bases == [BASELINE]
-    assert len(list(script.walk_revisions())) == 7
-    # then: 날짜 전환 → 사용자 컬럼 정리 → Vendor 필수 → Product 이름 변경 → Comment → 읽음이다
+    assert len(list(script.walk_revisions())) == 8
+    # then: 날짜 전환 → 사용자 컬럼 정리 → Vendor 필수 → Product → Comment → 읽음 → 구분 CHECK다
     dates = script.get_revision(DATE_REVISION)
     users = script.get_revision(USER_COLUMNS_REVISION)
     vendor = script.get_revision(VENDOR_REQUIRED_REVISION)
@@ -93,6 +102,7 @@ def test_the_history_has_the_baseline_as_base_and_the_read_at_revision_as_head()
     assert head.down_revision == VENDOR_REQUIRED_REVISION
     assert _comment_revision().down_revision == PRODUCT_RENAME_REVISION
     assert _read_at_revision().down_revision == COMMENT_REVISION
+    assert _history_category_revision().down_revision == READ_AT_REVISION
 
 
 def test_the_baseline_has_no_parent_branch_or_dependency() -> None:
@@ -325,7 +335,7 @@ def test_the_product_rename_upgrade_only_renames_one_column() -> None:
 
 def test_the_comment_revision_follows_the_product_rename_revision_and_has_a_child() -> None:
     """Deal Comment 리비전은 Product 이름 변경 리비전을 부모로 하고 정해진 파일 이름이며
-    읽음 리비전이 그 자식으로 head이고 downgrade 함수가 있다.
+    읽음 리비전이 그 자식이고 downgrade 함수가 있다.
 
     테스트 코드: SC-053
     """
@@ -336,10 +346,11 @@ def test_the_comment_revision_follows_the_product_rename_revision_and_has_a_chil
     # when: 부모·브랜치 라벨·파일 경로·head 목록·downgrade 함수를 읽는다
     module = revision.module
 
-    # then: 부모는 Product 이름 변경 리비전, 브랜치 라벨은 비고 head는 이 리비전의 자식 하나다
+    # then: 부모는 Product 이름 변경 리비전, 브랜치 라벨은 비고 head 아님, 자식은 읽음
     assert revision.down_revision == PRODUCT_RENAME_REVISION
     assert not revision.branch_labels
-    assert script.get_heads() == [_read_at_revision().revision] != [revision.revision]
+    assert script.get_heads() != [revision.revision]
+    assert _read_at_revision().down_revision == revision.revision
     # then: 파일 이름은 YYYYMMDD_<리비전 id>_deal_comments.py다
     name = revision.path.rsplit("/", 1)[-1]
     assert re.fullmatch(rf"\d{{8}}_{revision.revision}_deal_comments\.py", name)
@@ -383,8 +394,8 @@ def test_the_comment_upgrade_only_adds_copies_and_drops_the_memo_column() -> Non
 
 
 def test_the_read_at_revision_follows_the_comment_revision_and_has_a_downgrade() -> None:
-    """Comment 읽음 리비전은 Comment 리비전을 부모로 하는 head이고 날짜로 시작하는 파일 이름이며
-    downgrade가 거부하지 않고 되돌린다.
+    """Comment 읽음 리비전은 Comment 리비전을 부모로 하고 구분 CHECK 리비전이 그 자식이며
+    날짜로 시작하는 파일 이름이고 downgrade가 거부하지 않고 되돌린다.
 
     테스트 코드: CM-058
     """
@@ -395,10 +406,10 @@ def test_the_read_at_revision_follows_the_comment_revision_and_has_a_downgrade()
     # when: 부모·브랜치 라벨·파일 경로·함수를 읽는다
     module = revision.module
 
-    # then: 부모는 Comment 리비전, 브랜치 라벨은 없고 head는 이 리비전 하나다
+    # then: 부모는 Comment 리비전, 브랜치 라벨은 없고 head는 이 리비전이 아니다
     assert revision.down_revision == COMMENT_REVISION
     assert not revision.branch_labels
-    assert script.get_heads() == [revision.revision]
+    assert script.get_heads() != [revision.revision]
     # then: 파일 이름은 YYYYMMDD_<리비전 id>_<목적>.py다
     name = revision.path.rsplit("/", 1)[-1]
     assert re.fullmatch(rf"\d{{8}}_{revision.revision}_\w+\.py", name)
@@ -433,3 +444,68 @@ def test_the_read_at_upgrade_only_adds_and_fills_the_new_column() -> None:
     assert len(updates) == len(fills) == 1
     assert "add_column" in source
     assert "read_at" in source
+
+
+def test_the_history_category_revision_follows_the_read_at_revision_as_head() -> None:
+    """deal_history 구분 CHECK 리비전은 읽음 리비전을 부모로 하는 head이고 downgrade가 있다.
+
+    테스트 코드: SC-056
+    """
+    # given: DB 없이 읽은 리비전 그래프와 구분 CHECK 리비전
+    script = ScriptDirectory.from_config(_alembic_config())
+    revision = _history_category_revision()
+
+    # when: 부모·브랜치 라벨·파일 경로·함수를 읽는다
+    module = revision.module
+
+    # then: 부모는 읽음 리비전, 브랜치 라벨은 없고 head는 이 리비전 하나다
+    assert revision.down_revision == READ_AT_REVISION
+    assert not revision.branch_labels
+    assert script.get_heads() == [revision.revision]
+    # then: 파일 이름은 YYYYMMDD_<리비전 id>_<목적>.py이고 upgrade·downgrade 함수가 있다
+    name = revision.path.rsplit("/", 1)[-1]
+    assert re.fullmatch(rf"\d{{8}}_{revision.revision}_\w+\.py", name)
+    assert callable(module.upgrade)
+    assert callable(module.downgrade)
+
+
+def test_the_history_category_upgrade_only_replaces_the_check_constraint() -> None:
+    """구분 CHECK 리비전 upgrade에는 삭제·UPDATE·컬럼/테이블 drop·SQL 직접 실행이 없고
+    CHECK 제약만 다시 만든다.
+
+    테스트 코드: SC-057
+    """
+    # given: 구분 CHECK 리비전 upgrade 함수 본문(docstring 제외, 소문자)
+    tree = ast.parse(inspect.getsource(_history_category_revision().module))
+    upgrade = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "upgrade")
+    if ast.get_docstring(upgrade) is not None:
+        upgrade.body = upgrade.body[1:]
+    source = ast.unparse(upgrade).lower()
+
+    # when: 금지 토큰과 제약 변경 호출을 찾는다
+    # then: 데이터를 지우거나 바꾸는 문장이 없고 CHECK drop 후 재생성만 있다
+    for token in FORBIDDEN_IN_UPGRADE:
+        assert re.search(token, source) is None, f"upgrade가 {token!r}를 사용한다"
+    assert source.count("drop_constraint") == 1
+    assert source.count("create_check_constraint") == 1
+    assert source.find("drop_constraint") < source.find("create_check_constraint")
+
+
+def test_the_history_category_downgrade_refuses_when_comment_rows_exist_without_deleting() -> None:
+    """구분 CHECK 리비전 downgrade는 comment 행이 있으면 중단하고 행을 지우지 않는다.
+
+    테스트 코드: SC-058
+    """
+    # given: downgrade 함수 본문(소문자)
+    tree = ast.parse(inspect.getsource(_history_category_revision().module))
+    downgrade = next(
+        n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "downgrade"
+    )
+    source = ast.unparse(downgrade).lower()
+
+    # when: comment 행 점검, 중단, 삭제 문장을 찾는다
+    # then: comment 행을 세어 RuntimeError로 중단하고 DELETE·UPDATE는 없다
+    assert "category = 'comment'" in source
+    assert "runtimeerror" in source
+    assert re.search(r"\bdelete\b", source) is None
+    assert re.search(r"\bupdate\b", source) is None

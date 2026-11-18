@@ -35,7 +35,7 @@
 | 용어 | 뜻 |
 | --- | --- |
 | 기준선(baseline) | 리비전 `00c3126aa926`. 2026-11-05에 과거 리비전 30개를 대체한 최초 리비전. 과거 체인은 커밋 `c4553c0`의 git 이력에만 있다 |
-| head | 리비전 그래프의 마지막 리비전. 지금은 Comment 읽음 리비전 `e7c1a5b9d482`(SC-R25, 부모는 Deal Comment 리비전 `d2f6b8a4c931`) |
+| head | 리비전 그래프의 마지막 리비전. 지금은 History 구분 CHECK 리비전 `b3a8d1f6c527`(SC-R26, 부모는 Comment 읽음 리비전 `e7c1a5b9d482`) |
 | 빈 DB | 테이블이 하나도 없고 `alembic_version`도 없는 DB |
 | 퇴역 리비전 | 기준선 통합 전에 쓰던 리비전 id(예: `f2b7c9e4a615`). 현재 그래프에 없다 |
 | 앱 테이블 | `alembic_version`을 뺀 public 스키마 테이블 27개(2.2) |
@@ -75,12 +75,12 @@ PK 분류
 ### 2.3 비즈니스 규칙
 
 리비전 그래프와 기준선
-- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_d2f6b8a4c931_<slug>.py`)을 따른다. 지금 그래프에는 리비전이 7개 있다: 기준선 → 날짜 전환 리비전 `b4d7e2a9c613`(파일 `20261113_b4d7e2a9c613_business_dates.py`, SC-R20) → 사용자 컬럼 정리 리비전 `c8e3f1a7d295`(파일 `20261113_c8e3f1a7d295_drop_user_creator_and_reason.py`, SC-R21) → Deal Vendor 필수 리비전 `e6b1d4f8a302`(파일 `20261113_e6b1d4f8a302_deal_vendor_required.py`, SC-R22) → Deal Product 이름 변경 리비전 `a9d3f5c7e214`(파일 `20261116_a9d3f5c7e214_deal_solution_to_product.py`, SC-R23) → Deal Comment 리비전 `d2f6b8a4c931`(파일 `20261117_d2f6b8a4c931_deal_comments.py`, SC-R24) → Comment 읽음 리비전 `e7c1a5b9d482`(파일 `20261117_e7c1a5b9d482_deal_comment_read.py`, SC-R25).
-- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 27개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 head인 `e7c1a5b9d482`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
+- **SC-R1** 리비전 그래프의 base는 기준선 `00c3126aa926` 하나이고 head도 하나다. 기준선은 `down_revision`이 None이고 `branch_labels`·`depends_on`이 없다. 기준선 파일 이름은 `20261105_00c3126aa926_baseline.py`이고, 새 리비전 파일 이름은 `alembic.ini`의 `file_template`(`YYYYMMDD_d2f6b8a4c931_<slug>.py`)을 따른다. 지금 그래프에는 리비전이 8개 있다: 기준선 → 날짜 전환 리비전 `b4d7e2a9c613`(파일 `20261113_b4d7e2a9c613_business_dates.py`, SC-R20) → 사용자 컬럼 정리 리비전 `c8e3f1a7d295`(파일 `20261113_c8e3f1a7d295_drop_user_creator_and_reason.py`, SC-R21) → Deal Vendor 필수 리비전 `e6b1d4f8a302`(파일 `20261113_e6b1d4f8a302_deal_vendor_required.py`, SC-R22) → Deal Product 이름 변경 리비전 `a9d3f5c7e214`(파일 `20261116_a9d3f5c7e214_deal_solution_to_product.py`, SC-R23) → Deal Comment 리비전 `d2f6b8a4c931`(파일 `20261117_d2f6b8a4c931_deal_comments.py`, SC-R24) → Comment 읽음 리비전 `e7c1a5b9d482`(파일 `20261117_e7c1a5b9d482_deal_comment_read.py`, SC-R25) → History 구분 CHECK 리비전 `b3a8d1f6c527`(파일 `20261118_b3a8d1f6c527_deal_history_comment_category.py`, SC-R26).
+- **SC-R2** 빈 DB에 `alembic upgrade head`를 실행하면 앱 테이블 27개(2.2)와 `alembic_version`만 생기고 `alembic_version.version_num`은 head인 `b3a8d1f6c527`이다. 마이그레이션은 한 트랜잭션으로 적용된다(`env.py`의 `context.begin_transaction()`).
 - **SC-R3** head upgrade 직후 `codes` 13행·`bant_labels` 23행·`action_types` 8행(2.2의 값)이 있고 나머지 앱 테이블 24개는 0행이다. 시드 값(키·이름·순서·outcome·확률 힌트·구분·기본 여부·만든 사람 NULL)은 Fake 시드와 같다.
-- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 Comment 읽음 리비전, Deal Comment 리비전, Deal Product 이름 변경 리비전, Deal Vendor 필수 리비전, 사용자 컬럼 정리 리비전, 날짜 전환 리비전을 차례로 되돌린 뒤 기준선에서 이 오류로 중단된다. 전체가 한 트랜잭션이라(SC-R2) `alembic_version`(head)과 테이블·컬럼은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
+- **SC-R4** 기준선은 되돌릴 수 없다. 기준선의 `downgrade()`는 DB를 건드리기 전에 `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요."를 낸다. head인 DB에 `alembic downgrade base`를 실행하면 History 구분 CHECK 리비전, Comment 읽음 리비전, Deal Comment 리비전, Deal Product 이름 변경 리비전, Deal Vendor 필수 리비전, 사용자 컬럼 정리 리비전, 날짜 전환 리비전을 차례로 되돌린 뒤 기준선에서 이 오류로 중단된다. 전체가 한 트랜잭션이라(SC-R2) `alembic_version`(head)과 테이블·컬럼은 그대로다. 빈 DB가 필요하면 DB를 새로 만든 뒤 `upgrade head`를 실행한다.
 - **SC-R5** 이미 head인 DB에 `upgrade head`를 다시 실행하면 아무것도 바뀌지 않는다: 모든 앱 테이블의 열(형식·NOT NULL·기본값)·제약(PK·UNIQUE·CHECK·FK 정의)·인덱스 정의와 행 수가 같고 `alembic_version`은 그대로다(시드가 두 번 들어가지 않음).
-- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓰고, `upgrade head`가 날짜 전환·사용자 컬럼 정리·Deal Vendor 필수·Deal Product 이름 변경·Deal Comment·Comment 읽음 리비전을 차례로 적용한다.
+- **SC-R6** `alembic_version`에 그래프에 없는 리비전 id(퇴역 리비전)가 남은 DB에 `upgrade head`를 실행하면 Alembic `CommandError`로 실패하고 스키마·`alembic_version`은 바뀌지 않는다. 이런 DB(통합 전 head보다 뒤처진 local·dev DB)는 새로 만든다. 통합 전 head(`00c3126aa926`)였던 DB는 같은 id라 그대로 쓰고, `upgrade head`가 날짜 전환·사용자 컬럼 정리·Deal Vendor 필수·Deal Product 이름 변경·Deal Comment·Comment 읽음·History 구분 CHECK 리비전을 차례로 적용한다.
 - **SC-R7** head 스키마는 ORM 메타데이터(`app.infra.db.models`가 등록한 `Base.metadata`)와 같다: head를 적용한 DB와 메타데이터를 Alembic `compare_metadata`(`compare_type=True`)로 비교한 차이가 0건이다. 스키마를 바꾸는 개발자는 ORM 모델과 리비전을 함께 바꾼다.
 
 마이그레이션 작성·적용 원칙
@@ -144,10 +144,15 @@ Deal Product 이름 변경 리비전
   - 하위 호환(SC-R9 예외, 사용자 승인 2026-11-17): 구 앱은 `memo`를 읽으므로 코드만 롤백하면 실패한다. 롤백할 때는 `downgrade -1`을 함께 실행하거나 `pg_dump`로 복원한다.
   - downgrade는 CM-R24를 따른다(memo 재생성·채움, Deal Comment 등 소실).
   - product 적용은 사람 승인과 배포 전 `pg_dump` 뒤에만 한다.
-- **SC-R25** 리비전 `e7c1a5b9d482`(부모 `d2f6b8a4c931`, 파일 `20261117_e7c1a5b9d482_deal_comment_read.py`, head)은 Comment 읽음(Owner 기준)을 더한다(의미는 CM-R31, 순수 expand).
+- **SC-R25** 리비전 `e7c1a5b9d482`(부모 `d2f6b8a4c931`, 파일 `20261117_e7c1a5b9d482_deal_comment_read.py`)은 Comment 읽음(Owner 기준)을 더한다(의미는 CM-R31, 순수 expand).
   - upgrade: `deal_comments.read_at timestamptz NULL` 추가 → 기존 행 전부를 `read_at = created_at`으로 채움(행·다른 값은 그대로, 테이블 수는 27개 그대로) → CHECK `ck_deal_comments_read_after_created`(`read_at IS NULL OR read_at >= created_at`) → 읽지 않음 부분 인덱스 `ix_deal_comments_deal_id_unread`(`deal_id`, `action_id`, `WHERE read_at IS NULL`). `DELETE`·`TRUNCATE`·`drop_*`가 없다(방금 추가한 컬럼을 채우는 `UPDATE` 하나뿐).
   - downgrade: 인덱스·CHECK·`read_at`만 drop한다(읽음 시각만 사라짐).
   - 코드만 롤백하면 구 앱은 `read_at`을 무시한다(호환). product 적용은 사람 승인과 배포 전 `pg_dump` 뒤에만 한다.
+- **SC-R26** 리비전 `b3a8d1f6c527`(부모 `e7c1a5b9d482`, 파일 `20261118_b3a8d1f6c527_deal_history_comment_category.py`, head)은 `deal_history` 구분 CHECK `ck_deal_history_category`에 `comment`를 더한다(2026-11-18 버그 수정: Comment 리비전이 History 구분 `comment`(CM)를 추가하면서 기준선 CHECK를 넓히지 않아 Comment 저장이 500이었음, 순수 expand).
+  - upgrade: CHECK를 drop하고 ORM `HistoryCategory` 13개 값(기준선 12개 + `comment`, ORM과 같은 순서)으로 다시 만든다. `DELETE`·`UPDATE`·`TRUNCATE`·`drop_column`·`drop_table`·`op.execute`가 없다.
+  - downgrade: `category = 'comment'` 행이 있으면 건수와 함께 `RuntimeError`로 중단하고(행은 지우거나 바꾸지 않음), 없으면 12개 값 CHECK로 되돌린다.
+  - head DB의 모든 문자열 리터럴 CHECK는 ORM 메타데이터가 만드는 CHECK와 허용 값 집합이 같다(재발 방지, 숫자 범위 CHECK는 비교 제외).
+  - 코드만 롤백해도 구 앱은 comment 행을 쓰지 않는다(호환). product 적용은 사람 승인과 배포 전 `pg_dump` 뒤에만 한다.
 
 ### 2.4 상태와 전이
 
@@ -155,14 +160,15 @@ DB의 `alembic_version` 상태
 
 | 현재 \ 명령 | `upgrade head` | `downgrade base` |
 | --- | --- | --- |
-| 빈 DB(버전 없음) | → `e7c1a5b9d482`, 테이블 27개 + 시드(SC-R2·R3) | (해당 없음) |
-| `00c3126aa926` | → `e7c1a5b9d482`, 날짜 컬럼 변환(SC-R20)·사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22, Vendor 없는 Deal이 있으면 중단)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25) | 거부, 그대로(SC-R4) |
-| `b4d7e2a9c613` | → `e7c1a5b9d482`, 사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25) | 거부, 그대로(SC-R4) |
-| `c8e3f1a7d295` | → `e7c1a5b9d482`, Vendor 필수(SC-R22)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25). Vendor 없는 Deal이 있으면 중단·그대로 | 거부, 그대로(SC-R4) |
-| `e6b1d4f8a302` | → `e7c1a5b9d482`, Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25) | 거부, 그대로(SC-R4). `downgrade -1`은 `c8e3f1a7d295`로 되돌림(NOT NULL만 풂, SC-R22) |
-| `a9d3f5c7e214` | → `e7c1a5b9d482`, Deal Comment(SC-R24)·Comment 읽음(SC-R25) | 거부, 그대로(SC-R4). `downgrade -1`은 `e6b1d4f8a302`로 되돌림(열 이름만, SC-R23) |
-| `d2f6b8a4c931` | → `e7c1a5b9d482`, Comment 읽음(SC-R25) | 거부, 그대로(SC-R4). `downgrade -1`은 `a9d3f5c7e214`로 되돌림(SC-R24) |
-| `e7c1a5b9d482`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4). `downgrade -1`은 `d2f6b8a4c931`로 되돌림(read_at만 drop, SC-R25) |
+| 빈 DB(버전 없음) | → `b3a8d1f6c527`, 테이블 27개 + 시드(SC-R2·R3) | (해당 없음) |
+| `00c3126aa926` | → `b3a8d1f6c527`, 날짜 컬럼 변환(SC-R20)·사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22, Vendor 없는 Deal이 있으면 중단)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4) |
+| `b4d7e2a9c613` | → `b3a8d1f6c527`, 사용자 컬럼 정리(SC-R21)·Vendor 필수(SC-R22)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4) |
+| `c8e3f1a7d295` | → `b3a8d1f6c527`, Vendor 필수(SC-R22)·Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26). Vendor 없는 Deal이 있으면 중단·그대로 | 거부, 그대로(SC-R4) |
+| `e6b1d4f8a302` | → `b3a8d1f6c527`, Product 이름 변경(SC-R23)·Deal Comment(SC-R24)·Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4). `downgrade -1`은 `c8e3f1a7d295`로 되돌림(NOT NULL만 풂, SC-R22) |
+| `a9d3f5c7e214` | → `b3a8d1f6c527`, Deal Comment(SC-R24)·Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4). `downgrade -1`은 `e6b1d4f8a302`로 되돌림(열 이름만, SC-R23) |
+| `d2f6b8a4c931` | → `b3a8d1f6c527`, Comment 읽음(SC-R25)·History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4). `downgrade -1`은 `a9d3f5c7e214`로 되돌림(SC-R24) |
+| `e7c1a5b9d482` | → `b3a8d1f6c527`, History 구분 CHECK(SC-R26) | 거부, 그대로(SC-R4). `downgrade -1`은 `d2f6b8a4c931`로 되돌림(read_at만 drop, SC-R25) |
+| `b3a8d1f6c527`(head) | 변화 없음(SC-R5) | 거부, 그대로(SC-R4). `downgrade -1`은 `e7c1a5b9d482`로 되돌림(comment 행이 있으면 중단, SC-R26) |
 | 퇴역 리비전 id | `CommandError`, 그대로(SC-R6) | (해당 없음 — DB를 새로 만듦) |
 
 ### 2.5 권한
@@ -183,6 +189,7 @@ DB의 `alembic_version` 상태
 | --- | --- |
 | 기준선 downgrade | `RuntimeError` "최초 리비전(00c3126aa926)은 되돌릴 수 없습니다. 빈 DB가 필요하면 DB를 새로 만드세요." |
 | 그래프에 없는 리비전이 남은 DB의 upgrade | `alembic.util.exc.CommandError`(Alembic 문구) |
+| History 구분 CHECK 리비전 downgrade에서 comment 행이 있음(SC-R26) | `RuntimeError` "deal_history에 comment 행 <N>건이 있어 downgrade할 수 없습니다(행은 삭제하지 않음)." |
 | `deal_code` 중복 insert | `IntegrityError`(제약 `uq_deals_deal_code`) |
 | Vendor 없는 Deal이 있는 DB의 upgrade(SC-R22) | `RuntimeError` "Vendor가 없는 Deal이 <N>건 있어 deals.vendor_id를 NOT NULL로 바꿀 수 없습니다. 먼저 이 Deal들에 Vendor를 지정하세요: <code…>" |
 
@@ -242,7 +249,7 @@ DB의 `alembic_version` 상태
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
 | --- | --- | --- | --- | --- |
-| SC-001 | 리비전 그래프의 base는 기준선, head는 Comment 읽음 리비전 하나다(리비전 7개) | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_the_baseline_as_base_and_the_read_at_revision_as_head` |
+| SC-001 | 리비전 그래프의 base는 기준선, head는 History 구분 CHECK 리비전 하나다(리비전 8개) | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_history_has_the_baseline_as_base_and_the_history_category_revision_as_head` |
 | SC-002 | 기준선에는 부모·브랜치 라벨·의존 리비전이 없다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_has_no_parent_branch_or_dependency` |
 | SC-003 | 기준선 파일 이름이 `20261105_00c3126aa926_baseline.py`다 | SC-R1 | backend | `infra/schema/test_revision_graph.py::test_the_baseline_file_is_named_after_its_purpose` |
 | SC-004 | 빈 DB에 upgrade head를 하면 앱 테이블 27개와 alembic_version만 생긴다 | SC-R2, SC-UC1 | backend | `infra/schema/test_baseline_upgrade.py::test_upgrade_head_on_a_blank_database_creates_the_27_tables` |
@@ -297,11 +304,16 @@ DB의 `alembic_version` 상태
 | SC-053 | Deal Comment 리비전은 Product 이름 변경 리비전을 부모로 하고, 정해진 파일 이름이며, 자식(읽음 리비전)이 있고, downgrade 함수가 있다 | SC-R1, SC-R24 | backend | `infra/schema/test_revision_graph.py::test_the_comment_revision_follows_the_product_rename_revision_and_has_a_child` |
 | SC-054 | Deal Comment upgrade 본문에는 행을 지우거나 바꾸는 문장이 없고, `drop_column`은 `deal_actions.memo` 하나이며 복사 INSERT보다 뒤에 있다 | SC-R8, SC-R24 | backend | `infra/schema/test_revision_graph.py::test_the_comment_upgrade_only_adds_copies_and_drops_the_memo_column` |
 | SC-055 | head의 `deal_comments` 정의(컬럼·FK·CHECK·인덱스)가 맞고, `deal_actions`에 `memo`가 없으며 `uq_deal_actions_id`가 있다 | SC-R24, SC-R7 | backend | `infra/schema/test_deal_action_schema.py`, `infra/schema/test_deal_comment_schema.py` |
+| SC-056 | History 구분 CHECK 리비전은 Comment 읽음 리비전을 부모로 하는 head이고 정해진 파일 이름이며 downgrade 함수가 있다 | SC-R1, SC-R26 | backend | `infra/schema/test_revision_graph.py::test_the_history_category_revision_follows_the_read_at_revision_as_head` |
+| SC-057 | History 구분 CHECK upgrade는 CHECK 하나를 다시 만들 뿐 행·컬럼을 지우거나 바꾸지 않는다 | SC-R8, SC-R26 | backend | `infra/schema/test_revision_graph.py::test_the_history_category_upgrade_only_replaces_the_check_constraint` |
+| SC-058 | History 구분 CHECK downgrade는 comment 행이 있으면 지우지 않고 중단한다 | SC-R8, SC-R26 | backend | `infra/schema/test_revision_graph.py::test_the_history_category_downgrade_refuses_when_comment_rows_exist_without_deleting` |
+| SC-059 | head DB의 History 구분 CHECK는 HistoryCategory의 모든 값(comment 포함)을 허용한다 | SC-R26 | backend | `infra/schema/test_check_constraints_match_orm.py::test_deal_history_accepts_every_history_category_value` |
+| SC-060 | head DB의 모든 문자열 리터럴 CHECK는 ORM CHECK와 허용 값이 같다 | SC-R7, SC-R26 | backend | `infra/schema/test_check_constraints_match_orm.py::test_every_orm_check_constraint_has_same_allowed_literals_in_head_db` |
 
-### SC-001 리비전 그래프의 base는 기준선, head는 Comment 읽음 리비전 하나다(리비전 7개)
+### SC-001 리비전 그래프의 base는 기준선, head는 History 구분 CHECK 리비전 하나다(리비전 8개)
 - When `backend/alembic`의 리비전 그래프를 읽는다
-- Then head 목록은 `["e7c1a5b9d482"]`이고 base 목록은 `["00c3126aa926"]`이다
-- And 리비전은 7개이고 부모는 `b4d7e2a9c613`→`00c3126aa926`, `c8e3f1a7d295`→`b4d7e2a9c613`, `e6b1d4f8a302`→`c8e3f1a7d295`, `a9d3f5c7e214`→`e6b1d4f8a302`, `d2f6b8a4c931`→`a9d3f5c7e214`, `e7c1a5b9d482`→`d2f6b8a4c931`이다
+- Then head 목록은 `["b3a8d1f6c527"]`이고 base 목록은 `["00c3126aa926"]`이다
+- And 리비전은 8개이고 부모는 `b4d7e2a9c613`→`00c3126aa926`, `c8e3f1a7d295`→`b4d7e2a9c613`, `e6b1d4f8a302`→`c8e3f1a7d295`, `a9d3f5c7e214`→`e6b1d4f8a302`, `d2f6b8a4c931`→`a9d3f5c7e214`, `e7c1a5b9d482`→`d2f6b8a4c931`, `b3a8d1f6c527`→`e7c1a5b9d482`이다
 
 ### SC-002 기준선에는 부모·브랜치 라벨·의존 리비전이 없다
 - When 기준선 리비전 정보를 읽는다
@@ -315,7 +327,7 @@ DB의 `alembic_version` 상태
 - Given 마이그레이션이 하나도 적용되지 않은 빈 임시 DB
 - When `upgrade head`를 실행한다
 - Then public 테이블은 2.2의 앱 테이블 27개와 `alembic_version`뿐이다
-- And `alembic_version.version_num`은 `e7c1a5b9d482` 한 행이다
+- And `alembic_version.version_num`은 `b3a8d1f6c527` 한 행이다
 
 ### SC-005 새 DB에는 codes 13·bant_labels 23·action_types 8행만 있고 나머지 테이블은 비어 있다
 - Given 빈 임시 DB
@@ -577,7 +589,7 @@ DB의 `alembic_version` 상태
 
 ### SC-053 Deal Comment 리비전은 Product 이름 변경 리비전을 부모로 하고, 정해진 파일 이름이며, 자식(읽음 리비전)이 있고, downgrade 함수가 있다
 - When 리비전 그래프를 읽는다
-- Then `d2f6b8a4c931`의 부모는 `a9d3f5c7e214`, 파일 이름은 `20261117_d2f6b8a4c931_deal_comments.py`, head는 Comment 읽음 리비전 `e7c1a5b9d482`(`d2f6b8a4c931`은 그 부모)이고 `downgrade` 함수가 있다
+- Then `d2f6b8a4c931`의 부모는 `a9d3f5c7e214`, 파일 이름은 `20261117_d2f6b8a4c931_deal_comments.py`, 자식은 Comment 읽음 리비전 `e7c1a5b9d482`(`d2f6b8a4c931`은 그 부모)이고 `downgrade` 함수가 있다
 
 ### SC-054 Deal Comment upgrade 본문에는 행을 지우거나 바꾸는 문장이 없고, `drop_column`은 `deal_actions.memo` 하나이며 복사 INSERT보다 뒤에 있다
 - When 리비전 파일의 `upgrade` 본문을 읽는다
@@ -587,6 +599,28 @@ DB의 `alembic_version` 상태
 - Given head를 적용한 임시 DB
 - When `deal_comments`의 컬럼·FK·CHECK·인덱스와 `deal_actions`의 컬럼·유니크를 읽는다
 - Then CM 2.2의 정의와 같고 `deal_actions`에 `memo` 컬럼이 없으며 `uq_deal_actions_id (id, deal_id)`가 있다
+
+### SC-056 History 구분 CHECK 리비전은 Comment 읽음 리비전을 부모로 하는 head이고 정해진 파일 이름이며 downgrade 함수가 있다
+- When 리비전 그래프와 `b3a8d1f6c527` 파일을 읽는다
+- Then 부모는 `e7c1a5b9d482`, head는 `b3a8d1f6c527` 하나, 파일 이름은 `20261118_b3a8d1f6c527_deal_history_comment_category.py`이고 `downgrade` 함수가 있다
+
+### SC-057 History 구분 CHECK upgrade는 CHECK 하나를 다시 만들 뿐 행·컬럼을 지우거나 바꾸지 않는다
+- When `b3a8d1f6c527`의 upgrade 본문을 읽는다
+- Then `DELETE`·`UPDATE`·`TRUNCATE`·`drop_column`·`drop_table`·`op.execute`가 없고, `ck_deal_history_category`의 `drop_constraint` 뒤에 `create_check_constraint`가 이어진다
+
+### SC-058 History 구분 CHECK downgrade는 comment 행이 있으면 지우지 않고 중단한다
+- When `b3a8d1f6c527`의 downgrade 본문을 읽는다
+- Then `category = 'comment'` 행 수를 세어 있으면 `RuntimeError`로 중단하고, `DELETE`·`UPDATE`가 없다
+
+### SC-059 head DB의 History 구분 CHECK는 HistoryCategory의 모든 값(comment 포함)을 허용한다
+- Given 빈 DB에 `alembic upgrade head`를 했다
+- When `ck_deal_history_category` 식의 허용 값을 읽는다
+- Then 허용 값 집합은 domain `HistoryCategory`의 13개 값(`comment` 포함)과 같다
+
+### SC-060 head DB의 모든 문자열 리터럴 CHECK는 ORM CHECK와 허용 값이 같다
+- Given 빈 DB에 `alembic upgrade head`를 했다
+- When ORM 메타데이터의 CHECK마다 같은 이름의 DB CHECK 식에서 문자열 리터럴 집합을 뽑는다
+- Then 모든 CHECK의 집합이 같다(숫자 범위 CHECK는 PostgreSQL이 식을 다시 써서 비교에서 뺀다)
 
 ## 5. 변경 이력
 
@@ -599,3 +633,4 @@ DB의 `alembic_version` 상태
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Product 이름 변경 리비전 `a9d3f5c7e214` 추가와 SC-R23·SC-UC7 신설(`deals.solution` → `deals.product` 열 이름 변경, 값·행 그대로, downgrade 손실 없음, 코드만 롤백하면 구 앱 실패 — SC-R9 예외 승인 필요). head가 바뀌어 용어, SC-R1·R2·R4·R6·R8, 2.4, 4장 머리 갱신. SC-001 본문을 현재 그래프(5개)로 바로잡음 | 신규 SC-049~SC-052. 변경 SC-001, SC-004, SC-007, SC-010(head id), SC-044(head 문장 제거), SC-045·SC-046(`upgrade e6b1d4f8a302`), SC-047(Given 리비전) |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. Deal Comment 리비전 `d2f6b8a4c931`와 SC-R24 신설(`deal_comments` 생성, 기존 Memo 복사·건수 점검 뒤 `deal_actions.memo` drop은 사용자 승인 contract, 코드만 롤백하면 구 앱 실패). head가 바뀌어 용어, 2.2(테이블 27개·대리 키 20개), SC-R1·R2·R4·R6·R8·R11·R14·R15·R17·R19 갱신 | 신규 SC-053~SC-055. 변경 SC-001, SC-004, SC-005, SC-014, SC-020, SC-022, SC-023, SC-026~SC-029, SC-031, SC-049 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): Comment Owner 읽음 리비전 예정(`deal_comments.read_at` 추가, 기존 행은 `created_at`으로 채움, 부모 `d2f6b8a4c931`, expand, CM-R31). 구현 완료: 리비전 `e7c1a5b9d482`(부모 `d2f6b8a4c931`, 파일 `20261117_e7c1a5b9d482_deal_comment_read.py`)이 head. SC-R25 신설, head·리비전 7개로 SC-R1·R2·R4·R6, 2.4, SC-001·004·053 갱신(테이블 27개는 컬럼 추가라 그대로, 읽음 리비전 검증은 CM-058) | 변경 SC-001·SC-004·SC-053. SC 신규 케이스 없음 |
+| 2026-11-18 | 버그 수정 반영(Comment 저장 500): History 구분 CHECK 리비전 `b3a8d1f6c527`(부모 `e7c1a5b9d482`, head, 순수 expand)과 SC-R26 신설, head·리비전 수(8개) 갱신, 상태 전이 표·오류 표 갱신 | SC-001·SC-004·SC-053 문구 변경, 신규 SC-056~SC-060 |

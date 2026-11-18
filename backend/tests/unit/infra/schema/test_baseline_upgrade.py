@@ -78,7 +78,7 @@ async def test_upgrade_head_on_a_blank_database_creates_the_27_tables(
     # when: upgrade head를 실행한다
     #   (전제: 마이그레이션이 하나도 적용되지 않은 빈 임시 DB(blank_database))
     await when_operator_upgrades(blank_database)
-    # then: 앱 테이블 27개와 alembic_version뿐이고 버전은 head(Deal Comment 리비전)다
+    # then: 앱 테이블 27개와 alembic_version뿐이고 버전은 head(구분 CHECK 리비전 b3a8d1f6c527)다
     assert len(APP_TABLES) == 27
     assert await table_names(blank_database) == {*APP_TABLES, "alembic_version"}
     await then_schema_is_at(blank_database, HEAD)
