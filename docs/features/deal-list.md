@@ -1,8 +1,10 @@
-# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-16 사용자 확인))
+# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-18 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `frontend/src/features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
 >
 > 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
+>
+> 2026-11-18 변경(확정, 2026-11-18 사용자 확인): Deal 이름 바로 옆에 읽지 않은 Comment 수 배지(사용자 요청 "Comments 탭과 동일하게"). 값·표기 규칙은 CM-R47·R48, 영향 규칙·케이스는 5장.
 
 ## 1. 개요
 
@@ -17,7 +19,7 @@
   - 목록 인라인 편집의 서버 적용(`POST /deals/{code}/changes`)과 Status⇄Forecast 동기화 대화상자 → DD, Won 이탈 시 라이선스 계약 처리 대화상자 → LC
   - 기한초과·미업데이트 판정식(RK-R3~R5), `risk` 값(RK-R6), 경고 범례·배지·행 색(RK-R15·R16), `last_updated_on`(RK-R2)·Next Action 기준 행(RK-R1)·`status_changed_on`(RK-R9)·`status_days`(RK-R10) 계산 → RK (DL은 그 값을 조건·정렬·표시에 쓴다)
   - Deal 상세(`GET /deals/{code}`, `partner_history`)·삭제·삭제 영향, `/deals/{code}` 경로의 code 해석(예: 폐지된 `/deals/facets`가 404인 것) → DD
-  - Deal 등록·수정 폼과 행 필드(이름·금액·연락처 등)의 값 규칙 → DE, 라이선스 계약 필드(`license_contract_count`·`has_issued_license_contract`) → LC
+  - Deal 등록·수정 폼과 행 필드(이름·금액·연락처 등)의 값 규칙 → DE, 라이선스 계약 필드(`license_contract_count`·`has_issued_license_contract`) → LC, 행의 읽지 않은 Comment 수(`unread_comment_count`)의 값과 배지 표기·모양 → CM(CM-R47·R48, DL은 Deal 칸 배치만 DL-R28)
   - Dashboard·Forecast 화면에서 목록으로 보내는 주소 만들기(Drill-down) → DSH·FC (도착한 주소의 해석은 DL-R20)
   - Next Action 상태 변경·Actions 탭 검색(`upcoming` 프리셋 사용 포함) → NA
   - 공통 권한 판정·CSRF·Problem 형식·id 쿼리 형식·NUL 공통 원칙·화면 가드·상단 메뉴 → PL(PL-R2, PL-R4, PL-R5, PL-R10~R12, PL-R15, PL-R16, PL-R29, PL-R34, PL-R36, PL-R37, PL-R39)
@@ -43,7 +45,7 @@
 
 ### 2.2 데이터 모델
 
-DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `contacts`(CT), `deal_partners`(DE), `vendors`·`codes`(CL·CD, 정렬에 `codes.sort_order`·필터에 `codes.outcome`), `users`(US, 담당자 정렬), `deal_actions`(AC, 최종 업데이트·기준 행), `alert_settings`(RK-R11, 경고 필터 기준), `license_contracts`(LC, 행의 계약 필드).
+DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `contacts`(CT), `deal_partners`(DE), `vendors`·`codes`(CL·CD, 정렬에 `codes.sort_order`·필터에 `codes.outcome`), `users`(US, 담당자 정렬), `deal_actions`(AC, 최종 업데이트·기준 행), `alert_settings`(RK-R11, 경고 필터 기준), `license_contracts`(LC, 행의 계약 필드), `deal_comments`(CM, 행의 읽지 않은 Comment 수 — CM-R47).
 
 조건 모델(`DealQuery`, 서버 정본)
 
@@ -86,7 +88,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 - **DL-R11** Next Action 상태: `next_action_status`는 기준 행(RK-R1)의 상태로 거른다: `open`·`done`·`not_done`은 그 상태, `closed`는 `done`과 `not_done`. 조건이 있으면 Next Action이 없는 Deal은 제외되고, 조건이 없으면 모든 Deal이 나온다. 다른 값(`notDone`·`DONE`·`all`·빈 값 등)은 422 `request-validation`. `total`도 같은 조건으로 센다.
 - **DL-R12** 경고 필터: `overdue=true`면 기한초과 Deal만, `stale=true`면 미업데이트 Deal만, 둘 다 켜면 어느 하나라도 해당하는 Deal(OR)이다. 어떤 Deal이 해당하는지는 RK 판정식(RK-R3~R5, RK-R8)이며(종결 Deal 제외 포함), 판정 기준(업무 날짜·저장된 미업데이트 기준일)은 같은 요청의 행 `risk`와 같다(RK-R7). 다른 조건과는 AND이고 `total`도 그 결과다. `false`·`0`이나 생략은 조건 없음, 불리언이 아닌 값(`abc`·`2` 등)은 422 `request-validation`.
 - **DL-R13** 정렬: `sort`는 `name`·`revenue_amount`·`revenue_date`·`last_updated_at`·`status`·`owner`·`customer`·`partner`·`vendor`·`forecast` 10개, `order`는 `asc`·`desc`(소문자)이고 기본은 `last_updated_at` `desc`다. 값 이름은 호환을 위해 그대로 두지만 정렬 대상은 최종 업데이트일 `last_updated_on`이고, 같은 날이면 아래 동률 규칙에 따라 Deal code 오름차순이다. 그 밖의 값(`revenueAmount`, `stage`, `DESC`, `up` 등)은 422 `request-validation`. 텍스트 키(Deal Name·담당자·고객 회사·파트너 회사·Vendor 이름)는 소문자로 바꾼 코드 포인트 순이다(대소문자만 다른 값은 같은 값, 한글은 음절 코드 순). 담당자 키는 표시 이름(비었으면 로그인 아이디)이며 퇴사자도 이름으로 정렬된다. `partner`는 활성 파트너 회사명이다. `status`·`forecast`는 그 코드의 **현재** 순서(CD)이며 순서를 바꾸면 결과도 바뀐다. 파트너·Vendor가 없는 Deal은 방향과 무관하게 맨 뒤다. 정렬 값이 같으면 방향과 무관하게 Deal code 오름차순이다. 그래서 같은 조건의 다음 페이지는 앞 페이지에 빠짐·겹침 없이 이어진다.
-- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status}` 또는 null), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC)를 따른다.
+- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status}` 또는 null), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `unread_comment_count`(2026-11-18), `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC·CM(CM-R47))를 따른다. `unread_comment_count`로 거르거나 정렬하는 파라미터는 없다(DL-R3·DL-R13).
 - **DL-R15** Deal 조건 해석(DL-R4~R12)은 서버의 한 곳(`deal_search.conditions`)에만 있고, Forecast 실시간 집계(FC)와 Dashboard 집계(DSH)가 같은 해석을 쓴다. 그래서 같은 조건이면 목록 `total`과 그 집계의 건수가 같다(검증은 FC·DSH).
 
 연도 기준·기간 프리셋
@@ -122,7 +124,7 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 - **DL-R25** 최종 업데이트 기간: 선택 상자 "최종 업데이트"는 전체·최근 2주·최근 1개월·최근 2개월·최근 3개월·최근 6개월·직접 지정(7개)이고 서버 프리셋(DL-R17)에 없는 키는 비활성이다. 프리셋을 고르면 캐시를 쓰지 않고 프리셋을 서버에 다시 물어 그 `from`·`to`를 URL `updated_from`·`updated_to`에 쓴다(늦게 온 이전 응답은 버린다). 다시 묻기가 실패하면 URL은 그대로 두고 오류 배너를 보인다. "전체"는 두 키를 지운다. "직접 지정"은 URL을 바꾸지 않고 "시작일"·"종료일" 날짜 칸(`DateInput`, UI-R6)을 현재 URL 날짜로 채워 보인다. 날짜 칸은 비었거나 올바른 날짜가 될 때만 URL을 바꾼다(`yyyymmdd` 입력은 ISO로, 덜 쳤거나 없는 날짜는 URL을 바꾸지 않고 칸이 문구를 보인다). 시작만 넣어도 조회된다. 역전된 범위는 서버 문구(DL-R10)를 목록 오류 배너로 보인다. 표시: URL 날짜가 오늘의 프리셋과 정확히 같으면 그 프리셋, 둘 다 없으면 전체, 그 밖(한쪽만 있음 포함)은 직접 지정. 프리셋을 읽지 못해도 URL 날짜로 조회한다. 뒤로 가기로 URL 날짜가 바뀌면 직접 지정 칸을 닫고 이 표시 규칙을 따른다.
 - **DL-R26** Vendor 선택: 선택지 값은 Vendor id, 표시는 이름이다. Vendor 목록을 읽은 뒤 URL `vendor`가 목록에 없는 id면 선택은 "전체"로 보이고 조회에도 보내지 않는다(표시 = 조회 조건). 목록을 읽는 동안·실패하면 URL id를 조회에 쓰고 선택지에 "선택한 Vendor" 하나를 더해 선택된 상태로 보인다(실패하면 오류 배너). Product 텍스트 조건은 Vendor와 무관하게 유지된다(Vendor를 바꿔도 Product는 남고, Product만 검색해도 Vendor를 채우지 않는다).
 - **DL-R27** 정렬 머리글: 13열 중 Next Action·Due·Next Action 상태를 뺀 10열이 정렬 버튼이다(DL-R28 순서). 정렬 중인 열에만 방향 표시와 `aria-sort`가 있다. 지금 정렬하지 않는 열을 누르면 그 열의 자연 방향(금액·최종 업데이트 내림차순, 나머지 오름차순)으로 시작하고, 같은 열을 다시 누르면 방향을 바꾼다. 정렬을 바꾸면 1페이지로 간다. 정렬이 없는 주소는 최종 업데이트 내림차순(머리글에 표시)이다. URL의 정렬 값으로 머리글 표시를 복원한다. 행 순서는 서버 순서(DL-R13) 그대로다.
-- **DL-R28** 표 열(13개, 이 순서): Deal, 담당자, 고객사, 파트너사, Vendor, Status, Forecast, 금액(단위:원), Expected Close, 최종 업데이트, Next Action, Due, Next Action 상태(2026-11-16: 최종 업데이트를 Next Action 앞으로). 칸 값: Deal = 빠른 보기 토글 + 이름 링크(`/deals/<code>`) + 경고 배지(RK-R15); 담당자 = 이름(퇴사자는 "이름(퇴사)"); 고객사 = 고객 회사명; 파트너사 = 활성 파트너 회사명, 없으면 "—"; Vendor = 이름, 없으면 "—"; Status·Forecast = 코드 배지; 금액 = 원 단위 콤마; Expected Close = 날짜; Next Action = 기준 행 내용이 링크(`/deals/<code>?tab=actions`, 링크 안에는 내용만)이고 Due = 기한(기한초과면 강조, RK-R16), Next Action 상태 = 라벨(Open·종료(수행)·종료(미수행)); Next Action이 없으면 세 칸 모두 "—"이고 링크가 없다; 최종 업데이트 = 상대 일수(RK-R16), 마우스를 올리면 `YYYY-MM-DD`. Deal code는 화면 글자·접근성 이름·title 어디에도 보이지 않고 링크 주소에만 있다(키워드로 code를 검색하는 것은 된다). BANT 열·Status 체류 일수는 목록에 없다.
+- **DL-R28** 표 열(13개, 이 순서): Deal, 담당자, 고객사, 파트너사, Vendor, Status, Forecast, 금액(단위:원), Expected Close, 최종 업데이트, Next Action, Due, Next Action 상태(2026-11-16: 최종 업데이트를 Next Action 앞으로). 칸 값: Deal = 빠른 보기 토글 + 이름 링크(`/deals/<code>`) + 읽지 않은 Comment 배지(CM-R48, 0이면 없음, 2026-11-18) + 경고 배지(RK-R15); 담당자 = 이름(퇴사자는 "이름(퇴사)"); 고객사 = 고객 회사명; 파트너사 = 활성 파트너 회사명, 없으면 "—"; Vendor = 이름, 없으면 "—"; Status·Forecast = 코드 배지; 금액 = 원 단위 콤마; Expected Close = 날짜; Next Action = 기준 행 내용이 링크(`/deals/<code>?tab=actions`, 링크 안에는 내용만)이고 Due = 기한(기한초과면 강조, RK-R16), Next Action 상태 = 라벨(Open·종료(수행)·종료(미수행)); Next Action이 없으면 세 칸 모두 "—"이고 링크가 없다; 최종 업데이트 = 상대 일수(RK-R16), 마우스를 올리면 `YYYY-MM-DD`. Deal code는 화면 글자·접근성 이름·title 어디에도 보이지 않고 링크 주소에만 있다(키워드로 code를 검색하는 것은 된다). BANT 열·Status 체류 일수는 목록에 없다.
 - **DL-R29** 빠른 보기: Deal 칸의 토글 버튼(접근성 이름 "<Deal 이름> 빠른 보기", `aria-expanded`)을 누르면 행 아래에 13열 너비로 펼친다(다시 누르면 접는다). 항목: 견적(`<제출 여부> (<날짜>)`, 없으면 "—"), POC(같은 형식), 고객 담당자(이름·직급·이메일·전화 중 있는 값을 " · "로), 파트너 영업대표(같은 형식, 없으면 "파트너 없음"), Budget·Authority·Need·Timeline(고른 Label 이름, 고르지 않았으면 "—", Label 목록을 읽는 동안 "불러오는 중…", 실패하면 "불러오지 못함"), Users count(0도 "0", 천 단위 콤마), 구매절차(없으면 "—"), 링크 "상세 보기"(`/deals/<code>`). 목록은 빠른 보기를 열기 전에는 BANT Label 목록을 읽지 않는다(그래서 Label 조회 실패가 목록에 보이지 않는다).
 - **DL-R30** 인라인 편집 진입(목록 편집기): `canWrite`일 때만 Status·Forecast·금액·Expected Close 4칸이 버튼(접근성 이름 "<Deal 이름> <열 이름> 편집", 열 이름은 Status·Forecast·금액(단위:원)·Expected Close)이고, user에게는 값만 보인다. Deal 이름·담당자·Vendor 등 다른 칸은 편집할 수 없다. 버튼을 누르면 그 칸이 편집기가 되고 입력란에 포커스가 간다(저장·취소 버튼 없음).
   - Status·Forecast: 선택 상자에서 고르는 순간 저장 요청을 시작한다. 같은 값이면 요청 없이 닫는다. 바꾸지 않고 포커스가 나가면 원래 값으로 닫는다. (동기화 대화상자·서버 적용은 DD, Won 이탈 계약 처리는 LC.)
@@ -334,6 +336,8 @@ DL-R18~DL-R32.
 | DL-106 | 최종 업데이트일이 같은 Deal은 정렬 방향과 무관하게 Deal code 오름차순이다 | DL-R13, DL-UC1 | backend | `application/test_deal_list_period_sort_cases.py`, `repositories/test_deal_sort_contract.py`, `web/test_deal_list_openapi.py` |
 | DL-107 | Deal 목록의 연도 선택 상자 이름은 "Close 연도"이고 Expected Close 연도로 거르며 Dashboard·Forecast는 "연도" 그대로다 | DL-R24, DL-R21, DL-R9, DL-UC2 | frontend | `features/deals/list/DealsPage.closeYear.test.tsx` |
 | DL-108 | 화면: 예전 URL 키 solution은 조건·입력란·활성 필터·조건 기억에 쓰지 않는다 | DL-R20, DL-R31, DL-UC2 | frontend | `features/deals/list/DealsPage.memory.test.tsx` |
+| DL-109 | 화면: 읽지 않은 Comment가 있는 행은 Deal 이름 바로 오른쪽(경고 배지 앞)에 탭과 같은 배지를 보이고 0이면 없다 | DL-R28, CM-R48, CM-R39, CM-UC13 | frontend | `features/deals/list/DealsPage.commentBadge.test.tsx` |
+| DL-110 | 화면: 상세에서 Comment를 쓰거나 Owner가 읽음 처리한 뒤 목록으로 돌아오면 배지가 새 값이다 | DL-R28, CM-R48, CM-R44, CM-R38, CM-UC13 | frontend | `features/deals/list/DealsPage.commentBadge.test.tsx` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 하루 간격으로(각각 다른 날) 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -874,6 +878,16 @@ DL-R18~DL-R32.
 - When `/deals?solution=ITDR`를 열고, 이어서 `/deals?year=all&solution=ITDR`를 연 뒤 상세에 갔다가 상단 메뉴 Deals로 돌아온다
 - Then 첫 주소는 조건 없는 주소로 보아 `/deals?year=all`로 바뀐다(DL-R19). 둘째 주소의 목록 요청에 `product`가 없고 Product 입력란은 비어 있으며 두 Deal이 모두 보이고, 메뉴로 돌아온 주소에 `solution`이 없다
 
+### DL-109 화면: 읽지 않은 Comment가 있는 행은 Deal 이름 바로 오른쪽(경고 배지 앞)에 탭과 같은 배지를 보이고 0이면 없다
+- Given ROOT(admin) 로그인. Deal "ERP 교체"(읽지 않은 Comment 3건, 기한초과), "MFA 도입"(읽지 않은 Comment 0건, 읽은 Comment 2건), "IAM 구축"(읽지 않은 Comment 150건)이 있다
+- When `/deals?year=all`을 연다
+- Then "ERP 교체" Deal 칸에는 이름 링크, 배지 "3", "기한초과" 배지가 이 순서로 있다. 배지의 접근 이름과 title은 "읽지 않은 Comment 3건"이고, 링크의 접근 이름은 "ERP 교체" 그대로다. 배지는 링크·버튼이 아니다. "MFA 도입"에는 배지가 없다. "IAM 구축" 배지 글자는 "99+", 접근 이름은 "읽지 않은 Comment 150건"이다. KIM(sales)·LEE(user)로 열어도 같은 배지가 보인다
+
+### DL-110 화면: 상세에서 Comment를 쓰거나 Owner가 읽음 처리한 뒤 목록으로 돌아오면 배지가 새 값이다
+- Given Deal "ERP 교체"(Owner KIM, 읽지 않은 Comment 1건)
+- When (1) PARK(sales)이 `/deals?year=all`을 열고, "ERP 교체"의 Comments 탭에서 Comment를 저장하고, 상단 메뉴 Deals로 돌아온다. (2) 따로 KIM이 `/deals?year=all`을 열고, "ERP 교체"의 Comments 탭을 연 뒤(읽음 처리, CM-R38) 상단 메뉴 Deals로 돌아온다
+- Then (1) 처음 목록 배지는 "1"이고, 돌아온 목록 배지는 "2"다. (2) 처음 목록 배지는 "1"이고, 돌아온 목록에는 "ERP 교체" 배지가 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -887,3 +901,4 @@ DL-R18~DL-R32.
 | 2026-11-13 | DE 변경(Vendor 필수, DE-R7·SC-R22)에 따라 Vendor 없는 Deal을 전제한 DL-042 Given·Then과 DL-058 Given·Then 표현을 고침. 규칙(DL-R13 NULL 맨 뒤, DL-R28 "—")·동작은 그대로 | 변경: DL-042, DL-058 |
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "Deals 목록 검색조건 연도를 'Close 연도'로, 초기 정렬은 최종 업데이트 desc, 최종 업데이트 열을 Next Action 앞으로": DL-R24 선택 상자 이름 "Close 연도"(Dashboard·Forecast는 "연도" 유지), DL-R21·1장·화면 문구 표기, DL-R23 안내 문구 "Close 연도가 전체이면 …"(사용자 확인), DL-R28 열 순서(Expected Close 다음 최종 업데이트, 그 뒤 Next Action·Due·Next Action 상태). 초기 정렬은 이미 최종 업데이트 내림차순(DL-R13 서버 기본, DL-R27 머리글 표시, DL-R19 기본 조건 정렬 없음)이라 규칙·동작 변경 없이 DL-055로 확인. 서버·API·마이그레이션 변경 없음, **운영 코드 변경 필요**(frontend `DealFilterBar`·`DealsTable`·`DealRowItem`) | 신규: DL-107. 변경: DL-058(열 순서), DL-077(안내 문구). 확인만: DL-055. 영향(문구·라벨만 바뀌는 기존 테스트): `getByLabelText('연도')`를 쓰는 Deal 목록 테스트(DL-080·081·082·077 등 yearOptions·period·filters·today·memory), `features/deals/form/testHelpers.ts`, DSH-050(`DashboardPage.drillDown.test.tsx` 73행), 열 위치를 세는 DL-058·DL-059 테스트 |
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). 쿼리 `solution` → `product`(예전 이름은 폐지 파라미터 422, DL-R3), 행 키 `product`, 필터 칸 "Product"·URL 키 `product`, 예전 URL 키 `solution`은 무시(DL-R20·R31, 계획 Q1), 문구 "Product에는 NUL 문자를 쓸 수 없습니다". **API 호환 깨짐**(사용자 승인) | 신규 DL-108. 변경(표기·키): DL-006, DL-013, DL-014, DL-047, DL-048, DL-065, DL-067, DL-071, DL-072, DL-100 |
+| 2026-11-18 | 확정(2026-11-18 사용자 확인: 상세 응답 포함, 배지는 표시만, Owner 기준 읽음): 사용자 요청 "Deals 목록 Deal 이름 옆에 읽지 않은 Comment 수". DL-R14 행 키에 `unread_comment_count`(CM-R47, 하위 호환 추가), DL-R28 Deal 칸에 배지(CM-R48), 1장·2.2 참조. 정렬·필터·URL 키·조건 기억 변경 없음, 마이그레이션 없음, **운영 코드 변경 필요**(backend·frontend) | 신규 DL-109, DL-110. 영향: DL-048(키 집합 테스트), DL-058(Deal 칸 내용, 기존 Given에서는 배지 없음), 행 객체를 만드는 frontend 테스트 도우미(`unreadCommentCount` 필수) |

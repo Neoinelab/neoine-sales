@@ -21,6 +21,7 @@ def _view(*, issued: bool) -> DealView:
             last_updated_on=deal.created_at.astimezone().date(),
             license_contract_count=1,
             has_issued_license_contract=issued,
+            unread_comment_count=0,
         ),
         owner=UserRef(id=OWNER_ID, name="김영업", resigned=False, role=Role.SALES),
         customer=make_customer(),

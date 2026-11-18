@@ -52,6 +52,7 @@ DETAIL_KEYS = {
     "status_days",
     "license_contract_count",
     "has_issued_license_contract",
+    "unread_comment_count",
     "created_at",
     "updated_at",
     "partner_history",
@@ -586,3 +587,26 @@ async def test_an_anonymous_visitor_is_unauthenticated_on_every_deal_route(
     # then: 401 unauthenticated이고 Deal은 남는다
     problem(response, 401, "unauthenticated")
     assert stored_deal_codes(use_cases) == {CODE}
+
+
+async def test_detail_and_update_responses_carry_the_unread_comment_count() -> None:
+    """상세와 Deal Name 수정 응답에 읽지 않은 Comment 수가 있다.
+
+    테스트 코드: CM-087
+    """
+    # given: admin이 Owner가 아닌 Deal에 Comment 2건을 쓴다
+    use_cases = FakeUseCases()
+    await seed(use_cases)
+    async with clients(use_cases, {"boss": Role.ADMIN, "owner": Role.SALES}) as c:
+        for n in range(2):
+            written = await c["boss"].post(f"{BASE}/{CODE}/comments", json={"body": f"c{n}"})
+            assert written.status_code == 201, written.text
+
+        # when: 상세를 읽고 Owner가 Deal Name을 수정한다
+        detail = await c["owner"].get(f"{BASE}/{CODE}")
+        edited = await c["owner"].patch(f"{BASE}/{CODE}", json={"name": "이름 변경"})
+
+    # then: 둘 다 2다
+    assert detail.json()["unread_comment_count"] == 2
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["unread_comment_count"] == 2

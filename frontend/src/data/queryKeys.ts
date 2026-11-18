@@ -28,6 +28,8 @@ export const keys = {
   deals: ['deals'] as const,
   updatedPeriods: ['deals', 'updated-periods'] as const,
   dealYears: ['deals', 'years'] as const,
+  /** 모든 Deal 목록 쿼리(조건 무관). Comment 변경 뒤 행의 읽지 않은 수 배지를 다시 읽을 때 쓴다. */
+  dealLists: ['deals', 'list'] as const,
   dealList: (q: DealListQuery) => ['deals', 'list', q] as const,
   deal: (code: string) => ['deals', 'detail', code] as const,
   dealImpact: (code: string) => ['deals', 'impact', code] as const,

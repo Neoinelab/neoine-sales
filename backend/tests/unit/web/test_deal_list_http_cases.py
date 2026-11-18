@@ -25,7 +25,7 @@ ROW_KEYS = {
     "forecast_key", "revenue_amount", "revenue_date", "customer", "active_partner",
     "partner_links", "quote", "poc", "procurement", "bant", "next_action", "last_updated_on",
     "risk", "status_changed_on", "status_days", "license_contract_count",
-    "has_issued_license_contract", "created_at", "updated_at",
+    "has_issued_license_contract", "unread_comment_count", "created_at", "updated_at",
 }  # fmt: skip
 
 
@@ -566,3 +566,49 @@ async def test_unauthenticated_updated_periods_is_401() -> None:
         response = await http.get(f"{URL}/updated-periods")
     # then: 401 unauthenticated
     problem(response, 401, "unauthenticated")
+
+
+async def _comment(http: AsyncClient, code: str, body: str = "확인 요청") -> None:
+    response = await http.post(f"/api/v1/deals/{code}/comments", json={"body": body})
+    assert response.status_code == 201, response.text
+
+
+async def test_rows_carry_the_unread_comment_count_equal_to_the_comment_counts_unread() -> None:
+    """목록 행의 unread_comment_count는 그 Deal의 읽지 않은 수이고 comment-counts의 unread와 같다.
+
+    테스트 코드: CM-085
+    """
+    # given: Owner가 아닌 admin이 Comment 3건을 쓴 Deal D, Comment 없는 Deal F
+    use_cases = _use_cases()
+    d = await _register(use_cases)
+    f = await _register(use_cases, "other")
+    async with client_for(use_cases) as http:
+        for n in range(3):
+            await _comment(http, d, f"c{n}")
+
+        # when: 목록과 comment-counts를 읽는다
+        rows = {r["code"]: r for r in (await _get(http)).json()["items"]}
+        counts = (await http.get(f"/api/v1/deals/{d}/comment-counts")).json()
+
+    # then: D 행은 3(정수)이고 unread와 같으며 F 행은 0이다
+    assert rows[d]["unread_comment_count"] == 3
+    assert rows[d]["unread_comment_count"] == counts["unread"]
+    assert rows[f]["unread_comment_count"] == 0
+
+
+@pytest.mark.parametrize("param", ["unread_comment_count", "sort"])
+async def test_filtering_or_sorting_by_unread_comment_count_is_request_validation(
+    param: str,
+) -> None:
+    """읽지 않은 수로 거르는 파라미터와 그 이름의 정렬 값은 request-validation 422다.
+
+    테스트 코드: CM-088
+    """
+    # given: Deal 하나
+    use_cases = _use_cases()
+    await _register(use_cases)
+    async with client_for(use_cases) as http:
+        # when: unread_comment_count=1 또는 sort=unread_comment_count로 조회한다
+        response = await _get(http, {param: 1 if param != "sort" else "unread_comment_count"})
+    # then: 422 request-validation이다
+    problem(response, 422, "request-validation")

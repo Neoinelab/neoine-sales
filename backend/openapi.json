@@ -2609,6 +2609,11 @@
             "title": "Status Key",
             "type": "string"
           },
+          "unread_comment_count": {
+            "minimum": 0.0,
+            "title": "Unread Comment Count",
+            "type": "integer"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -2655,6 +2660,7 @@
           "status_days",
           "license_contract_count",
           "has_issued_license_contract",
+          "unread_comment_count",
           "created_at",
           "updated_at",
           "partner_history"
@@ -2965,6 +2971,11 @@
             "title": "Status Key",
             "type": "string"
           },
+          "unread_comment_count": {
+            "minimum": 0.0,
+            "title": "Unread Comment Count",
+            "type": "integer"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -3011,6 +3022,7 @@
           "status_days",
           "license_contract_count",
           "has_issued_license_contract",
+          "unread_comment_count",
           "created_at",
           "updated_at"
         ],

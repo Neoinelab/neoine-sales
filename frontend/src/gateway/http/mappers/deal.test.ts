@@ -53,6 +53,7 @@ describe('toDealRow', () => {
       procurement: '입찰',
       licenseContractCount: 3,
       hasIssuedLicenseContract: true,
+      unreadCommentCount: 0,
       bant: { budget: 1, authority: null, need: 3, timeline: null },
       nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
       lastUpdatedOn: '2026-10-15',
@@ -322,5 +323,22 @@ describe('product request bodies', () => {
     expect(result1).not.toHaveProperty('product')
     expect(result2).toEqual({ product: 'MFA' })
     expect(result3).not.toHaveProperty('solution_id')
+  })
+})
+
+describe('unread_comment_count 매핑', () => {
+  // 서버의 읽지 않은 Comment 수를 목록 행과 상세 모두에서 unreadCommentCount로 옮긴다.
+  // 테스트 코드: CM-090
+  it('maps unread_comment_count to unreadCommentCount for the list row and the detail', () => {
+    // given: 읽지 않은 수가 3인 행과 0인 행, 3인 상세(생성 타입 갱신 전이라 필드는 덧붙여 만든다)
+    const withCount = (n: number) => ({ unread_comment_count: n }) as never
+    // when: 각각 바꾼다
+    const three = toDealRow(serverDealRow(withCount(3)))
+    const zero = toDealRow(serverDealRow(withCount(0)))
+    const detail = toDealDetail(serverDealDetail(withCount(3)))
+    // then: 행은 3·0, 상세는 3이다
+    expect(three.unreadCommentCount).toBe(3)
+    expect(zero.unreadCommentCount).toBe(0)
+    expect(detail.unreadCommentCount).toBe(3)
   })
 })

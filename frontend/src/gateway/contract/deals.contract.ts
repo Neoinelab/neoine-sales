@@ -713,5 +713,35 @@ export function dealsContract(make: MakeGateway): void {
       expect(moved.deal.statusDays).toBe(0)
       await sales.deals.remove(created.code, created.code)
     })
+
+    // 목록·상세의 unreadCommentCount는 그 Deal의 읽지 않은 Comment 수이고 comments.counts의 unread와 같다.
+    // 테스트 코드: CM-090
+    it('gives the unread comment count on the list row and the detail, equal to comments.counts and dropping to 0 once the owner reads', async () => {
+      // given: Owner(sales)의 Deal에 admin이 Comment 2건을 쓰고 Owner가 1건을 쓴다(Owner 글은 읽음)
+      const sales = await make('sales')
+      const deal = await sales.deals.create(await validInput(sales))
+      await sales.comments.create(deal.code, { body: 'Owner 글' })
+      const admin = await make('admin')
+      const first = await admin.comments.create(deal.code, { body: '하나' })
+      const second = await admin.comments.create(deal.code, { body: '둘' })
+
+      // when: 목록과 상세와 집계를 읽는다
+      const rowOf = async () => (await admin.deals.list({ keyword: deal.name })).items.find((r) => r.code === deal.code)
+      const row = await rowOf()
+      const detail = await admin.deals.get(deal.code)
+      const counts = await admin.comments.counts(deal.code)
+      // then: 행·상세는 2이고 집계의 unread와 같다
+      expect(row?.unreadCommentCount).toBe(2)
+      expect(detail.unreadCommentCount).toBe(2)
+      expect(counts.unread).toBe(2)
+
+      // when: Owner가 둘 다 읽음 처리하고 다시 읽는다
+      const owner = await make('sales')
+      await owner.comments.markRead(deal.code, [first.id, second.id])
+      // then: 행·상세가 0이다 (끝에 정리한다)
+      expect((await owner.deals.get(deal.code)).unreadCommentCount).toBe(0)
+      expect((await (await make('admin')).deals.list({ keyword: deal.name })).items.find((r) => r.code === deal.code)?.unreadCommentCount).toBe(0)
+      await owner.deals.remove(deal.code, deal.code)
+    })
   })
 }

@@ -5,6 +5,7 @@ import { formatRelativeDays } from '../../../shared/format'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
 import { userLabel } from '../../../shared/model/period'
 import type { DealRow } from '../../../shared/model/types'
+import { CommentBadge } from '../../../shared/ui/CommentBadge'
 import { RiskBadge, riskRowClass } from '../../../shared/ui/RiskBadge'
 import { InlineCell } from './InlineCell'
 import { QuickView } from './QuickView'
@@ -65,6 +66,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
           </button>
           <span className="deal-name">
             <Link to={`/deals/${row.code}`}>{row.name}</Link>
+            <CommentBadge count={row.unreadCommentCount} />
             <RiskBadge risk={row.risk} />
           </span>
           </div>

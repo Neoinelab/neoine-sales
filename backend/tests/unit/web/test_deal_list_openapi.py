@@ -120,3 +120,32 @@ def test_the_period_parameters_and_the_sort_value_keep_their_names(
     row = contract["components"]["schemas"]["DealRowResponse"]["properties"]
     assert {"last_updated_on", "status_changed_on"} <= set(row)
     assert not {"last_updated_at", "status_changed_at"} & set(row)
+
+
+@pytest.mark.parametrize("name", ["DealRowResponse", "DealDetailResponse"])
+def test_deal_responses_declare_a_required_non_negative_integer_unread_comment_count(
+    contract: dict[str, Any], name: str
+) -> None:
+    """Deal 행·상세 응답에 required 정수 unread_comment_count(minimum 0, nullable 아님)가 있다.
+
+    테스트 코드: CM-089
+    """
+    # when: 응답 스키마를 읽는다
+    schema = contract["components"]["schemas"][name]
+    prop = schema["properties"]["unread_comment_count"]
+
+    # then: required이고 type integer, minimum 0이며 nullable이 아니다
+    assert "unread_comment_count" in schema["required"]
+    assert (prop["type"], prop["minimum"]) == ("integer", 0)
+    assert "anyOf" not in prop
+
+
+def test_the_list_query_parameters_do_not_include_unread_comment_count(
+    parameters: dict[str, dict[str, Any]],
+) -> None:
+    """GET /deals 쿼리 파라미터에 unread_comment_count가 없다.
+
+    테스트 코드: CM-089
+    """
+    # then: 읽지 않은 수로 거르거나 정렬하는 파라미터는 없다
+    assert "unread_comment_count" not in parameters

@@ -104,6 +104,7 @@ class DealRowResponse(BaseModel):
     status_days: int
     license_contract_count: int
     has_issued_license_contract: bool
+    unread_comment_count: Annotated[int, Field(ge=0)]
     created_at: ServerDateTime
     updated_at: ServerDateTime
 
@@ -178,6 +179,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "status_days": view.status_days,
         "license_contract_count": view.item.license_contract_count,
         "has_issued_license_contract": view.item.has_issued_license_contract,
+        "unread_comment_count": view.item.unread_comment_count,
         "created_at": deal.created_at,
         "updated_at": deal.updated_at,
     }

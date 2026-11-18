@@ -2275,6 +2275,8 @@ export interface components {
             status_days: number;
             /** Status Key */
             status_key: string;
+            /** Unread Comment Count */
+            unread_comment_count: number;
             /**
              * Updated At
              * Format: date-time
@@ -2376,6 +2378,8 @@ export interface components {
             status_days: number;
             /** Status Key */
             status_key: string;
+            /** Unread Comment Count */
+            unread_comment_count: number;
             /**
              * Updated At
              * Format: date-time

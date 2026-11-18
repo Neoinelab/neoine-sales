@@ -136,8 +136,11 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
       : null
   const { vendorId, ...rest } = clone(deal)
   const vendor = data.vendors.find((v) => v.id === vendorId)
+  // CM-R47: Deal Owner 기준으로 읽지 않은(readAt이 없는) 이 Deal의 Comment 수. 서버와 같은 값이다.
+  const unreadCommentCount = data.comments.filter((c) => c.dealCode === deal.code && c.readAt === null).length
   return {
     ...rest,
+    unreadCommentCount,
     vendor: vendor ? { id: vendor.id, name: vendor.name } : null,
     owner: userRef(data, deal.ownerId),
     customer: clone(contactOf(data, deal.customerContactId)),

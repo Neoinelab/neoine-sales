@@ -52,6 +52,7 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     statusChangedOn: row.status_changed_on,
     statusDays: row.status_days,
     risk: row.risk,
+    unreadCommentCount: row.unread_comment_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

@@ -88,6 +88,7 @@ function detail(over: Partial<DealDetail> = {}): DealDetail {
     activePartner: contact(9, '에이원시스템', '표성호'),
     licenseContractCount: 0,
     hasIssuedLicenseContract: false,
+    unreadCommentCount: 0,
     nextAction: null,
     lastUpdatedOn: '2026-10-01',
     risk: null,

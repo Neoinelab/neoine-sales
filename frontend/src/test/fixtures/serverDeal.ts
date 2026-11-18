@@ -46,6 +46,7 @@ export function serverDealRow(over: Partial<Schemas['DealRowResponse']> = {}): S
     bant: { budget: null, authority: null, need: null, timeline: null },
     license_contract_count: 0,
     has_issued_license_contract: false,
+    unread_comment_count: 0,
     next_action: null,
     last_updated_on: '2026-10-15',
     risk: null,

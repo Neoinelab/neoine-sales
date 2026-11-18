@@ -55,6 +55,7 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); border-col
 .tabs-prominent .tab[aria-selected='true'] { font-weight: 700; }
 .tabs-prominent .tab > span { font-size: inherit; }
 .tabs-prominent .tab-icon { display: inline-flex; }
+.comment-badge { display: inline-block; min-width: 1.4em; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.5; text-align: center; }
 .tab .tab-badge { display: inline-block; min-width: 1.4em; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.5; text-align: center; }
 .tabs-prominent .tab > .tab-badge { font-size: 0.75rem; }
 

@@ -69,12 +69,12 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-16 사용자 확인) |
 | CT | [contacts.md](contacts.md) (고객·파트너 연락처) | 확정(2026-11-10) |
 | DE | [deal-entry.md](deal-entry.md) (Deal 등록·수정) | 확정(2026-11-16 사용자 확인) |
-| DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-17 사용자 확인) |
-| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-16 사용자 확인) |
+| DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-18) |
+| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-18) |
 | RK | [deal-risk.md](deal-risk.md) (경고·파생 값·경고 기준) | 확정(2026-11-10) |
 | AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-17 사용자 확인) |
 | NA | [next-action.md](next-action.md) (Next Action 상태·Action 검색) | 확정(2026-11-17 사용자 확인) |
-| CM | [deal-comments.md](deal-comments.md) (Deal·Action Comment, Memo 분리) | 확정(2026-11-17 사용자 확인) |
+| CM | [deal-comments.md](deal-comments.md) (Deal·Action Comment, Memo 분리) | 확정(2026-11-18) |
 | AT | [deal-attachments.md](deal-attachments.md) (Deal 첨부 파일) | 확정(2026-11-10) |
 | FC | [forecast.md](forecast.md) (Forecast: 실시간·월말 스냅숏) | 확정(2026-11-13 사용자 확인) |
 | DSH | [dashboard.md](dashboard.md) (Dashboard) | 확정(2026-11-16) |
@@ -108,7 +108,7 @@ API 경로는 `/api/v1/` 접두어를 뺀 값입니다. "범위 밖" 칸은 그 
 | RK | 경고·파생 값 | 기한 초과·미업데이트 판정과 범례, Status 체류 일수·`status_changed_on`, 최종 업데이트·Next Action 기준 행, `/alert-settings`(Admin > 경고 기준) | Next Action 상태 변경(NA), 목록 필터 UI(DL) |
 | AC | Action 등록·수정·삭제 | 상세 Actions 탭 입력·목록·Action 상세 팝업(인라인 수정·삭제), `/deals/{code}/actions`(등록·기본 목록), `/deal-actions/{id}`(수정·삭제), Status 변경 동반·이전 Next Action 종료, Action 유형 선택, 등록·수정의 수행일 지정 | Next Action 상태·검색 조건(NA), 계약 처리(LC), 등록 `comment`가 만드는 Comment·삭제 때 Comment 처리(CM), Comment 열·팝업 Comment 영역(CM) |
 | NA | Next Action 상태·Action 검색 | `/deal-actions/{id}/next-action-status`, Action 목록 검색 조건(`next_action_status`·기간 등), Actions 탭 상태 표시·검색 바 | Deal 목록의 Next Action 상태 필터(DL), 종료 Comment(CM) |
-| CM | Deal·Action Comment | `/deals/{code}/comments`, `/deal-comments/{id}`(GET·DELETE), Owner 읽음(`/deals/{code}/comment-reads`)·읽지 않은 수(`/comment-counts`), 화면(Comments 탭·Actions 표 Comment 열·Action 상세 팝업 Comment 영역·배지), Action 등록 `comment`·종료 Comment·Action/Deal 삭제 때 Comment 처리, Comment 이력(구분 `comment`), 기존 Memo 이전 | Reports `action.comment` 필드(RQ), 리비전 그래프(SC), 탭 틀(DD-R27), Deals 목록 배지(요청 없음) |
+| CM | Deal·Action Comment | `/deals/{code}/comments`, `/deal-comments/{id}`(GET·DELETE), Owner 읽음(`/deals/{code}/comment-reads`)·읽지 않은 수(`/comment-counts`), 화면(Comments 탭·Actions 표 Comment 열·Action 상세 팝업 Comment 영역·배지, Deal 응답 `unread_comment_count`·Deals 목록 배지), Action 등록 `comment`·종료 Comment·Action/Deal 삭제 때 Comment 처리, Comment 이력(구분 `comment`), 기존 Memo 이전 | Reports `action.comment` 필드(RQ), 리비전 그래프(SC), 탭 틀(DD-R27), Deals 목록 표의 나머지 칸(DL-R28) |
 | AT | Deal 첨부 파일 | 상세 첨부 패널, `/deals/{code}/attachments`, `/attachments/{id}`·`/download`, 파일 이름·확장자 규칙, 같은 이름 처리, 저장 실패 정리 | 계약 첨부(LC), 저장 위치 설정(IN) |
 | FC | Forecast | `/forecast` 화면, `/forecast/summary`, `/forecast/snapshots*`, 월말 스냅숏 스케줄러(`PeriodicTask`·`JobLock`) | Deal 조건 해석(DL) |
 | DSH | Dashboard | `/dashboard` Status·Forecast 탭, `/dashboard/summary`, Drill-down 주소 | 이동한 Deal 목록의 조건 해석(DL) |

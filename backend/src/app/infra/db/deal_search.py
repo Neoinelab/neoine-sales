@@ -22,6 +22,7 @@ from app.infra.db.deal_list_order import order_clause
 from app.infra.db.deal_risk import not_closed_condition, overdue_condition, stale_condition
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models_catalog import CodeRow
+from app.infra.db.models_comment import DealCommentRow
 from app.infra.db.models_contact import ContactRow
 from app.infra.db.models_deal import DealPartnerRow, DealRow
 from app.infra.db.models_license_contract import ISSUED_STATUSES, LicenseContractRow
@@ -152,6 +153,16 @@ def _contract_count() -> ColumnElement[int]:
     )
 
 
+def _unread_comment_count() -> ColumnElement[int]:
+    """이 Deal의 읽지 않은 Comment 수(read_at IS NULL, 부분 인덱스 사용)."""
+    return (
+        select(func.count(DealCommentRow.id))
+        .where(DealCommentRow.deal_id == DealRow.id, DealCommentRow.read_at.is_(None))
+        .correlate(DealRow)
+        .scalar_subquery()
+    )
+
+
 def _has_issued_contract() -> ColumnElement[bool]:
     """이 Deal에 발급 상태(신규·갱신) 라이선스 계약이 있는지."""
     return (
@@ -175,6 +186,7 @@ def item_select() -> ItemSelect:
             LATEST_NEXT.c.due_date,
             LATEST_NEXT.c.next_action_status.label("basis_status"),
             _contract_count().label("license_contract_count"),
+            _unread_comment_count().label("unread_comment_count"),
             _has_issued_contract().label("has_issued_license_contract"),
         )
         .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_id == DealRow.id)

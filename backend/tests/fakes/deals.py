@@ -213,6 +213,15 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             has_issued_license_contract=any(
                 c.deal_code == deal.id and c.status.is_issued for c in contracts
             ),
+            unread_comment_count=self._unread_comment_count(deal.id),
+        )
+
+    def _unread_comment_count(self, code: DealCode) -> int:
+        """그 Deal 소속(Deal·Action Comment 모두) read_at이 없는 Comment 수(CM-R47)."""
+        if self._comments is None:
+            return 0
+        return sum(
+            1 for c in self._comments._items.values() if c.deal_code == code and c.read_at is None
         )
 
     async def get_item(self, code: DealCode) -> DealListItem:

@@ -1,4 +1,4 @@
-# Deal Comment   (feature 코드: CM, 상태: 확정(2026-11-17 사용자 확인))
+# Deal Comment   (feature 코드: CM, 상태: 확정(2026-11-18 사용자 확인))
 
 > 사용자 요청(2026-11-16): "Action은 Memo라는 항목을 가지고 있다. 이 memo의 용도를 변경하고자 한다. 일단 용어부터 memo에서 Comment라는 것으로 변경하며, Comment는 특정 Deal 자체 또는 지금처럼 특정 Action에 대한 comment일 수 있다. 따라서, comment는 deal과 deal에 연결된 특정 action과 연결될 수 있기에 comment는 별도의 엔티티로 분리되어야 한다. 먼저 backend 로직 변경을 해주도록 한다."(1차 요청은 backend였고 프런트는 아래 후속 요청으로 추가)
 >
@@ -7,6 +7,8 @@
 > 사용자 요청(2026-11-17, 프런트) 원문: "front는 새로운 Comments 라는 탭이 Deal 상세 페이지 가장 우측에 추가되도록 한다. … action에 대한 팝업 창 또는 comment 탭에서 디폴트로 리스트 하단에 커멘트를 입력할 수 있는 입력 필드와 저장 버튼이 나오도록 한다."
 >
 > 사용자 결정(2026-11-17, 후속): Comment는 다른 사람이 Deal Owner에게 전하는 메시지다. 읽음은 Deal Owner가 읽었는지를 나타내는 Comment 속성(`read_at`)이다. Comment는 수정할 수 없다(`PUT` 폐지). 연결 Action 요약은 응답에 넣는다. 목록은 최근순이다. 기존 Comment는 읽음으로 채운다.
+>
+> 사용자 요청(2026-11-18): "deal 목록에서 읽지 않은 comments의 값(comments 탭과 동일하게)을 deal 제목 바로 옆에 보여주도록 한다." → Deal 응답 `unread_comment_count`(CM-R47)와 Deals 목록 배지(CM-R48). 확정(2026-11-18 사용자 확인).
 
 ## 1. 개요
 
@@ -20,8 +22,10 @@
   - Action 검색 키워드가 Action Comment 본문도 찾는 것
   - 기존 `deal_actions.memo` 값을 Comment로 옮기고 컬럼을 없애는 마이그레이션
   - (2026-11-17 추가) Owner 읽음 상태 `deal_comments.read_at`(CM-R26~R31), 연결 Action 요약 응답(CM-R9), 화면: Comments 탭·Actions 표 Comment 열·Action 상세 팝업 Comment 영역(CM-R32~R46)
+  - (2026-11-18 추가) Deal 응답(목록 행·상세)의 읽지 않은 Comment 수 `unread_comment_count`(CM-R47), Deals 목록 Deal 이름 옆 배지(CM-R48)
 - 범위 밖(다른 feature 또는 후속)
-  - Comment 수정(2026-11-17 폐지), Deals 목록의 읽지 않은 수 배지(요청 없음), 알림(메일·푸시)·멘션·첨부(요청 없음)
+  - Comment 수정(2026-11-17 폐지), 알림(메일·푸시)·멘션·첨부(요청 없음), 읽지 않은 수로 Deals 목록을 거르거나 정렬하기(요청 없음)
+  - Deals 목록 표의 나머지 칸·열 순서 → DL(DL-R28), Deal 상세·등록·수정 응답의 나머지 필드 → DD(DD-R2)·DE
   - Action 등록·수정·삭제의 나머지 규칙 → AC, Next Action 상태 변경의 나머지 규칙 → NA, Reports `deal.comment`·`action.comment` 필드 → RQ(RQ-R60·R61), 리비전 그래프·스키마 공통 규칙 → SC(SC-R24·R25), History 목록·자르기 → DD(DD-R17·R20), 사용자 연결 → US(US-R17)
   - Comment 첨부·멘션·알림 — 요청 없음
 - 관련 화면·메뉴: Deals → Deal 상세의 "Comments" 탭(맨 오른쪽), Actions 탭(Comment 열·Action 상세 팝업), Deal History 탭(구분 Comment), Deal 삭제 확인.
@@ -74,6 +78,7 @@
   - `async def unread_counts(self, deal_code: DealCode) -> UnreadCommentCounts`: `read_at IS NULL`인 행을 센다. `by_action`에는 1 이상인 Action만 넣는다.
   - `update`(본문 저장)는 삭제한다.
 - 연결 Action 요약은 유스케이스가 `uow.deal_actions.search(DealActionQuery(deal_code=…))` 결과에서 id로 찾아 붙인다. Port를 바꾸지 않는다. infra가 조인 쿼리로 대체하려면 core·infra가 합의한다.
+- (2026-11-18 추가) Deal 읽기 모델 `DealListItem`(application/ports/deal_repository.py)에 `unread_comment_count: int`(0 이상)가 추가된다. `DealRepository.search`·`get_item`이 같은 질의 안에서 채운다(Deal 행 상관 스칼라 서브쿼리 `count(*) … WHERE deal_comments.deal_id = deals.id AND read_at IS NULL`, 부분 인덱스 `ix_deal_comments_deal_id_unread` 사용, 행마다 따로 조회하지 않음). 새 Port·새 메서드·새 컬럼·마이그레이션은 없다.
 
 ### 2.3 비즈니스 규칙
 
@@ -144,7 +149,7 @@ Owner 읽음 상태(2026-11-17 추가)
   - `unread`는 그 Deal 소속 Comment(Deal Comment와 Action Comment) 중 `read_at`이 null인 수다.
   - `by_action`에는 읽지 않은 Comment가 1건 이상인 Action만 `action_id` 오름차순으로 넣는다. 다른 Deal의 Comment는 섞이지 않는다.
   - 없는 Deal·형식이 틀린 code는 404 "Deal을 찾을 수 없습니다."다.
-  - 결정 근거(2026-11-17): Deal 응답·Action 응답에 필드를 넣는 대신 집계 경로 하나로 준다. 그러면 DD·AC 응답 계약과 Action 응답을 만드는 유스케이스 5곳을 바꾸지 않는다. Comment 작성·삭제·읽음 처리 뒤에는 이 집계 하나만 다시 읽으면 된다.
+  - 결정 근거(2026-11-17): Action 응답에 필드를 넣는 대신 집계 경로 하나로 준다. 그러면 AC 응답 계약과 Action 응답을 만드는 유스케이스 5곳을 바꾸지 않는다. Deal 상세 화면은 계속 이 경로를 쓴다(CM-R39). (2026-11-18) Deals 목록용으로 Deal 응답에 같은 값 `unread_comment_count`(CM-R47)를 추가했다.
 - **CM-R30** 읽음 시각은 Comment 행에 있으므로 Comment·Action·Deal을 지우면 함께 사라진다. 사용자 연결(US-R17)은 바뀌지 않는다(새 사용자 FK 없음).
 - **CM-R31** 마이그레이션은 새 리비전으로 한다(down_revision `d2f6b8a4c931`, expand). 순서는 다음과 같다.
   - ① `deal_comments.read_at TIMESTAMPTZ NULL`을 추가한다.
@@ -153,6 +158,15 @@ Owner 읽음 상태(2026-11-17 추가)
   - upgrade에는 `DELETE`·`TRUNCATE`·컬럼 drop이 없다. 구 앱은 새 컬럼을 무시하므로 코드만 롤백해도 동작한다. 그 뒤 생긴 Comment는 null(읽지 않음)로 남는다.
   - downgrade는 인덱스·CHECK·`read_at`을 drop한다. 읽음 시각만 사라지고 다른 데이터는 그대로다. WARNING 로그에 읽음 행 수를 남긴다.
   - product 적용은 사람 승인과 `pg_dump` 뒤에만 한다.
+
+Deal 응답의 읽지 않은 수(2026-11-18 추가)
+- **CM-R47** Deal을 돌려주는 응답에 `unread_comment_count`가 있다. 대상은 `GET /deals` 행 `DealRowResponse`(DL-R14)와 `DealDetailResponse`(DD-R2, 상세·등록·수정·변경 적용 응답 포함)다.
+  - 형식: JSON 정수, 0 이상, 키는 항상 있고 null이 아니다.
+  - 값: 그 Deal 소속 Comment(Deal Comment와 Action Comment) 중 `read_at`이 null인 수다. 같은 순간 `GET /deals/{code}/comment-counts`의 `unread`(CM-R29)와 같다. 다른 Deal의 Comment는 섞이지 않는다.
+  - 응답할 때마다 계산하고 저장하지 않는다. 그래서 Comment 작성·삭제·읽음 처리, Action·Deal 삭제가 다음 조회에 바로 반영된다. Deal 값과 `updated_at`·`last_updated_on`은 이 값 때문에 바뀌지 않는다.
+  - 보는 사람과 무관하게 같다(CM-R26). 모든 역할이 같은 값을 받는다.
+  - 목록 조건·정렬·`total`·페이지에 영향이 없다. 이 값으로 거르거나 정렬하는 파라미터는 없다. `unread_comment_count` 쿼리나 `sort=unread_comment_count`를 보내면 DL-R3·DL-R13대로 422 `request-validation`이다.
+  - 목록은 한 질의 안에서 센다(2.2). 행마다 집계 경로를 부르지 않는다.
 
 마이그레이션(기존 Memo 이전과 컬럼 제거)
 - **CM-R21** 리비전(SC-R24)은 한 트랜잭션에서 ① `uq_deal_actions_id` 추가 → ② `deal_comments` 생성 → ③ 기존 Memo 복사(CM-R22) → ④ 건수 점검 → ⑤ `deal_actions.memo` drop(CM-R23) 순으로 적용한다. upgrade에 `DELETE`·`UPDATE`·`TRUNCATE`가 없다.
@@ -205,6 +219,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - Reports 카탈로그: `action.memo` → `action.comment`(RQ-R60, **호환 깨짐**), `deal.comment` 추가(RQ-R61, 하위 호환 추가).
 - OpenAPI: Comment 경로 5개·작업 6개(`DELETE·GET /api/v1/deal-comments/{comment_id}`, `GET /api/v1/deals/{code}/comment-counts`, `POST /api/v1/deals/{code}/comment-reads`, `GET·POST /api/v1/deals/{code}/comments`; 수정 `PUT` 없음)(라우터 태그 `deal-comments`, 쓰기는 403·404·422, 조회는 404·422 문서화), `DealCommentResponse`의 `action_id`는 required + nullable, `deal_code`는 required + non-null, `body`에 `maxLength`가 없다.
 - (2026-11-17) `PUT /deal-comments/{id}`·`DealCommentUpdateRequest` 삭제(**API 호환 깨짐**, 사용자 결정, 클라이언트는 이 저장소 프런트뿐). `DealCommentResponse`에 `action`(nullable 객체 `DealCommentActionSummary` `{id, acted_on, action, next_action}`)과 `read_at`(nullable) 추가(하위 호환 추가). 목록 순서 최근순(CM-R7, 동작 변경). 새 경로는 `comment-counts`·`comment-reads` 2개(태그 `deal-comments`).
+- (2026-11-18) `DealRowResponse`·`DealDetailResponse`에 required 정수 `unread_comment_count`(minimum 0) 추가(CM-R47, 하위 호환 추가). `GET /deals` 쿼리 파라미터는 그대로다. 마이그레이션 없음.
 
 ### 2.7 화면 동작
 
@@ -252,7 +267,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
   - Comments 탭 배지는 `GET /deals/{code}/comment-counts`의 `unread`다. Actions 표 Comment 열 배지는 그 Action의 `by_action` 값이고, 없으면 0이다.
   - 1 이상일 때만 숫자를 보이고, 100 이상은 "99+"다. 0이면 배지가 없다.
   - 숫자는 접근 이름에 들어간다(탭 "Comments 읽지 않은 Comment 3건", 아이콘은 CM-R40).
-  - Deal 상세를 열면 탭과 무관하게 집계를 한 번 읽는다. Actions 탭 이름과 Deals 목록에는 배지가 없다.
+  - Deal 상세를 열면 탭과 무관하게 집계를 한 번 읽는다. Actions 탭 이름에는 배지가 없다. Deals 목록 배지는 CM-R48이다(2026-11-18).
 - **CM-R40** Actions 표 Comment 열(AC-R21의 7번째, 맨 오른쪽): 머리글은 "Comment"(정렬 없음)다.
   - 행마다 말풍선 아이콘 버튼이 있다. 접근 이름은 `canWrite`이면 "Comment 추가", user이면 "Comment 보기"다. 읽지 않은 수가 있으면 뒤에 " (읽지 않은 <N>건)"을 붙인다. 버튼 옆에 숫자 배지(CM-R39)가 있다.
   - 모든 역할에게 보인다.
@@ -267,10 +282,10 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - **CM-R42** Action 추가 팝업(AC-R23)에는 Comment 칸(라벨 "Comment", 여러 줄, 선택)이 있다. 등록 요청의 `comment`로 보낸다(AC-R32). Owner가 등록하면 읽음으로, 다른 사람이 등록하면 읽지 않음으로 생긴다.
 - **CM-R43** 종료 대화상자(NA-R22)의 글 칸은 "Comment에 남길 내용(선택)"이고, 요청의 `comment`로 보낸다(NA-R30). 성공 뒤 상세 팝업이 열려 있으면 Comment 영역 맨 위에 새 Comment가 보인다.
 - **CM-R44** 캐시:
-  - Comment 작성·삭제가 성공하면 그 Deal의 Comment 목록, 읽지 않은 수, Deal History를 다시 읽는다. Deal·Action 목록은 다시 읽지 않는다.
+  - Comment 작성·삭제가 성공하면 그 Deal의 Comment 목록, 읽지 않은 수, Deal History와 Deal 목록(모든 조건, 키 `['deals','list']`)을 다시 읽는다(목록 배지 CM-R48, 2026-11-18). Deal 상세 응답은 화면이 이 값을 쓰지 않으므로 다시 읽지 않는다. Action 목록도 다시 읽지 않는다.
   - Action 등록·삭제·상태 변경이 성공하면 기존 무효화(AC·NA)에 Comment 목록과 읽지 않은 수를 더한다.
   - Action 수정이 성공하면 Comment 목록을 다시 읽는다(연결 Action 요약이 바뀐다).
-  - 읽음 처리가 성공하면 Comment 목록과 읽지 않은 수만 다시 읽는다.
+  - 읽음 처리 요청이 끝나면(성공·실패 모두) Comment 목록, 읽지 않은 수와 Deal 목록(`['deals','list']`)만 다시 읽는다.
 - **CM-R45** 게이트웨이(`gateway/http`, `comments`): 다음 메서드를 둔다.
   - `list(dealCode, {actionId?})` = `GET /deals/{code}/comments`(actionId가 있을 때만 `action_id` 쿼리)
   - `create(dealCode, {body, actionId})` = `POST /deals/{code}/comments`(actionId가 없으면 `action_id`를 생략)
@@ -287,6 +302,15 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
   - CM-R19: 검색어.
   - CM-R20: 사용자 연결.
   - CM-R26~R29: Owner 읽음, 읽음 처리, 읽지 않은 수.
+  - CM-R47: Deal 목록 행·상세의 `unreadCommentCount`(그 Deal의 읽지 않은 Comment 수).
+- **CM-R48** Deals 목록 배지(2026-11-18, 화면 `/deals`):
+  - 위치: 표 Deal 칸에서 Deal 이름 링크 **바로 오른쪽**, 경고 배지(RK-R15) **앞**이다. 배지는 링크 밖에 있다.
+  - 값: 그 행의 `unreadCommentCount`(CM-R47)다. 목록은 Comment 집계 경로(`comments.counts`)를 행마다 부르지 않는다.
+  - 표기는 Comments 탭 배지(CM-R39)와 같다. 1 이상일 때만 숫자를 보이고, 100 이상은 "99+"다. 0이면 배지가 없다(공통 함수 `badgeText`, CM-083).
+  - 모양은 Comments 탭 배지와 같다(같은 색·크기의 둥근 숫자 배지). 표기 규칙은 탭과 같은 함수(`badgeText`)를 쓰고, 목록 배지는 `shared/ui/CommentBadge.tsx`다(탭 배지 `.tab-badge`와 모양을 맞춘 별도 컴포넌트).
+  - 접근 이름은 "읽지 않은 Comment <N>건"이다. N은 실제 수이고 99+로 보여도 실제 수를 쓴다. 마우스를 올리면 같은 문구(title)가 보인다.
+  - 배지는 누를 수 없다(링크·버튼 아님, Tab 순서에 들지 않음). Deal 이름 링크의 접근 이름은 Deal 이름 그대로다.
+  - 모든 역할(admin·sales·user)에게 같게 보인다. 빠른 보기·인라인 편집·정렬 머리글·열 순서는 바뀌지 않는다.
 
 ### 2.8 오류와 메시지
 
@@ -376,6 +400,14 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - 행위자: 보기는 모든 역할, 쓰기는 sales·admin(남의 Action 포함)
 - 기본 흐름: Actions 표의 Comment 아이콘을 누른다. Action 상세 팝업이 열리고 맨 아래에 그 Action의 Comment 목록과 입력 칸이 있으며 입력 칸에 포커스가 간다. 쓰고 저장하면 그 Action의 Comment가 된다(CM-R40, R41, R35).
 
+### CM-UC13 Deals 목록에서 읽지 않은 Comment 확인
+- 행위자: 로그인한 모든 역할(주로 Deal Owner sales)
+- 사전 조건: 다른 사람이 Deal에 Comment를 남겼다
+- 기본 흐름: Deals 목록을 연다. 읽지 않은 Comment가 있는 Deal은 이름 바로 오른쪽에 배지(수)가 보인다. 이름을 눌러 상세에서 Comments 탭을 연다(Owner면 읽음 처리, CM-R38). 목록으로 돌아오면 배지가 사라져 있다(CM-R47·R48·R44).
+- 대안: Owner가 아닌 사람이 상세를 열면 읽음 처리하지 않으므로 목록 배지가 그대로다.
+- 예외: 목록을 읽지 못하면 DL-R18의 오류 배너다(배지만 따로 실패하지 않는다).
+- 결과: 목록에서 어느 Deal에 읽지 않은 Comment가 몇 건인지 안다.
+
 ## 4. BDD 테스트 케이스
 
 | 코드 | 케이스 | 규칙·UC | 층 | 테스트 위치 |
@@ -464,6 +496,12 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | CM-082 | Fake 게이트웨이는 작성·조회·삭제·읽음·읽지 않은 수·연쇄 삭제·이력에서 서버와 같은 규칙·문구를 따른다 | CM-R46 | frontend | `gateway/contract/actions.contract.ts`, `gateway/contract/actionsStatus.contract.ts`, `gateway/contract/comments.contract.ts`, `test/fake/gateway/actions.entryRules.test.ts`, `test/fake/gateway/actions.rules.test.ts`, `test/fake/gateway/comments.test.ts`, `test/fake/gateway/nextActionStatus.rules.test.ts` |
 | CM-083 | 화면 규칙: 배지 표기와 Comment 삭제·읽음 처리 판정 함수 | CM-R39, CM-R36, CM-R38 | frontend | `shared/model/commentRules.test.ts` |
 | CM-084 | 화면: Reports 필드 목록에 Comment(Deal 전체)·Comment(Action)가 있고 Memo가 없다 | CM-R25, RQ-R60, RQ-R61 | frontend | `features/reports/designer/ReportDesignerPage.fields.test.tsx` |
+| CM-085 | Deal 목록 행의 unread_comment_count는 그 Deal의 읽지 않은 Comment 수이고 comment-counts의 unread와 같다 | CM-R47, CM-R26, CM-UC13 | backend | `application/test_list_deals_unread_comments.py`, `repositories/test_deal_unread_comment_count_contract.py`, `web/test_deal_list_http_cases.py` |
+| CM-086 | Comment 작성·읽음 처리·삭제·Action 삭제가 다음 목록 조회의 값에 바로 반영된다 | CM-R47, CM-R26, CM-R28, CM-R16 | backend | `application/test_list_deals_unread_comments.py`, `repositories/test_deal_unread_comment_count_contract.py` |
+| CM-087 | Deal 상세와 등록·수정 응답에도 같은 값이 있다 | CM-R47, DD-R2 | backend | `application/test_get_deal_unread_comments.py`, `web/test_deal_detail_routes.py` |
+| CM-088 | 읽지 않은 수는 목록 조건·정렬·total에 영향이 없고 이 값으로 거르거나 정렬하는 파라미터는 422다 | CM-R47, DL-R3, DL-R13 | backend | `application/test_list_deals_unread_comments.py`, `web/test_deal_list_http_cases.py` |
+| CM-089 | OpenAPI 계약: Deal 행·상세 응답에 required 정수 unread_comment_count(minimum 0) | CM-R47, 2.6 | backend | `web/test_deal_list_openapi.py` |
+| CM-090 | HTTP·Fake 게이트웨이: 목록·상세의 unread_comment_count를 unreadCommentCount로 주고 Fake는 서버와 같은 값을 계산한다 | CM-R47, CM-R46, DL-R32 | frontend | `gateway/http/mappers/deal.test.ts`, `gateway/contract/deals.contract.ts` |
 
 공통 Given(별도로 적지 않으면): Deal D(code `20261101-AB12`, Owner KIM, 등록 2026-11-01), sales KIM·PARK, admin ROOT, user LEE. KIM의 Action A(D 소속, 수행일 2026-11-10, 유형 "미팅", Next Action "요구사항 문서 전달", Due 2027-01-15, Open). 다른 Deal E와 그 Action B. 요청 시각 T(업무 날짜 2026-11-16).
 
@@ -835,6 +873,35 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - When Reports 새 리포트 작성 화면의 필드 목록을 연다
 - Then Deal 필드 끝에 "Comment(Deal 전체)"가, Action 필드에 "Comment(Action)"가 있고 "Memo"는 없다(서버 카탈로그 순서 그대로)
 
+### CM-085 Deal 목록 행의 unread_comment_count는 그 Deal의 읽지 않은 Comment 수이고 comment-counts의 unread와 같다
+- Given D에 PARK이 쓴 Deal Comment 1건과 A의 Action Comment 2건(모두 읽지 않음), KIM(Owner)이 쓴 Deal Comment 1건(읽음)이 있다. E에는 PARK이 쓴 Comment 1건(읽지 않음)이 있다. Comment가 없는 Deal F가 있다
+- When LEE가 조건 없이 `GET /deals`를 부른다
+- Then D 행 `unread_comment_count`는 3, E 행은 1, F 행은 0이다(키 있음, null 아님). `GET /deals/{D}/comment-counts`의 `unread`도 3이다. KIM·ROOT가 불러도 값이 같다
+
+### CM-086 Comment 작성·읽음 처리·삭제·Action 삭제가 다음 목록 조회의 값에 바로 반영된다
+- Given D에 Comment가 없다
+- When 다음을 차례로 하고 매번 `GET /deals`로 D 행을 읽는다: ① PARK이 Deal Comment를 쓴다 ② KIM(Owner)이 Deal Comment를 쓴다 ③ ROOT가 A에 Action Comment를 쓴다 ④ KIM이 ①의 Comment만 읽음 처리한다 ⑤ PARK이 자기 Comment(①)를 삭제한다 ⑥ ROOT가 A를 삭제한다
+- Then D 행 값은 차례로 1, 1, 2, 1, 1, 0이다
+
+### CM-087 Deal 상세와 등록·수정 응답에도 같은 값이 있다
+- Given D에 읽지 않은 Comment 2건
+- When LEE가 `GET /deals/{D}`를 부르고, KIM이 D의 Deal Name을 고치고(응답), KIM이 새 Deal을 등록한다(응답)
+- Then 상세 `unread_comment_count`는 2, 수정 응답은 2, 새 Deal 응답은 0이다
+
+### CM-088 읽지 않은 수는 목록 조건·정렬·total에 영향이 없고 이 값으로 거르거나 정렬하는 파라미터는 422다
+- Given Deal 3건(D만 읽지 않은 Comment 3건)
+- When 같은 조건·정렬(`sort=name`)로 Comment를 쓰기 전과 쓴 뒤에 조회하고, `unread_comment_count=1`과 `sort=unread_comment_count`를 각각 보낸다
+- Then 두 조회의 행 순서·`total`이 같고 D 행 값만 0에서 3으로 바뀐다. 뒤의 두 요청은 422 `request-validation`이다
+
+### CM-089 OpenAPI 계약: Deal 행·상세 응답에 required 정수 unread_comment_count(minimum 0)
+- When `openapi.json`의 `DealRowResponse`·`DealDetailResponse` 스키마를 읽는다
+- Then 둘 다 `unread_comment_count`가 required이고 type integer, minimum 0이며 nullable이 아니다. `GET /api/v1/deals`의 쿼리 파라미터 목록은 바뀌지 않았다
+
+### CM-090 HTTP·Fake 게이트웨이: 목록·상세의 unread_comment_count를 unreadCommentCount로 주고 Fake는 서버와 같은 값을 계산한다
+- Given 서버 응답 행 `unread_comment_count: 3`과 `0`, Fake에 D(읽지 않은 Comment 2건, 읽은 1건)
+- When HTTP 게이트웨이로 `deals.list`·`deals.get`을 부르고, Fake로 `deals.list`·`deals.get`을 부른 뒤 Fake에서 KIM이 읽음 처리하고 다시 부른다
+- Then HTTP는 `unreadCommentCount` 3·0으로 바꾼다. Fake는 2를 주고, 읽음 처리 뒤에는 0을 준다. `comments.counts(D).unread`와 같다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -842,3 +909,4 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | 2026-11-16 | 초안 작성(사용자 요청 "Memo를 Comment 엔티티로 분리, 먼저 backend"). 확인 필요 Q1~Q11 권고안 가정 | 신규 CM-001~CM-046 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): Q2~Q10 권고안. Q1 변경 — 같은 리비전에서 복사 → 점검 → `memo` drop(사용자 승인 contract), downgrade는 Action Comment로 memo를 다시 채우고 Deal Comment 등은 소실(CM-R21~R24). Q11 변경 — 관계 정의를 서두 규칙 CM-R2로, Reports에 `deal.comment`(RQ-R61)와 `action.comment`(RQ-R60) 추가(CM-R25) | 변경 CM-008·009·013·038·040·042·044·045·046, 신규 CM-047 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): 프런트 요구와 후속 결정 반영. Comment는 Owner에게 전하는 메시지 — Owner 읽음 속성 `read_at`(CM-R26·R27, 새 expand 리비전 CM-R31, 기존 Comment는 읽음), Owner 전용 읽음 처리 API(CM-R28), 읽지 않은 수 집계 API(CM-R29), 응답에 연결 Action 요약(CM-R9), 목록 최근순(CM-R7), **Comment 수정 폐지**(CM-R10·UC3, `PUT` 삭제 — API 호환 깨짐 사용자 승인), 화면 규칙 CM-R32~R46으로 2.7 교체, CM-UC10~UC12 | 신규 CM-048~CM-084. 변경 CM-001, CM-013, CM-046. 폐기 CM-018~CM-023 |
+| 2026-11-18 | 확정(2026-11-18 사용자 확인: 상세 응답 포함, 배지는 표시만, Owner 기준 읽음): 사용자 요청 "Deals 목록 Deal 이름 옆에 읽지 않은 Comment 수(Comments 탭과 동일)". Deal 응답 `unread_comment_count`(CM-R47, 하위 호환 추가, 마이그레이션 없음), 목록 배지(CM-R48), CM-R39 "Deals 목록에는 배지가 없다" 삭제, CM-R44 Comment 작성·삭제·읽음 처리 뒤 Deal 목록 무효화, CM-R46 Fake, CM-R29 결정 근거 문구, CM-UC13, 범위(1장) 조정 | 신규 CM-085~CM-090. 영향(행·상세 키 집합): DL-048, DD-001. 영향(무효화 키): CM-R44를 확인하는 기존 화면 테스트 없음 |

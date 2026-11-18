@@ -265,6 +265,8 @@ export interface DealRow extends Omit<Deal, 'vendorId'> {
   /** 현재 Status 체류 일수(달력 날짜 차, 당일 0). */
   statusDays: number
   risk: Risk
+  /** 이 Deal의 읽지 않은 Comment 수(Deal Owner 기준, 서버 값). */
+  unreadCommentCount: number
 }
 
 export interface DealDetail extends DealRow {

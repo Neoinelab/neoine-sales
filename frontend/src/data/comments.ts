@@ -31,7 +31,7 @@ export function useCommentCounts(dealCode: string | undefined): Query<CommentCou
 /** 작성·삭제·읽음 처리 성공 뒤 Comment 목록·집계와 Deal History를 다시 읽는다. */
 function useInvalidateComments(): (dealCode: string) => Promise<void> {
   const invalidate = useInvalidate()
-  return (dealCode) => invalidate(keys.comments(dealCode), keys.history(dealCode))
+  return (dealCode) => invalidate(keys.comments(dealCode), keys.history(dealCode), keys.dealLists)
 }
 
 const WRITE_KEY = ['comment-write'] as const
@@ -70,6 +70,6 @@ export function useMarkCommentsRead(): Mutation<{ dealCode: string; commentIds: 
         await gateway.comments.markRead(dealCode, commentIds.slice(at, at + MARK_READ_CHUNK))
       }
     },
-    onSettled: (_result, _error, { dealCode }) => invalidate(keys.comments(dealCode)),
+    onSettled: (_result, _error, { dealCode }) => invalidate(keys.comments(dealCode), keys.dealLists),
   })
 }

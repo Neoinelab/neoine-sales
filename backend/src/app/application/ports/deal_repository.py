@@ -173,6 +173,7 @@ class DealListItem:
     last_updated_on: date
     license_contract_count: int  # 이 Deal의 라이선스 계약 수(Won 이탈 확인용)
     has_issued_license_contract: bool  # 발급 상태 계약이 있음(Won 이탈 차단 표시용)
+    unread_comment_count: int  # 읽지 않은 Comment 수(Deal+Action Comment, read_at IS NULL, 0 이상)
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,11 +211,17 @@ class DealRepository(Protocol):
     async def exists(self, code: DealCode) -> bool: ...
 
     async def get_item(self, code: DealCode) -> DealListItem:
-        """상세용 파생값(next_action, last_updated_on) 포함. 없으면 DealNotFoundError."""
+        """상세용 파생값(next_action, last_updated_on, unread_comment_count) 포함.
+
+        없으면 DealNotFoundError.
+        """
         ...
 
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
-        """조건에 맞는 행을 query.sort/order 순서로(동률은 code 오름차순) 페이지만큼."""
+        """조건에 맞는 행을 query.sort/order 순서로(동률은 code 오름차순) 페이지만큼.
+
+        get_item과 같은 질의에서 Deal Comment+Action Comment 중 read_at IS NULL 수를
+        unread_comment_count로 채운다(조건·정렬에는 영향 없음)."""
         ...
 
     async def count(self, query: DealQuery) -> int:
