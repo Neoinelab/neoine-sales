@@ -47,10 +47,10 @@ describe('상세 팝업의 Comment 영역', () => {
     expect(items[0]).toHaveTextContent('A 나중')
     expect(items[1]).toHaveTextContent('A 먼저')
     expect(within(dialog).queryByRole('group', { name: '연결된 Action' })).not.toBeInTheDocument()
-    // then: 목록 아래에 "Comment 입력"과 "저장"이 있다
+    // then: 목록 아래에 "Comment 입력"이 있고 "저장" 버튼은 없다
     const box = within(dialog).getByLabelText('Comment 입력')
     expect(within(dialog).getByRole('list', { name: 'Comment 목록' }).compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(dialog).getByRole('button', { name: '저장' })).toBeVisible()
+    expect(within(dialog).queryByRole('button', { name: '저장' })).toBeNull()
   })
 
   // Comment가 없는 Action은 "Comment (0)"과 안내 문구다.
@@ -158,7 +158,7 @@ describe('Owner가 상세 팝업을 열 때', () => {
 })
 
 describe('상세 팝업의 Comment 저장·삭제 중', () => {
-  // 저장 중에는 팝업의 닫기가 꺼지고 Esc를 무시하며 입력 칸과 저장 버튼도 꺼지고 입력 칸에 placeholder가 있다.
+  // 저장 중에는 팝업의 닫기가 꺼지고 Esc를 무시하며 입력 칸도 꺼지고 입력 칸에 placeholder가 있다.
   // 테스트 코드: CM-075
   it('disables close, Escape and the input while a comment is being saved and shows the placeholder', async () => {
     // given: 응답이 늦은 Comment 저장과 열린 A 팝업
@@ -172,14 +172,13 @@ describe('상세 팝업의 Comment 저장·삭제 중', () => {
     const box = within(dialog).getByPlaceholderText('Comment를 입력하세요')
     expect(box).toHaveAccessibleName('Comment 입력')
 
-    // when: 글을 쓰고 저장을 누른다(응답 전)
-    await view.user.type(box, '저장 중 글')
-    await view.user.click(within(dialog).getByRole('button', { name: '저장' }))
+    // when: 글을 쓰고 Enter로 저장한다(응답 전)
+    await view.user.type(box, '저장 중 글{Enter}')
 
-    // then: 닫기·저장 버튼과 입력 칸이 꺼지고 Esc로 닫히지 않는다
+    // then: 닫기 버튼과 입력 칸이 꺼지고 Esc로 닫히지 않는다
     await waitFor(() => expect(box).toBeDisabled())
     expect(within(dialog).getByRole('button', { name: '닫기' })).toBeDisabled()
-    expect(within(dialog).getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(within(dialog).queryByRole('button', { name: '저장' })).toBeNull()
     await view.user.keyboard('{Escape}')
     expect(screen.getByRole('dialog', { name: DETAIL })).toBeVisible()
 

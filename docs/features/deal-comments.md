@@ -238,13 +238,13 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
   - 상자 안에 버튼 "Action 보기"가 있고, 누르면 CM-R37로 그 Action 상세 팝업으로 간다.
   - `action`이 null인 항목은 상자 대신 작은 표시 "Deal Comment"를 보인다.
   - 탭의 입력 칸에는 Action 선택이 없다.
-- **CM-R35** 입력 칸(탭·팝업 공통, `canWrite`(sales·admin)에게만): 목록 **아래**에 기본으로 펼쳐진 여러 줄 칸 하나(접근 이름 "Comment 입력", placeholder "Comment를 입력하세요")와 버튼 "저장"이 있다.
-  - 칸 안에서 Enter(Shift 없이, 한글 조합 중이 아님)를 누르면 저장한다. Shift+Enter는 줄을 바꾼다. "저장" 버튼도 같은 저장이다.
+- **CM-R35** 입력 칸(탭·팝업 공통, `canWrite`(sales·admin)에게만): 목록 **아래**에 기본으로 펼쳐진 여러 줄 칸 하나(접근 이름 "Comment 입력", placeholder "Comment를 입력하세요")가 있다. **"저장" 버튼은 없다**(2026-11-19 사용자 결정: Enter로만 저장, 탭·팝업 모두). 칸 아래 안내 "Enter로 저장, Shift+Enter로 줄 바꿈"을 보인다.
+  - 칸 안에서 Enter(Shift 없이, 한글 조합 중이 아님)를 누르면 저장한다. Shift+Enter는 줄을 바꾼다. 저장하는 방법은 Enter뿐이다.
   - 화면 검증: 앞뒤 공백을 지운 값이 비면 칸 아래 "Comment를 입력하세요."를 보이고 요청하지 않는다(다시 치면 문구를 지운다). 보내는 본문은 입력 그대로다(정규화는 서버 CM-R1).
   - Comments 탭은 Deal Comment(`action_id` 없음)를 만든다. Action 상세 팝업은 그 Action의 Action Comment(`action_id` = 그 Action id)를 만든다. Action 작성자나 Owner가 아니어도 된다.
-  - 저장 중에는 칸과 버튼이 꺼진다.
+  - 저장 중에는 칸이 꺼진다.
   - 성공하면 칸을 비우고 포커스를 칸에 둔다. 새 Comment는 목록 **맨 위**에 보인다(최근순). 별도 알림은 없다.
-  - 실패하면 칸 아래 오류 배너(서버 문구)를 보이고 입력을 유지한다. user에게는 입력 칸과 "저장"이 없다.
+  - 실패하면 칸 아래 오류 배너(서버 문구)를 보이고 입력을 유지한다. user에게는 입력 칸이 없다.
 - **CM-R36** 삭제(탭·팝업 공통):
   - `can_delete_comment`(admin은 모든 Comment, sales는 본인 Comment)인 항목에만 버튼 "삭제"(접근 이름 "Comment 삭제")가 있다.
   - 누르면 확인 대화상자가 열린다: 제목 "Comment 삭제", 문구 "이 Comment를 삭제합니다. 삭제는 Deal History에 기록됩니다.", 버튼 "취소"와 위험 "삭제"(겹친 대화상자 UI-R27·R28).
@@ -393,7 +393,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 
 ### CM-UC11 Comments 탭에서 보기·쓰기·지우기
 - 행위자: 보기는 모든 역할, 쓰기는 sales·admin, 삭제는 작성자 sales·admin
-- 기본 흐름: "Comments" 탭을 연다. 최근순 목록을 본다(Action Comment는 연결 Action 요약과 "Action 보기"). 목록 아래 입력 칸에 쓰고 Enter나 "저장"을 누른다. Deal Comment가 목록 맨 위에 생긴다(CM-R32~R36).
+- 기본 흐름: "Comments" 탭을 연다. 최근순 목록을 본다(Action Comment는 연결 Action 요약과 "Action 보기"). 목록 아래 입력 칸에 쓰고 Enter를 누른다. Deal Comment가 목록 맨 위에 생긴다(CM-R32~R36).
 - 대안: "Action 보기"를 누르면 Actions 탭으로 가서 그 Action 상세 팝업이 열린다(CM-R37). "삭제"는 확인을 거친다.
 
 ### CM-UC12 Action에서 Comment 보기·쓰기
@@ -782,15 +782,15 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 
 ### CM-064 화면: 목록 아래 입력 칸에서 Enter로 저장하면 Deal Comment가 목록 맨 위에 보이고 칸이 비며 Shift+Enter는 줄을 바꾼다
 - When PARK이 "Comment 입력"에 "1줄", Shift+Enter, "2줄"을 치고 Enter를 누른다
-- Then 요청은 한 번이고 본문은 `{"body": "1줄\n2줄"}`(action_id 없음)이다. 목록 맨 위에 두 줄 Comment가 PARK 이름과 "읽지 않음"으로 보인다. 칸은 비고 포커스가 칸에 있다. "저장" 버튼으로 저장해도 같다
+- Then 요청은 한 번이고 본문은 `{"body": "1줄\n2줄"}`(action_id 없음)이다. 목록 맨 위에 두 줄 Comment가 PARK 이름과 "읽지 않음"으로 보인다. 칸은 비고 포커스가 칸에 있다. 화면에 "저장" 버튼은 없다
 
 ### CM-065 화면: 빈 입력은 "Comment를 입력하세요."로 막고 서버 거절은 서버 문구와 입력을 남긴다
-- When PARK이 공백만 치고 "저장"을 누르고, 다음에 "가\u0000나"를 저장한다(Fake 422)
+- When PARK이 공백만 치고 Enter를 누르고, 다음에 "가\u0000나"를 저장한다(Fake 422)
 - Then 첫째는 칸 아래 "Comment를 입력하세요."가 보이고 요청이 없다. 둘째는 칸 아래 "Comment에는 NUL 문자를 쓸 수 없습니다"가 보이고 입력이 남는다
 
 ### CM-066 화면: user는 목록만 보고 입력 칸·삭제 버튼이 없으며 누구에게도 수정 버튼이 없다
 - When LEE가 Comments 탭과 A 상세 팝업을 열고, ROOT가 같은 화면을 연다
-- Then LEE에게는 목록만 있고 "Comment 입력"·"저장"·"Comment 삭제"가 없다. ROOT에게도 "수정" 버튼은 없다
+- Then LEE에게는 목록만 있고 "Comment 입력"·"Comment 삭제"가 없다. ROOT에게도 "수정" 버튼은 없다
 
 ### CM-067 화면: 삭제 버튼은 본인 Comment의 sales와 admin에게만 있고 확인 뒤에만 지운다
 - Given PARK의 p1, ROOT의 r1
@@ -833,7 +833,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 ### CM-075 화면: Action 상세 팝업 맨 아래에 그 Action의 Comment만 최근순으로 보이고 그 아래 입력 칸이 있으며 Memo 줄이 없다
 - Given A에 Comment 2건, P에 Comment 1건, Deal Comment 1건이 있다
 - When ROOT가 A 행을 누른다
-- Then 팝업 키·값 줄에 "Memo"가 없다. 맨 아래 "Comment (2)"에 A Comment 2건만 최근순으로 있고 연결 Action 상자는 없으며, 그 아래 "Comment 입력"·"저장"이 있다. Comment가 없는 Action은 "Comment (0)"과 "등록된 Comment가 없습니다."다
+- Then 팝업 키·값 줄에 "Memo"가 없다. 맨 아래 "Comment (2)"에 A Comment 2건만 최근순으로 있고 연결 Action 상자는 없으며, 그 아래 "Comment 입력"이 있고 "저장" 버튼은 없다. Comment가 없는 Action은 "Comment (0)"과 "등록된 Comment가 없습니다."다
 
 ### CM-076 화면: 다른 sales가 팝업에서 남의 Action에 Comment를 남기면 읽지 않음으로 생겨 배지가 늘고 Comments 탭에 연결 Action과 함께 보인다
 - When PARK이 KIM의 A 팝업 입력 칸에 "견적서 초안 공유함"을 쓰고 Enter를 누른 뒤, 팝업을 닫고 Comments 탭을 연다
@@ -910,3 +910,4 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): Q2~Q10 권고안. Q1 변경 — 같은 리비전에서 복사 → 점검 → `memo` drop(사용자 승인 contract), downgrade는 Action Comment로 memo를 다시 채우고 Deal Comment 등은 소실(CM-R21~R24). Q11 변경 — 관계 정의를 서두 규칙 CM-R2로, Reports에 `deal.comment`(RQ-R61)와 `action.comment`(RQ-R60) 추가(CM-R25) | 변경 CM-008·009·013·038·040·042·044·045·046, 신규 CM-047 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): 프런트 요구와 후속 결정 반영. Comment는 Owner에게 전하는 메시지 — Owner 읽음 속성 `read_at`(CM-R26·R27, 새 expand 리비전 CM-R31, 기존 Comment는 읽음), Owner 전용 읽음 처리 API(CM-R28), 읽지 않은 수 집계 API(CM-R29), 응답에 연결 Action 요약(CM-R9), 목록 최근순(CM-R7), **Comment 수정 폐지**(CM-R10·UC3, `PUT` 삭제 — API 호환 깨짐 사용자 승인), 화면 규칙 CM-R32~R46으로 2.7 교체, CM-UC10~UC12 | 신규 CM-048~CM-084. 변경 CM-001, CM-013, CM-046. 폐기 CM-018~CM-023 |
 | 2026-11-18 | 확정(2026-11-18 사용자 확인: 상세 응답 포함, 배지는 표시만, Owner 기준 읽음): 사용자 요청 "Deals 목록 Deal 이름 옆에 읽지 않은 Comment 수(Comments 탭과 동일)". Deal 응답 `unread_comment_count`(CM-R47, 하위 호환 추가, 마이그레이션 없음), 목록 배지(CM-R48), CM-R39 "Deals 목록에는 배지가 없다" 삭제, CM-R44 Comment 작성·삭제·읽음 처리 뒤 Deal 목록 무효화, CM-R46 Fake, CM-R29 결정 근거 문구, CM-UC13, 범위(1장) 조정 | 신규 CM-085~CM-090. 영향(행·상세 키 집합): DL-048, DD-001. 영향(무효화 키): CM-R44를 확인하는 기존 화면 테스트 없음 |
+| 2026-11-19 | 확정(2026-11-19 사용자 결정): 사용자 요청 "Actions 탭 Comment 팝업에 저장 버튼은 필요 없다. 엔터로만 자동 저장". 적용 범위는 탭·팝업 모두(사용자 선택). CM-R35에서 "저장" 버튼 제거(Enter만, Shift+Enter 줄 바꿈, 안내 문구 유지), 기본 흐름 문구 | CM-064·065·066·075 |

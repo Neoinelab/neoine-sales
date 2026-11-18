@@ -73,8 +73,7 @@ describe('Deals 목록 읽지 않은 Comment 배지', () => {
     // when: 상세의 Comments 탭에서 Comment를 저장하고 상단 메뉴 Deals로 돌아온다
     await user.click(within(await rowOf(/한빛은행 ITDR 도입/)).getByRole('link', { name: '한빛은행 ITDR 도입' }))
     await user.click(await screen.findByRole('tab', { name: /^Comments/ }))
-    await user.type(await screen.findByLabelText('Comment 입력'), '새 Comment')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.type(await screen.findByLabelText('Comment 입력'), '새 Comment{Enter}')
     await waitFor(() => expect(commentItems()).toHaveLength(2))
     // then: 저장 직후 Deal 목록 캐시는 모두 무효화되어 있다(CM-R44)
     await waitFor(() => {

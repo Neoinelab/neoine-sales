@@ -172,11 +172,8 @@ describe('Comments 탭의 입력 칸', () => {
     expect(screen.getByLabelText('Comment 입력')).toHaveValue('')
     await waitFor(() => expect(screen.getByLabelText('Comment 입력')).toHaveFocus())
 
-    // when: "저장" 버튼으로도 저장한다
-    await view.user.type(screen.getByLabelText('Comment 입력'), '버튼 저장')
-    await view.user.click(screen.getByRole('button', { name: '저장' }))
-    // then: 같은 결과로 맨 위에 생긴다
-    await waitFor(() => expect(commentItems()[0]).toHaveTextContent('버튼 저장'))
+    // then: "저장" 버튼은 없다(Enter로만 저장)
+    expect(screen.queryByRole('button', { name: '저장' })).toBeNull()
   })
 
   // 빈 입력은 화면에서 막고, 서버가 거절하면 서버 문구와 입력을 남긴다.
@@ -187,9 +184,8 @@ describe('Comments 탭의 입력 칸', () => {
     const view = await openDealTab('comments', { userId: USER_ID.park })
     await screen.findByText('등록된 Comment가 없습니다.')
 
-    // when: 공백만 치고 "저장"을 누른다
-    await view.user.type(screen.getByLabelText('Comment 입력'), '   ')
-    await view.user.click(screen.getByRole('button', { name: '저장' }))
+    // when: 공백만 치고 Enter를 누른다
+    await view.user.type(screen.getByLabelText('Comment 입력'), '   {Enter}')
     // then: "Comment를 입력하세요."가 보이고 요청이 없다
     expect(await screen.findByText('Comment를 입력하세요.')).toBeVisible()
     expect(create).not.toHaveBeenCalled()
@@ -198,7 +194,7 @@ describe('Comments 탭의 입력 칸', () => {
     await view.user.clear(screen.getByLabelText('Comment 입력'))
     fireEvent.change(screen.getByLabelText('Comment 입력'), { target: { value: '가\u0000나' } })
     expect(screen.queryByText('Comment를 입력하세요.')).not.toBeInTheDocument()
-    await view.user.click(screen.getByRole('button', { name: '저장' }))
+    await view.user.type(screen.getByLabelText('Comment 입력'), '{Enter}')
 
     // then: 서버 문구가 칸 아래에 보이고 입력이 남는다
     expect(await screen.findByText('Comment에는 NUL 문자를 쓸 수 없습니다')).toBeVisible()

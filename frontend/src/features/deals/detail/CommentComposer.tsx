@@ -10,7 +10,7 @@ interface CommentComposerProps {
   focusOnOpen?: boolean
 }
 
-/** Comment 입력 칸과 저장 버튼. Enter로 저장하고 Shift+Enter는 줄을 바꾼다. 빈 글은 화면에서 막고, 서버 문구는 그대로 보인다. */
+/** Comment 입력 칸(저장 버튼 없음). Enter로 저장하고 Shift+Enter는 줄을 바꾼다. 빈 글은 화면에서 막고, 서버 문구는 그대로 보인다. */
 export function CommentComposer({ dealCode, actionId, focusOnOpen = false }: CommentComposerProps) {
   const create = useCreateComment()
   const [body, setBody] = useState('')
@@ -74,12 +74,7 @@ export function CommentComposer({ dealCode, actionId, focusOnOpen = false }: Com
           {error}
         </p>
       )}
-      <div className="dd-row">
-        <button type="button" className="primary" disabled={writing} onClick={() => void save()}>
-          저장
-        </button>
-        <span className="hint">Enter로 저장, Shift+Enter로 줄 바꿈</span>
-      </div>
+      <span className="hint">Enter로 저장, Shift+Enter로 줄 바꿈</span>
     </div>
   )
 }
