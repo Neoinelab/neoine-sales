@@ -162,6 +162,25 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
 export function dealsReadApi(ctx: MockContext) {
   return {
     list: (query: DealListQuery) => read(ctx, () => listDeals(ctx, query)),
+    /**
+     * 조건에 맞는 전체 결과 CSV(DL-R33~R38). `offset`·`limit`은 무시하고 같은 조건·정렬의 모든 페이지를 모은다.
+     * 파일 이름은 `Deals_YYYYMMDD.csv`(Fake 시계의 업무 날짜). 본문은 BOM + Deal 이름 줄(실제 열은 서버 테스트가 본다).
+     * 오류(상한 초과 등)는 테스트가 `vi.spyOn(gateway.deals, 'exportCsv')`로 주입한다.
+     */
+    exportCsv: (query: DealListQuery) =>
+      read(ctx, () => {
+        const criteria: DealListQuery = { ...query }
+        delete criteria.offset
+        delete criteria.limit
+        const names: string[] = []
+        for (let offset = 0; ; offset += MAX_PAGE_SIZE) {
+          const page = listDeals(ctx, { ...criteria, offset, limit: MAX_PAGE_SIZE })
+          names.push(...page.items.map((row) => row.name))
+          if (offset + MAX_PAGE_SIZE >= page.total) break
+        }
+        const text = `\uFEFFDeal\r\n${names.map((name) => `${name}\r\n`).join('')}`
+        return { fileName: `Deals_${ctx.clock.today().replaceAll('-', '')}.csv`, blob: new Blob([text], { type: 'text/csv' }) }
+      }),
     /** 서버 업무 날짜(Fake 시계)를 기준으로 푼 최종 업데이트 프리셋 범위. 로그인한 누구나 읽는다. */
     updatedPeriods: () =>
       read(ctx, () => {

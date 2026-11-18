@@ -164,6 +164,8 @@ export interface SetupGateway {
 
 export interface DealsGateway {
   list(query: DealListQuery): Promise<Page<DealRow>>
+  /** 조건에 맞는 전체 결과 CSV(offset·limit 무시, DL-R33~R38). 상한 초과 등은 서버 문구의 ApiError. */
+  exportCsv(query: DealListQuery): Promise<DownloadedFile>
   /** 최종 업데이트 기간 프리셋을 서버 업무 날짜 기준으로 푼 범위. 로그인한 누구나 읽는다. */
   updatedPeriods(): Promise<UpdatedPeriods>
   /** 모든 로그인 사용자. Deal이 없으면 earliestYear null. */

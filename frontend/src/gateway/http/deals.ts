@@ -4,7 +4,8 @@ import type { DealListQuery } from '../../shared/model/types'
 import type { DealsGateway } from '../types'
 import { toNextActionStatusParam } from './mappers/nextActionStatus'
 import { toCoChange, toChangeBody, toCreateBody, toDealDetail, toDealRow, toPatchBody } from './mappers/deal'
-import { unwrap, unwrapVoid } from './request'
+import { fileNameFromDisposition } from './contentDisposition'
+import { settle, unwrap, unwrapVoid } from './request'
 
 const SORT = {
   name: 'name',
@@ -51,6 +52,16 @@ export function createDealsHttp(): DealsGateway {
     list: async (query) => {
       const page = await unwrap(api.GET('/api/v1/deals', { params: { query: toListParams(query) } }))
       return { items: page.items.map(toDealRow), total: page.total, offset: page.offset, limit: page.limit }
+    },
+    exportCsv: async (query) => {
+      const criteria = toListParams({ ...query, offset: undefined, limit: undefined })
+      const { data, response } = await settle(
+        api.GET('/api/v1/deals/export', { params: { query: criteria }, parseAs: 'blob' }),
+      )
+      return {
+        fileName: fileNameFromDisposition(response.headers.get('Content-Disposition')),
+        blob: data instanceof Blob ? data : new Blob([]),
+      }
     },
     updatedPeriods: async () => {
       const result = await unwrap(api.GET('/api/v1/deals/updated-periods'))

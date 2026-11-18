@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from app.application.deal.deal_years import GetDealYears
 from app.application.deal.deletion_impact import GetDealDeletionImpact
+from app.application.deal.export_deals import ExportDeals
 from app.application.deal.get_deal import GetDeal
 from app.application.deal.list_deal_history import ListDealHistory
 from app.application.deal.list_deals import ListDeals
@@ -23,6 +24,9 @@ class DealReadUseCases:
 
     def list_deals(self) -> ListDeals:
         return ListDeals(self._uow, self._clock)
+
+    def export_deals(self) -> ExportDeals:
+        return ExportDeals(self._uow, self._clock)
 
     def list_updated_periods(self) -> ListUpdatedPeriods:
         return ListUpdatedPeriods(self._clock)

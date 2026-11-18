@@ -4,6 +4,8 @@ from fastapi import Query, Response, status
 
 from app.application.deal.inputs import Actor
 from app.domain.deal.history import HistoryCategory
+from app.web.content_disposition import attachment_disposition
+from app.web.csv_body import csv_bytes
 from app.web.dependencies import Provider
 from app.web.permissions import BusinessRouter
 from app.web.routers.responses import PROBLEM, READ_ERRORS, WRITE_ERRORS
@@ -11,7 +13,6 @@ from app.web.schemas.deal import (
     DealChangeRequest,
     DealCreateRequest,
     DealPatchRequest,
-    DealSearchParams,
 )
 from app.web.schemas.deal_change import DealChangeResponse
 from app.web.schemas.deal_response import (
@@ -21,6 +22,7 @@ from app.web.schemas.deal_response import (
     HistoryEntryResponse,
     row_page,
 )
+from app.web.schemas.deal_search import DealExportParams, DealSearchParams
 from app.web.schemas.deal_years import DealYearsResponse
 from app.web.schemas.updated_period import UpdatedPeriodsResponse
 from app.web.security import CurrentUser
@@ -51,6 +53,25 @@ async def list_deals(
     params: Annotated[DealSearchParams, Query()], user: CurrentUser, provider: Provider
 ) -> DealRowPage:
     return row_page(await provider.list_deals().execute(params.to_query(user.user_id)))
+
+
+@router.get(
+    "/export",
+    response_class=Response,
+    responses={
+        200: {"content": {"text/csv": {"schema": {"type": "string", "format": "binary"}}}},
+        422: PROBLEM,
+    },
+)
+async def export_deals(
+    params: Annotated[DealExportParams, Query()], user: CurrentUser, provider: Provider
+) -> Response:
+    export = await provider.export_deals().execute(params.to_query(user.user_id))
+    return Response(
+        content=csv_bytes(export.header, export.rows),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": attachment_disposition(export.file_name)},
+    )
 
 
 @router.get("/updated-periods", response_model=UpdatedPeriodsResponse)

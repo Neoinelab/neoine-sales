@@ -1,6 +1,9 @@
 /* Deals 목록 전용 스타일. 전역 토큰(--panel, --line, --muted, --accent …)만 사용해 다크 모드를 따른다. */
 .deals-page { display: grid; gap: 12px; min-width: 0; }
 .deals-count { margin: 0; }
+.deals-count-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.deals-count-row .icon-button { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.deals-count-row .icon-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .deals-empty { padding: 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
 
 .deal-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }

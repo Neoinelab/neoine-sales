@@ -511,6 +511,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Deals */
+        get: operations["export_deals_api_v1_deals_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deals/updated-periods": {
         parameters: {
             query?: never;
@@ -6198,6 +6215,63 @@ export interface operations {
             };
             /** @description problem+json */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description problem+json */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    export_deals_api_v1_deals_export_get: {
+        parameters: {
+            query?: {
+                keyword?: string | null;
+                owner_user_id?: number | null;
+                mine?: boolean;
+                vendor_id?: number | null;
+                product?: string | null;
+                status_key?: string | null;
+                forecast_key?: string[] | null;
+                forecast_outcome?: components["schemas"]["ForecastOutcomeFilter"] | null;
+                year?: number | null;
+                quarter?: number[] | null;
+                month?: number | null;
+                updated_from?: string | null;
+                updated_to?: string | null;
+                overdue?: boolean;
+                stale?: boolean;
+                next_action_status?: components["schemas"]["NextActionStatusFilter"] | null;
+                sort?: components["schemas"]["DealSort"];
+                order?: components["schemas"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description problem+json */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

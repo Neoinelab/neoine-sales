@@ -21,6 +21,7 @@ BUSINESS_READS: Final = (
     ("GET", "/api/v1/contacts/companies"),  # CT Deal 화면의 연락처 선택: 로그인한 모든 역할
     ("GET", "/api/v1/contacts/by-company"),  # CT
     ("GET", "/api/v1/deals"),  # DL
+    ("GET", "/api/v1/deals/export"),  # DL 검색 조건에 맞는 전체 결과 CSV: 모든 역할
     ("GET", "/api/v1/deals/years"),  # DL 연도 선택지 기준(가장 이른 Expected Close 연도): 모든 역할
     ("GET", "/api/v1/deals/{code}"),  # DD
     ("GET", "/api/v1/deals/{code}/deletion-impact"),  # DD

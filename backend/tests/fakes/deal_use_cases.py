@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.application.deal.deal_years import GetDealYears
     from app.application.deal.delete_deal import DeleteDeal
     from app.application.deal.deletion_impact import GetDealDeletionImpact
+    from app.application.deal.export_deals import ExportDeals
     from app.application.deal.get_deal import GetDeal
     from app.application.deal.list_deal_history import ListDealHistory
     from app.application.deal.list_deals import ListDeals
@@ -48,6 +49,11 @@ class DealUseCases:
         from app.application.deal.list_deals import ListDeals  # noqa: PLC0415
 
         return ListDeals(self._deal_uow_factory(), self.clock)
+
+    def export_deals(self) -> ExportDeals:
+        from app.application.deal.export_deals import ExportDeals  # noqa: PLC0415
+
+        return ExportDeals(self._deal_uow_factory(), self.clock)
 
     def list_updated_periods(self) -> ListUpdatedPeriods:
         from app.application.deal.updated_periods import ListUpdatedPeriods  # noqa: PLC0415

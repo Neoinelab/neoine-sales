@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMe, usePermissions } from '../../../data/auth'
 import { useAlertSettings } from '../../../data/alerts'
-import { useDeals } from '../../../data/deals'
+import { useDeals, useExportDeals } from '../../../data/deals'
+import { saveBlob } from '../detail/detailHelpers'
 import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { rememberListSearch } from '../../../shared/model/dealListMemory'
@@ -52,6 +53,21 @@ export function DealsPage() {
     if (meId) rememberListSearch(meId, params)
   }, [meId, params])
 
+  const exportDeals = useExportDeals()
+  // CSV 오류는 요청한 목록 조건과 함께 보관해, 조건이 바뀌면 보이지 않는다(진행 중 요청은 끊지 않는다).
+  const [exportFailure, setExportFailure] = useState<{ error: unknown; params: URLSearchParams } | null>(null)
+  const exportError = exportFailure?.params === params ? exportFailure.error : null
+
+  /** 지금 목록과 같은 조건·정렬로 전체 결과를 CSV로 받는다(페이지 정보 없이). 저장은 화면 상태와 무관하게 응답 때 한다. */
+  function exportCsv() {
+    if (exportDeals.isPending) return
+    setExportFailure(null)
+    exportDeals.mutateAsync(query).then(
+      (file) => saveBlob(file.fileName, file.blob),
+      (error: unknown) => setExportFailure({ error, params }),
+    )
+  }
+
   function change(patch: Record<string, string | undefined>) {
     setParams((prev) => {
       const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, role, prev), patch)
@@ -99,7 +115,22 @@ export function DealsPage() {
       {deals.isPending && <p className="hint">불러오는 중…</p>}
       {page && (
         <>
-          <p className="hint deals-count">총 {page.total}건</p>
+          <div className="deals-count-row">
+            <p className="hint deals-count">총 {page.total}건</p>
+            <button
+              type="button"
+              className="icon-button"
+              title="CSV 다운로드"
+              aria-label="CSV 다운로드"
+              disabled={page.total === 0 || exportDeals.isPending}
+              onClick={exportCsv}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15v1.5h12V15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <ErrorBanner error={exportError} />
           {page.total === 0 && (
             <p className="deals-empty">{hasActiveFilter(params) ? '조건에 맞는 Deal이 없습니다.' : '등록된 Deal이 없습니다.'}</p>
           )}

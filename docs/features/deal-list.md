@@ -1,18 +1,20 @@
 # Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-18 사용자 확인))
 
-> 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `frontend/src/features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
+> 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
 >
-> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
+> 2026-11-16 변경(확정 2026-11-16 사용자 확인): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
 >
 > 2026-11-18 변경(확정, 2026-11-18 사용자 확인): Deal 이름 바로 옆에 읽지 않은 Comment 수 배지(사용자 요청 "Comments 탭과 동일하게"). 값·표기 규칙은 CM-R47·R48, 영향 규칙·케이스는 5장.
+>
+> 2026-11-18 변경(확정 2026-11-18 사용자 확인): Deals 목록 "총 N건" 줄 오른쪽 끝의 CSV 다운로드(사용자 요청 "검색 조건에 맞게 추출된 결과를 CSV로 다운로드"). 파일 이름은 목록 화면 제목과 같게 `Deals_YYYYMMDD.csv`(사용자 결정 2026-11-18). 새 API `GET /deals/export`(DL-R33~R36), 화면 버튼 DL-R37, 게이트웨이 DL-R38, DL-UC8, 케이스 DL-111~DL-123. 영향은 5장.
 
 ## 1. 개요
 
 - 목적: 로그인한 모든 사용자가 Deal을 조건으로 찾아 한 페이지씩 보고, 정렬하고, 행을 펼쳐 요약을 보거나 상세로 이동한다. sales·admin은 목록에서 Status·Forecast·금액·Expected Close를 바로 고치기 시작할 수 있다. 목록 조건은 URL에 있고 사용자·탭별로 기억되어 상세에 다녀와도 같은 목록으로 돌아온다.
 - 사용자(역할): admin·sales(조회 + 목록 인라인 편집 진입·Deal 등록 링크), user(조회만).
 - 범위
-  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Product·Status·Forecast 다중 선택·Next Action 상태·Close 연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크)
-  - API `GET /deals`(조건 해석·정렬·페이지), `GET /deals/years`, `GET /deals/updated-periods`
+  - 화면 `/deals`: 필터 바(키워드·담당자·Vendor·Product·Status·Forecast 다중 선택·Next Action 상태·Close 연도·Quarter 다중 선택·월·최종 업데이트 기간·내 딜만·기한초과·미업데이트), 조건 없는 진입의 기본 조건, 정렬 머리글, 페이지, 빈 상태, 빠른 보기(Quick View), 인라인 편집 진입과 목록 편집기, 조건 기억(목록으로 돌아가는 모든 링크), CSV 다운로드 버튼(DL-R37)
+  - API `GET /deals`(조건 해석·정렬·페이지), `GET /deals/years`, `GET /deals/updated-periods`, `GET /deals/export`(같은 조건의 전체 결과 CSV, DL-R33~R36)
   - Deal 조건 해석 한 곳(`deal_search.conditions`) — FC·DSH 집계가 같은 해석을 쓴다(DL-R15)
   - 연도 선택지 규칙(`selectableYears`) — 범위 규칙은 Deals 목록·Dashboard·Forecast 공용, '전체' 항목은 Deal 목록에만 있다(DL-R24)
 - 범위 밖(다른 feature)
@@ -95,8 +97,24 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 - **DL-R16** `GET /deals/years`(로그인한 모든 역할)는 200 `{"earliest_year": <연도|null>}`(키는 이것 하나)이다. 모든 Deal 중 Expected Close가 가장 이른 Deal의 연도이고 Deal이 없으면 null이다. Deal 삭제·Expected Close 수정을 바로 반영한다(마지막 Deal을 지우면 다시 null). 이 경로는 Deal code로 해석되지 않는다. 읽기만 한다.
 - **DL-R17** `GET /deals/updated-periods`(로그인한 모든 역할, DB를 쓰지 않음)는 200 `{today, periods, upcoming}`이다. `today`는 서버 업무 날짜(TM-R4), `periods`는 `[{key, from, to}]` 5개를 이 순서로: `2w`(오늘−14일~오늘), `1m`·`2m`·`3m`·`6m`(n개월 전 같은 날~오늘, TM-R6). `upcoming`은 `[{key, from, to}]` 2개: `1m`·`2m`(오늘~n개월 뒤 같은 날). 그 달에 그 날이 없으면 그 달 말일이다(예: 2026-03-31의 `1m` 시작 2026-02-28, `6m` 시작 2025-09-30, 2026-01-31의 upcoming `1m` 끝 2026-02-28, `2m` 끝 2026-03-31). 날짜는 요청할 때마다 서버 시계로 다시 계산한다(자정이 지나면 `today`가 바뀐다). 이 경로는 Deal code로 해석되지 않는다. (`upcoming`을 쓰는 화면은 NA.)
 
+CSV 내려받기 (`GET /deals/export`, 2026-11-18)
+- **DL-R33** 범위와 조건: `GET /deals/export`는 로그인한 모든 역할이 부른다(업무 조회 PL-R2, 역할 가드·CSRF 없음). 쿼리 키는 `GET /deals`(2.6)의 키에서 `offset`·`limit`을 뺀 것과 정확히 같고, 해석·검증·판정 순서·오류 문구도 DL-R3~R13과 같다(`offset`·`limit`·모르는 키·폐지된 키는 422 `request-validation`). 결과는 페이지와 무관하게 조건에 맞는 **모든** Deal이고 순서는 같은 `sort`·`order`의 목록 순서(DL-R13, 동률은 Deal code 오름차순)다 — 같은 조건의 `GET /deals`를 모든 페이지 이어 붙인 결과와 같은 Deal·같은 순서다. 서버는 요청마다 시계를 한 번 읽어 업무 날짜(TM-R4)를 정하고 연도 채움(DL-R9)·경고 필터(DL-R12)·파일 이름(DL-R34)에 함께 쓴다. 읽기만 한다(데이터·이력·읽음 상태를 바꾸지 않음).
+- **DL-R34** 응답 형식: 200, `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="Deals_YYYYMMDD.csv"; filename*=UTF-8''Deals_YYYYMMDD.csv`(파일 이름은 목록 화면 제목 "Deals" + `_` + 서버 업무 날짜 YYYYMMDD, 대문자 D — 사용자 결정 2026-11-18. 첨부 다운로드와 같은 헤더 형식). 본문은 UTF-8 BOM(바이트 EF BB BF)으로 시작하는 RFC 4180 CSV다: 구분자 쉼표, 모든 줄 끝 CRLF(마지막 줄 포함), 쉼표·큰따옴표·CR·LF가 들어 있는 칸만 큰따옴표로 감싸고 칸 안의 큰따옴표는 두 개로 쓴다. 칸 안의 줄바꿈(Next Action 내용 등)은 지우지 않고 따옴표 안에 그대로 둔다. 첫 줄은 머리글(DL-R35), 그 뒤 Deal 한 건당 한 줄이다. 조건에 맞는 Deal이 없으면 BOM + 머리글 한 줄뿐인 200이다.
+- **DL-R35** 열과 칸 값: 14열이다. 화면 표(DL-R28)의 13열과 머리글·순서가 같고, `Vendor` 바로 뒤에 화면 표에 없는 `Product`를 넣는다(사용자 결정 2026-11-18): `Deal`, `담당자`, `고객사`, `파트너사`, `Vendor`, `Product`, `Status`, `Forecast`, `금액(단위:원)`, `Expected Close`, `최종 업데이트`, `Next Action`, `Due`, `Next Action 상태`. 칸 값:
+  - Deal = Deal 이름(Deal code·읽지 않은 Comment 수·경고 배지는 넣지 않는다)
+  - 담당자 = 담당자 표시 이름(비었으면 로그인 아이디 — DL-R13과 같은 값), 퇴사자는 `이름(퇴사)`
+  - 고객사 = 고객 회사명. 파트너사 = 활성 파트너 회사명. Vendor = Vendor 이름. Product = Deal의 Product 원문. 없으면 빈 칸(화면의 "—"를 쓰지 않는다)
+  - Status·Forecast = 그 코드의 현재 이름(CD). 코드 목록에 없는 key면 key 그대로
+  - 금액(단위:원) = 원 단위 정수를 천 단위 콤마로 쓴 값(단위 글자 없음, 예 `1,870,000,000`, 사용자 결정 2026-11-18). 콤마가 있어 CSV에서는 따옴표로 감싼다(`"1,870,000,000"`). 1,000 미만은 콤마 없음, 0은 `0`
+  - Expected Close·최종 업데이트(`last_updated_on`, RK-R2)·Due = `YYYY-MM-DD`(화면의 상대 일수가 아니다). 값이 없으면 빈 칸
+  - Next Action = 기준 행(RK-R1)의 Next Action 내용 원문, Due = 그 기한, Next Action 상태 = `Open`·`종료(수행)`·`종료(미수행)`. Next Action이 없으면 세 칸 모두 빈 칸
+  - 텍스트 값은 저장된 원문 그대로 쓰고(자르지 않음) DL-R36의 수식 방지만 적용한다
+- **DL-R36** 수식 방지와 행 상한
+  - 텍스트 열(Deal·담당자·고객사·파트너사·Vendor·Product·Status·Forecast·Next Action·Next Action 상태)의 값이 `=`, `+`, `-`, `@`, 탭(U+0009), CR(U+000D) 중 하나로 시작하면 값 앞에 작은따옴표 `'`를 붙인다(예 `=SUM(A1)` → `'=SUM(A1)`, `-할인 제안` → `'-할인 제안`). 금액·날짜 열과 빈 값에는 붙이지 않는다.
+  - 조건에 맞는 Deal이 10,000건을 넘으면 파일을 만들지 않고 422 `invalid-value` "내려받을 Deal이 10,000건을 넘습니다(N건). 조건을 좁혀 다시 시도하세요."다(N = 전체 건수, 천 단위 콤마). 정확히 10,000건은 내려받는다. 이 판정은 쿼리 검증(DL-R3) 뒤다.
+
 화면 (frontend, `/deals`, 가드 PL-R29)
-- **DL-R18** 화면 틀: 제목(h1) "Deals", `canWrite`(admin·sales, PL-R36)면 "+ Deal 등록" 링크(`/deals/new`). 필터 바(DL-R21) 아래에 경고 범례(RK-R16), 페이지 알림(인라인 저장 알림 등), 목록 오류 배너(PL-R37)를 보인다. 처음 읽는 동안 "불러오는 중…". 응답이 오면 "총 N건". `total`이 0이면 활성 필터(DL-R20)가 있을 때 "조건에 맞는 Deal이 없습니다.", 없을 때 "등록된 Deal이 없습니다.". `total`>0인데 그 페이지가 비면 "N페이지에는 Deal이 없습니다." + "첫 페이지로" 버튼(누르면 1페이지). 한 페이지 20건이고 `total`>0이면 페이저를 보인다. 조건을 바꿔 다시 읽는 동안에는 이전 표를 그대로 보인다(빈 화면으로 깜빡이지 않음).
+- **DL-R18** 화면 틀: 제목(h1) "Deals", `canWrite`(admin·sales, PL-R36)면 "+ Deal 등록" 링크(`/deals/new`). 필터 바(DL-R21) 아래에 경고 범례(RK-R16), 페이지 알림(인라인 저장 알림 등), 목록 오류 배너(PL-R37)를 보인다. 처음 읽는 동안 "불러오는 중…". 응답이 오면 "총 N건"(같은 줄 오른쪽 끝에 CSV 다운로드 버튼 — DL-R37). `total`이 0이면 활성 필터(DL-R20)가 있을 때 "조건에 맞는 Deal이 없습니다.", 없을 때 "등록된 Deal이 없습니다.". `total`>0인데 그 페이지가 비면 "N페이지에는 Deal이 없습니다." + "첫 페이지로" 버튼(누르면 1페이지). 한 페이지 20건이고 `total`>0이면 페이저를 보인다. 조건을 바꿔 다시 읽는 동안에는 이전 표를 그대로 보인다(빈 화면으로 깜빡이지 않음).
 - **DL-R19** 기본 조건: 필터 키(DL-R20의 15개) 중 값이 있는 키가 하나도 없는 주소(빈 값·공백 값은 없는 것으로 봄)는 기본 조건으로 **이력을 교체**해 바꾼다. 기본 조건은 로그인 사용자가 sales면 `?year=all&mine=1`(연도 전체 + 내 딜만, 2026-11-12 사용자 요청), admin·user면 `?year=all`(연도·Quarter 전체)다(연도 전체 기본은 2026-11-13 사용자 요청 — 그 전에는 올해) — admin·user는 Owner가 될 수 없어(DE-R6) 내 딜만이면 항상 빈 목록이기 때문이다. 정렬 키가 없으므로 기본 정렬은 최종 업데이트 최신순(DL-R13 `last_updated_at` `desc`)이다. 이때 `sort`·`order`는 이어받고 `page`·모르는 키는 버린다. 첫 렌더부터 기본 조건으로 조회하므로 sales의 `mine` 없는 기본 조회 요청은 나가지 않는다. 루트(`/`)·로그인 직후·기억이 없을 때의 상단 메뉴·상세의 목록 링크 등 모든 진입이 같다. 조건이 하나라도 있는 주소는 바꾸지 않고 내 딜만을 더하지도 않는다: Dashboard·Forecast Drill-down 주소, `year=all`만 있는 주소, 기억된 조건(DL-R31)으로 연 주소가 모두 그렇다.
 - **DL-R20** URL 쿼리 키와 해석(URL이 정본이고 잘못된 값은 오류 없이 무시한다)
   - 필터 키 15개: `q`(키워드), `owner`, `vendor`, `product`, `status`, `forecast`, `year`, `quarter`, `month`, `updated_from`, `updated_to`, `mine`, `next_status`, `overdue`, `stale`. 그 밖에 `sort`, `order`, `page`.
@@ -133,6 +151,8 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - 저장에 성공하면 편집기를 닫고 칸 옆에 ✓ 표시를 2.5초 보이며 페이지 알림을 보인다: 함께 바뀐 값이 있으면 "<Deal 이름>: <서버 알림>", 없으면 Status·Forecast "<Deal 이름>: Status가 '<코드 이름>'(으)로 변경되었습니다."(조사는 이름에 맞춤), 금액 "<Deal 이름>: 금액(단위:원)이 '<콤마 값>'(으)로 변경되었습니다.", Expected Close "<Deal 이름>: Expected Close가 '<날짜>'(으)로 변경되었습니다.". 실패하면 편집기 안에 서버 문구(없으면 "저장하지 못했습니다.")를 보이고 다시 시도할 수 있다. 편집을 마치면 포커스가 그 칸의 편집 버튼으로 돌아온다.
 - **DL-R31** 조건 기억: 목록이 보일 때마다 로그인 사용자의 마지막 목록 쿼리를 sessionStorage 키 `deals.listSearch:<사용자 id>`에 저장한다(탭·사용자별, 새로고침해도 유지). 저장 전에 아는 키(필터 15개 + `sort`·`order`·`page`)만 남기고 `owner`·`vendor`는 정수 id일 때만 남긴다(그 밖의 값은 검증하지 않음). 남은 것이 없으면 항목을 지운다. 저장소를 쓸 수 없으면 기억만 포기한다. "목록으로" 경로는 상단 메뉴 Deals, 상세의 목록 링크, Deal 삭제 뒤 이동(알림은 한 번만), 새 Deal 폼의 취소, 상세·수정 화면의 오류 화면 링크가 쓰며 기억된 쿼리로 `/deals?…`(없으면 `/deals` → DL-R19)다. 목록 화면 안에서는 기억 대신 지금 URL을 바로 쓴다(조건·정렬·페이지를 바꾸면 메뉴 링크가 즉시 따라감). 다른 사용자는 이전 사용자의 조건을 물려받지 않는다. 예전 키(BANT·`outcome`·`from`·`to`·`solution`)는 복원하지 않는다. (수정 폼의 취소는 상세로 돌아간다 — DE.)
 - **DL-R32** 게이트웨이(`gateway/http/deals.ts`): `list`는 정한 조건만 snake_case 쿼리로 보낸다(`keyword`, `owner_user_id`, `vendor_id`, `product`, `status_key`, `forecast_key`(key마다 반복), `forecast_outcome`, `year`, `quarter`(분기마다 반복), `month`, `updated_from`, `updated_to`, `mine`(true일 때만), `overdue`·`stale`(true일 때만), `next_action_status`(`notDone` → `not_done`), `sort`(화면 키 → 서버 값: `revenueAmount`→`revenue_amount`, `revenueDate`→`revenue_date`, `lastUpdatedAt`→`last_updated_at`, `statusKey`→`status`, `forecastKey`→`forecast`, 나머지 같음), `order`, `offset`, `limit`). 조건이 없으면 쿼리 없이 `GET /deals`다. id는 정수로 보낸다. 폐지된 파라미터(`bant_*`, `vendor`, `solution_id`, `solution`, `revenue_from`·`revenue_to`, 단일 `forecast_key` 필드 등)는 보내지 않는다. 응답은 행을 camelCase로 바꾸고 `total`·`offset`·`limit`을 그대로 준다. `years`는 `earliest_year` → `earliestYear`(null 유지), `updatedPeriods`는 `today`와 아는 키(`periods` 5개·`upcoming` 2개)만 `{key, from, to}`로 남긴다. 오류는 PL-R39.
+- **DL-R37** CSV 다운로드 버튼(2026-11-18): 목록 응답이 와서 "총 N건"을 보이면 같은 줄 오른쪽 끝에 아이콘 버튼(다운로드 아이콘, 보이는 글자 없음, 접근성 이름과 title "CSV 다운로드")을 보인다. 모든 역할에게 보인다. 첫 응답 전("불러오는 중…")에는 이 줄이 없다. `total`이 0이면 버튼은 비활성이다. 버튼을 누르면 지금 목록 요청과 같은 조건(DL-R20 해석 결과, DL-R26 Vendor 규칙 포함)과 정렬로 내보내기를 요청하고 페이지(`page`)는 쓰지 않는다. 받은 파일은 응답의 파일 이름(`Deals_YYYYMMDD.csv`, DL-R34)으로 브라우저가 내려받는다. 요청 중에는 버튼이 비활성이라 다시 누를 수 없고, 성공·실패로 끝나면 다시 활성이다. 실패하면 "총 N건" 줄 아래에 오류 배너(PL-R37, 서버 문구 그대로 — 예 상한 초과 문구)를 보이고 목록·URL은 그대로다. 오류 배너는 다음 다운로드를 누르거나 목록 조건이 바뀌면 사라진다. 성공 알림은 없다. 다운로드는 URL·조건 기억(DL-R31)·목록 조회에 영향이 없다.
+- **DL-R38** 게이트웨이 `exportCsv(query)`: `GET /deals/export`에 `list`(DL-R32)와 같은 snake_case 쿼리를 보내되 `offset`·`limit`은 보내지 않는다. 응답 본문은 Blob으로 받고 파일 이름은 `Content-Disposition`에서 읽어(첨부 다운로드와 같은 해석) `{fileName, blob}`을 돌려준다. 오류는 PL-R39.
 
 ### 2.4 상태와 전이
 
@@ -142,11 +162,12 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 
 | 행동 | 미인증 | user | sales | admin |
 | --- | --- | --- | --- | --- |
-| `GET /deals`, `GET /deals/years`, `GET /deals/updated-periods` | 401 | 가능 | 가능 | 가능 |
+| `GET /deals`, `GET /deals/years`, `GET /deals/updated-periods`, `GET /deals/export` | 401 | 가능 | 가능 | 가능 |
+| 화면 "CSV 다운로드" 버튼(DL-R37) | — | 보임 | 보임 | 보임 |
 | 화면 `/deals` 목록·빠른 보기·조건 기억 | `/login`으로 | 가능 | 가능 | 가능 |
 | "+ Deal 등록" 링크·인라인 편집 진입 | — | 숨김 | 보임 | 보임 |
 
-세 경로는 업무 조회(PL-R2)라 역할 가드·CSRF가 없다. `mine`은 요청자 기준이다(DL-R5). 인라인 편집의 서버 권한은 DD(`POST /deals/{code}/changes`, 업무 쓰기 PL-R6).
+네 경로는 업무 조회(PL-R2)라 역할 가드·CSRF가 없다. `mine`은 요청자 기준이다(DL-R5). 인라인 편집의 서버 권한은 DD(`POST /deals/{code}/changes`, 업무 쓰기 PL-R6).
 
 ### 2.6 API 계약 (`/api/v1`)
 
@@ -155,12 +176,14 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
 | GET `/deals` | query `keyword?`(≤100), `owner_user_id?`(id), `mine?`(bool, 기본 false), `vendor_id?`(id), `product?`(트림 후 ≤200), `status_key?`(≤50), `forecast_key?`(반복, 각 ≤50, ≤100개), `forecast_outcome?`(`open`·`won`·`lost`·`not_lost`), `year?`(1900~9999), `quarter?`(반복, 1~4, ≤4개), `month?`(1~12), `updated_from?`·`updated_to?`(date), `overdue?`·`stale?`(bool, 기본 false), `next_action_status?`(`open`·`done`·`not_done`·`closed`), `sort?`(DL-R13, 기본 `last_updated_at`), `order?`(`asc`·`desc`, 기본 `desc`), `offset?`(≥0, 기본 0), `limit?`(1~200, 기본 20) | 200 `CountedPage[DealRowResponse]` `{items, total, offset, limit}` | 401, 422 `request-validation`·`invalid-value` |
 | GET `/deals/years` | — | 200 `{earliest_year: int\|null}` | 401 |
 | GET `/deals/updated-periods` | — | 200 `{today: date, periods: [{key: "2w"\|"1m"\|"2m"\|"3m"\|"6m", from: date, to: date}], upcoming: [{key: "1m"\|"2m", from: date, to: date}]}` | 401 |
+| GET `/deals/export` | query: GET `/deals`와 같음(`offset`·`limit` 제외) | 200 `text/csv; charset=utf-8`, `Content-Disposition: attachment` 파일 `Deals_YYYYMMDD.csv`, 본문 BOM + CSV(DL-R34~R36) | 401, 422 `request-validation`·`invalid-value`(조건 DL-R3, 상한 DL-R36) |
 
 - openapi: `forecast_key`·`quarter`는 배열 파라미터(`quarter` 항목 1~4 문서화), `overdue`·`stale`은 기본 false인 boolean, `sort`는 10개 값 enum, `product`는 maxLength 200 문서화, `bant_*` 파라미터는 없다. `earliest_year`는 nullable 정수, 프리셋 항목 키는 `from`·`to`. 공통 오류 문서화는 PL-R21.
+- openapi: `/deals/export`의 200 응답은 `text/csv` 내용(문자열)으로 문서화하고 쿼리 파라미터는 `/deals`와 같다(`offset`·`limit` 없음). 경로는 `/deals/{code}`보다 먼저 등록해 Deal code로 해석되지 않는다.
 
 ### 2.7 화면 동작
 
-DL-R18~DL-R32.
+DL-R18~DL-R32, DL-R37·DL-R38.
 
 ### 2.8 오류와 메시지
 
@@ -172,9 +195,10 @@ DL-R18~DL-R32.
 | 분기와 월 동시 | 422 `invalid-value` | Quarter와 월은 함께 선택할 수 없습니다. |
 | 최종 업데이트 날짜 범위 밖 | 422 `invalid-value` | updated_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다 (`updated_to`도 같은 형식) |
 | 최종 업데이트 기간 역전 | 422 `invalid-value` | 최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다 |
+| CSV 내보내기 행 상한 초과(10,000건 초과) | 422 `invalid-value` | 내려받을 Deal이 10,000건을 넘습니다(N건). 조건을 좁혀 다시 시도하세요. |
 | 미인증 | 401 `unauthenticated` | 로그인이 필요합니다(PL-R5) |
 
-화면 문구: "총 N건", "조건에 맞는 Deal이 없습니다.", "등록된 Deal이 없습니다.", "N페이지에는 Deal이 없습니다."·"첫 페이지로", "불러오는 중…", "Close 연도"(Deal 목록 연도 선택 상자 이름), "Close 연도가 전체이면 올해(YYYY) 기준입니다.", "선택한 Vendor", "파트너 없음", "불러오지 못함", "상세 보기", "Expected Close를 입력하세요.", "저장하지 못했습니다.", 인라인 저장 알림(DL-R30). 서버 문구 표시는 PL-R37.
+화면 문구: "총 N건", "조건에 맞는 Deal이 없습니다.", "등록된 Deal이 없습니다.", "N페이지에는 Deal이 없습니다."·"첫 페이지로", "불러오는 중…", "Close 연도"(Deal 목록 연도 선택 상자 이름), "Close 연도가 전체이면 올해(YYYY) 기준입니다.", "선택한 Vendor", "파트너 없음", "불러오지 못함", "상세 보기", "Expected Close를 입력하세요.", "저장하지 못했습니다.", 인라인 저장 알림(DL-R30), "CSV 다운로드"(버튼 접근성 이름·title, DL-R37). 서버 문구 표시는 PL-R37.
 
 ## 3. Business use case
 
@@ -221,6 +245,14 @@ DL-R18~DL-R32.
 - 기본 흐름: 연도 기준(`/deals/years`)과 기간 프리셋(`/deals/updated-periods`)을 읽어 선택지를 만든다(DL-R16, R17, R24, R25)
 - 예외: 읽지 못하면 올해·내년만, 프리셋 비활성과 오류 배너
 - 결과: 서버 날짜 기준 선택지
+
+### DL-UC8 목록 결과를 CSV로 내려받기
+- 행위자: 로그인한 모든 역할
+- 사전 조건: `/deals`에서 목록이 보이고 "총 N건"이 1 이상
+- 기본 흐름: "총 N건" 줄 오른쪽 끝 "CSV 다운로드" 버튼을 누름 → 서버가 지금 조건·정렬의 전체 결과(모든 페이지)를 CSV로 만듦 → `Deals_YYYYMMDD.csv`가 내려받아진다(DL-R33~R38)
+- 대안: 0건이면 버튼 비활성, 요청 중에는 다시 누를 수 없음
+- 예외: 10,000건 초과는 서버 문구를 오류 배너로, 그 밖의 실패도 오류 배너. 목록은 그대로
+- 결과: 화면 표와 같은 열·순서의 CSV 파일(BOM이 있어 Excel에서 한글이 깨지지 않음)
 
 ## 4. BDD 테스트 케이스
 
@@ -338,6 +370,21 @@ DL-R18~DL-R32.
 | DL-108 | 화면: 예전 URL 키 solution은 조건·입력란·활성 필터·조건 기억에 쓰지 않는다 | DL-R20, DL-R31, DL-UC2 | frontend | `features/deals/list/DealsPage.memory.test.tsx` |
 | DL-109 | 화면: 읽지 않은 Comment가 있는 행은 Deal 이름 바로 오른쪽(경고 배지 앞)에 탭과 같은 배지를 보이고 0이면 없다 | DL-R28, CM-R48, CM-R39, CM-UC13 | frontend | `features/deals/list/DealsPage.commentBadge.test.tsx` |
 | DL-110 | 화면: 상세에서 Comment를 쓰거나 Owner가 읽음 처리한 뒤 목록으로 돌아오면 배지가 새 값이다 | DL-R28, CM-R48, CM-R44, CM-R38, CM-UC13 | frontend | `features/deals/list/DealsPage.commentBadge.test.tsx` |
+| DL-111 | 내보내기는 페이지와 무관하게 조건에 맞는 모든 Deal을 목록 정렬 순서로 낸다 | DL-R33, DL-UC8 | backend | `application/test_deal_export_cases.py` |
+| DL-112 | 내보내기의 조건 해석(내 딜만·기한초과·연도 없는 분기)은 목록과 같다 | DL-R33, DL-R5, DL-R9, DL-R12, DL-UC8 | backend | `application/test_deal_export_cases.py` |
+| DL-113 | CSV 머리글은 화면 13열 + Product이고 칸 값은 이름·콤마 금액·YYYY-MM-DD·빈 칸 규칙을 따른다 | DL-R35, DL-UC8 | backend | `application/test_deal_export_cases.py` |
+| DL-114 | 수식 기호로 시작하는 텍스트 칸은 앞에 작은따옴표가 붙는다 | DL-R36, DL-UC8 | backend | `application/test_deal_export_cases.py` |
+| DL-115 | 조건에 맞는 Deal이 없으면 머리글 한 줄뿐인 200이다 | DL-R34, DL-UC8 | backend | `application/test_deal_export_cases.py`, `web/test_deal_export_http_cases.py` |
+| DL-116 | 10,000건은 내려받고 10,001건은 422 invalid-value다 | DL-R36, DL-UC8 | backend | `application/test_deal_export_cases.py`, `web/test_deal_export_http_cases.py` |
+| DL-117 | 응답은 text/csv·BOM·CRLF·파일 이름 Deals_YYYYMMDD.csv이고 특수 문자 칸은 따옴표로 감싼다 | DL-R34, DL-UC8 | backend | `web/test_deal_export_http_cases.py` |
+| DL-118 | 내보내기 쿼리 검증은 목록과 같고 offset·limit은 422다 | DL-R33, DL-R3, DL-UC8 | backend | `web/test_deal_export_http_cases.py` |
+| DL-119 | 세 역할 모두 내보낼 수 있고 미인증은 401, export는 Deal code로 해석되지 않는다 | DL-R33, DL-UC8 | backend | `web/test_deal_export_http_cases.py` |
+| DL-120 | 화면: "총 N건" 줄 오른쪽 끝 CSV 다운로드는 지금 조건·정렬의 전체 결과를 내려받는다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
+| DL-121 | 화면: 다운로드 중에는 버튼이 비활성이고 실패하면 서버 문구 배너를 보이며 목록은 그대로다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
+| DL-122 | 화면: 0건이면 버튼이 비활성이고 첫 응답 전에는 버튼이 없다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
+| DL-123 | 게이트웨이 exportCsv는 목록 쿼리에서 offset·limit을 빼고 보내며 Blob과 파일 이름을 돌려준다 | DL-R38, DL-UC8 | frontend | `gateway/http/deals.export.test.ts` |
+| DL-124 | CSV 다운로드 오류 배너는 목록 조건이 바뀌면 사라진다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
+| DL-125 | 다운로드 응답 전에 조건을 바꿔도 파일은 저장되고 응답까지 버튼은 비활성이다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 하루 간격으로(각각 다른 날) 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -888,6 +935,80 @@ DL-R18~DL-R32.
 - When (1) PARK(sales)이 `/deals?year=all`을 열고, "ERP 교체"의 Comments 탭에서 Comment를 저장하고, 상단 메뉴 Deals로 돌아온다. (2) 따로 KIM이 `/deals?year=all`을 열고, "ERP 교체"의 Comments 탭을 연 뒤(읽음 처리, CM-R38) 상단 메뉴 Deals로 돌아온다
 - Then (1) 처음 목록 배지는 "1"이고, 돌아온 목록 배지는 "2"다. (2) 처음 목록 배지는 "1"이고, 돌아온 목록에는 "ERP 교체" 배지가 없다
 
+### DL-111 내보내기는 페이지와 무관하게 조건에 맞는 모든 Deal을 목록 정렬 순서로 낸다
+- Given 업무 날짜 2026-10-15, Status `a`인 Deal 25건(금액이 일부 같음)과 Status `b`인 Deal 3건
+- When ROOT(admin)가 `status_key=a&sort=revenue_amount&order=asc`로 `GET /deals/export`를 부른다
+- Then 데이터 줄은 25줄이고, 같은 조건의 `GET /deals`를 `limit=20`으로 1·2페이지 읽어 이어 붙인 Deal 순서(금액 오름차순, 같은 금액은 Deal code 오름차순)와 같다. Status `b` Deal은 없다
+
+### DL-112 내보내기의 조건 해석(내 딜만·기한초과·연도 없는 분기)은 목록과 같다
+- Given 업무 날짜 2026-10-15. KIM의 Deal: 기한초과 "A"(Expected Close 2026-02-10), 경고 없음 "B"(2025-02-10). PARK의 기한초과 Deal "C"(2026-02-10)
+- When KIM(sales)이 (1) `mine=true&overdue=true` (2) `mine=true&quarter=1`로 각각 내보낸다
+- Then (1) "A"만 (2) "A"만(2025년 "B"는 연도 채움 DL-R9로 제외) 있고, 두 경우 모두 데이터 줄 수가 같은 조건 `GET /deals`의 `total`과 같다. PARK의 "C"는 없다
+
+### DL-113 CSV 머리글은 화면 13열 + Product이고 칸 값은 이름·콤마 금액·YYYY-MM-DD·빈 칸 규칙을 따른다
+- Given Deal "ERP 교체": 담당자 퇴사한 "박영업", 고객 회사 "한빛", 활성 파트너 없음, Vendor "SAP", Product "S/4HANA", Status 코드 이름 "제안", Forecast 코드 이름 "Commit", 금액 1,870,000,000원, Expected Close 2026-12-31, 최종 업데이트 2026-10-01, Next Action "PoC 일정 협의"(Due 2026-10-20, Open). Deal "MFA 도입": 담당자 KIM("김영업"), 파트너 회사 "누리", Product 빈 값, 금액 500원, Next Action 없음
+- When 두 Deal이 맞는 조건으로 내보낸다
+- Then 첫 줄은 `Deal,담당자,고객사,파트너사,Vendor,Product,Status,Forecast,금액(단위:원),Expected Close,최종 업데이트,Next Action,Due,Next Action 상태`다. "ERP 교체" 줄은 `ERP 교체,박영업(퇴사),한빛,,SAP,S/4HANA,제안,Commit,"1,870,000,000",2026-12-31,2026-10-01,PoC 일정 협의,2026-10-20,Open`이다. "MFA 도입" 줄의 담당자는 `김영업`, 파트너사는 `누리`, Product는 빈 칸, 금액은 `500`이고 Next Action·Due·Next Action 상태 세 칸은 빈 칸이다. 어느 줄에도 Deal code와 "—"가 없다
+
+### DL-114 수식 기호로 시작하는 텍스트 칸은 앞에 작은따옴표가 붙는다
+- Given Deal 이름 `=SUM(A1)`, 고객 회사 `+82상사`, 파트너 회사 `@누리`, Product `=HYPERLINK(1)`, Next Action `-할인 제안`인 Deal과 이름 "정상"인 Deal
+- When 두 Deal이 맞는 조건으로 내보낸다
+- Then 그 칸들은 `'=SUM(A1)`, `'+82상사`, `'@누리`, `'=HYPERLINK(1)`, `'-할인 제안`이다. "정상" 이름 칸과 금액·날짜 칸에는 `'`가 붙지 않는다
+
+### DL-115 조건에 맞는 Deal이 없으면 머리글 한 줄뿐인 200이다
+- Given Status `zz`인 Deal이 없다
+- When `status_key=zz`로 내보낸다
+- Then 200이고 본문은 BOM + 머리글 + CRLF뿐이다
+
+### DL-116 10,000건은 내려받고 10,001건은 422 invalid-value다
+- Given 조건에 맞는 Deal이 (1) 10,000건 (2) 10,001건이다
+- When 각각 내보낸다
+- Then (1) 데이터 줄 10,000줄의 CSV다. (2) 422 `invalid-value` "내려받을 Deal이 10,000건을 넘습니다(10,001건). 조건을 좁혀 다시 시도하세요."이고 CSV를 만들지 않는다
+
+### DL-117 응답은 text/csv·BOM·CRLF·파일 이름 Deals_YYYYMMDD.csv이고 특수 문자 칸은 따옴표로 감싼다
+- Given 업무 날짜 2026-10-15, Deal 이름 `A, "B"`, Next Action 내용 "1행" 줄바꿈 "2행"
+- When `GET /deals/export`를 부른다
+- Then 200, `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="Deals_20261015.csv"; filename*=UTF-8''Deals_20261015.csv`이다(대문자 D). 본문 첫 세 바이트는 EF BB BF이고 모든 줄 끝은 CRLF다. 이름 칸은 `"A, ""B"""`, Next Action 칸은 따옴표 안에 줄바꿈이 그대로 있는 `"1행` + 줄바꿈 + `2행"`이다
+
+### DL-118 내보내기 쿼리 검증은 목록과 같고 offset·limit은 422다
+- When `offset=0`, `limit=20`, `stage=x`, `sort=DESC`, `quarter=1&month=2`, `keyword=a%00`으로 각각 내보낸다
+- Then `offset`·`limit`·`stage`·`sort=DESC`는 422 `request-validation`, 분기+월은 422 `invalid-value` "Quarter와 월은 함께 선택할 수 없습니다.", NUL은 422 `invalid-value` "검색어에는 NUL 문자를 쓸 수 없습니다"다. 어느 경우도 CSV가 아니라 problem+json이다
+
+### DL-119 세 역할 모두 내보낼 수 있고 미인증은 401, export는 Deal code로 해석되지 않는다
+- Given Deal 1건
+- When VIEWER(user)·KIM(sales)·ROOT(admin)가 각각, 그리고 로그인 없이 `GET /deals/export`를 부른다
+- Then 세 역할은 200 CSV(404 Deal 없음이 아님), 로그인 없이는 401 `unauthenticated`다
+
+### DL-120 화면: "총 N건" 줄 오른쪽 끝 CSV 다운로드는 지금 조건·정렬의 전체 결과를 내려받는다
+- Given VIEWER(user) 로그인, 앱 시계 2026-10-15, Status `a` Deal 25건, 주소 `/deals?year=all&status=a&sort=revenueAmount&order=asc&page=2`
+- When "총 25건" 줄의 "CSV 다운로드" 버튼을 누른다
+- Then 버튼은 "총 25건"과 같은 줄의 오른쪽 끝(그 줄의 마지막 요소)에 있다. 내보내기 요청이 한 번 나가고 조건은 Status `a`, 정렬 금액 오름차순이며 페이지 정보(offset·limit)가 없다. 파일 `Deals_20261015.csv`가 내려받아진다. 주소와 목록(2페이지 5건)은 그대로다
+
+### DL-121 화면: 다운로드 중에는 버튼이 비활성이고 실패하면 서버 문구 배너를 보이며 목록은 그대로다
+- Given ROOT(admin) 로그인, 목록 3건. 내보내기 응답이 (1) 늦게 오거나 (2) 422 "내려받을 Deal이 10,000건을 넘습니다(10,001건). 조건을 좁혀 다시 시도하세요."로 실패한다
+- When "CSV 다운로드"를 누른다
+- Then (1) 응답 전까지 버튼이 비활성이고 다시 눌러도 요청이 더 나가지 않으며 응답 뒤 다시 활성이다. (2) 그 문구의 오류 배너가 보이고 목록 3건은 그대로이며 버튼은 다시 활성이다. 이어서 성공하도록 바꾸고 다시 누르면 배너가 사라지고 파일이 내려받아진다
+
+### DL-122 화면: 0건이면 버튼이 비활성이고 첫 응답 전에는 버튼이 없다
+- Given 조건에 맞는 Deal이 없다. 목록 응답이 늦게 온다
+- When `/deals?year=all&status=zz`를 연다
+- Then 응답 전("불러오는 중…")에는 "CSV 다운로드" 버튼이 없고, 응답 뒤 "총 0건" 줄의 버튼은 비활성이다
+
+### DL-123 게이트웨이 exportCsv는 목록 쿼리에서 offset·limit을 빼고 보내며 Blob과 파일 이름을 돌려준다
+- Given 서버가 `Content-Disposition: attachment; filename="Deals_20261015.csv"; filename*=UTF-8''Deals_20261015.csv`와 CSV 본문으로 답한다
+- When `exportCsv({statusKey: 'a', forecastKeys: ['best', 'commit'], quarters: [1, 3], mine: true, notDone 상태, sort: 'revenueAmount', order: 'asc', offset: 20, limit: 20})`를 부른다
+- Then 요청은 `GET /api/v1/deals/export`이고 쿼리는 `status_key=a`, `forecast_key` 두 번(best·commit), `quarter` 두 번(1·3), `mine=true`, `next_action_status=not_done`, `sort=revenue_amount`, `order=asc`이며 `offset`·`limit`이 없다. 결과는 파일 이름 `Deals_20261015.csv`와 본문 Blob이다. 422 응답이면 서버 문구의 오류(PL-R39)로 거절된다
+
+### DL-124 CSV 다운로드 오류 배너는 목록 조건이 바뀌면 사라진다
+- Given 조건에 맞는 Deal이 있고 CSV 다운로드가 422 `invalid-value`(상한 초과)로 실패해 오류 배너가 보인다
+- When 필터 조건을 바꿔 검색한다(예: Status 선택 후 "검색")
+- Then 오류 배너가 사라지고, 새 조건의 목록과 "CSV 다운로드" 버튼이 보인다
+
+### DL-125 다운로드 응답 전에 조건을 바꿔도 파일은 저장되고 응답까지 버튼은 비활성이다
+- Given CSV 다운로드 응답이 늦게 온다(요청 중)
+- When 응답 전에 검색 조건(또는 정렬·페이지)을 바꾸고, 그 뒤 응답이 성공으로 온다
+- Then 응답이 올 때까지 "CSV 다운로드" 버튼은 비활성이고, 응답이 오면 원래 요청한 조건의 파일이 저장되며 오류 배너는 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -902,3 +1023,4 @@ DL-R18~DL-R32.
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 사용자 요청 "Deals 목록 검색조건 연도를 'Close 연도'로, 초기 정렬은 최종 업데이트 desc, 최종 업데이트 열을 Next Action 앞으로": DL-R24 선택 상자 이름 "Close 연도"(Dashboard·Forecast는 "연도" 유지), DL-R21·1장·화면 문구 표기, DL-R23 안내 문구 "Close 연도가 전체이면 …"(사용자 확인), DL-R28 열 순서(Expected Close 다음 최종 업데이트, 그 뒤 Next Action·Due·Next Action 상태). 초기 정렬은 이미 최종 업데이트 내림차순(DL-R13 서버 기본, DL-R27 머리글 표시, DL-R19 기본 조건 정렬 없음)이라 규칙·동작 변경 없이 DL-055로 확인. 서버·API·마이그레이션 변경 없음, **운영 코드 변경 필요**(frontend `DealFilterBar`·`DealsTable`·`DealRowItem`) | 신규: DL-107. 변경: DL-058(열 순서), DL-077(안내 문구). 확인만: DL-055. 영향(문구·라벨만 바뀌는 기존 테스트): `getByLabelText('연도')`를 쓰는 Deal 목록 테스트(DL-080·081·082·077 등 yearOptions·period·filters·today·memory), `features/deals/form/testHelpers.ts`, DSH-050(`DashboardPage.drillDown.test.tsx` 73행), 열 위치를 세는 DL-058·DL-059 테스트 |
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). 쿼리 `solution` → `product`(예전 이름은 폐지 파라미터 422, DL-R3), 행 키 `product`, 필터 칸 "Product"·URL 키 `product`, 예전 URL 키 `solution`은 무시(DL-R20·R31, 계획 Q1), 문구 "Product에는 NUL 문자를 쓸 수 없습니다". **API 호환 깨짐**(사용자 승인) | 신규 DL-108. 변경(표기·키): DL-006, DL-013, DL-014, DL-047, DL-048, DL-065, DL-067, DL-071, DL-072, DL-100 |
 | 2026-11-18 | 확정(2026-11-18 사용자 확인: 상세 응답 포함, 배지는 표시만, Owner 기준 읽음): 사용자 요청 "Deals 목록 Deal 이름 옆에 읽지 않은 Comment 수". DL-R14 행 키에 `unread_comment_count`(CM-R47, 하위 호환 추가), DL-R28 Deal 칸에 배지(CM-R48), 1장·2.2 참조. 정렬·필터·URL 키·조건 기억 변경 없음, 마이그레이션 없음, **운영 코드 변경 필요**(backend·frontend) | 신규 DL-109, DL-110. 영향: DL-048(키 집합 테스트), DL-058(Deal 칸 내용, 기존 Given에서는 배지 없음), 행 객체를 만드는 frontend 테스트 도우미(`unreadCommentCount` 필수) |
+| 2026-11-18 | 확정(2026-11-18 사용자 확인 — 범위 전체·초과 422·14열(Vendor 뒤 Product)·금액 천 단위 콤마, 리뷰 후 DL-124·DL-125 추가): 사용자 요청 "Deal 목록 검색 결과를 CSV로 다운로드(총 N건 줄 오른쪽 아이콘)". 새 API `GET /deals/export`(DL-R33~R36, **하위 호환 추가**), 파일 이름 `Deals_YYYYMMDD.csv`(사용자 결정: 화면 제목과 같게, 서버 업무 날짜), 화면 버튼 DL-R37, 게이트웨이 DL-R38, DL-R18 문구, 1장·2.5·2.6·2.7·2.8, DL-UC8. 마이그레이션·새 의존성 없음(Python 표준 `csv`), **운영 코드 변경 필요**(backend·frontend) | 신규 DL-111~DL-123. 영향: `tests/support/permission_table.py`(새 경로 등록), openapi 드리프트 테스트, `DealsGateway`를 구현하는 Fake(`test/fake/gateway/dealsRead.ts`)와 http 게이트웨이 계약에 `exportCsv` 추가 |

@@ -10,6 +10,7 @@ import type {
   DealListQuery,
   DealPatch,
   DealRow,
+  DownloadedFile,
   Page,
   UpdatedPeriods,
 } from '../shared/model/types'
@@ -79,6 +80,18 @@ export function useCreateDeal(): Mutation<DealInput, DealDetail> {
   return useMutation<DealDetail, ApiError, DealInput>({
     mutationFn: (input) => gateway.deals.create(input),
     onSuccess: () => invalidate(keys.deals, keys.contacts, keys.labels, keys.forecast, keys.historyAll, keys.licenseContracts),
+  })
+}
+
+/** gateway.deals.exportCsv(query). 조회 조건에 맞는 전체 결과 CSV를 받는다(offset·limit 제외). 캐시는 건드리지 않는다. */
+export function useExportDeals(): Mutation<DealListQuery, DownloadedFile> {
+  return useMutation<DownloadedFile, ApiError, DealListQuery>({
+    mutationFn: (query) => {
+      const criteria = { ...query }
+      delete criteria.offset
+      delete criteria.limit
+      return gateway.deals.exportCsv(criteria)
+    },
   })
 }
 

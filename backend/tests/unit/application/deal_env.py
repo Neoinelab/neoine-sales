@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.application.deal.apply_change import ApplyDealChange
     from app.application.deal.deletion_impact import GetDealDeletionImpact
     from app.application.deal.dto import DealView
+    from app.application.deal.export_deals import ExportDeals
     from app.application.deal.inputs import Actor
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -56,6 +57,12 @@ class DealEnv:
         from app.application.deal.deletion_impact import GetDealDeletionImpact  # noqa: PLC0415
 
         return GetDealDeletionImpact(self.uow_factory)
+
+    @property
+    def export(self) -> ExportDeals:
+        from app.application.deal.export_deals import ExportDeals  # noqa: PLC0415
+
+        return ExportDeals(self.uow_factory, self.clock)
 
     async def new_vendor(self, name: str = "SAP") -> Vendor:
         """등록된 Vendor를 저장소에 직접 둔다(Deal이 고를 수 있는 선택지)."""
