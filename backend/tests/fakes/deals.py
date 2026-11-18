@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.domain.common.errors import InvalidReferenceError
 from app.domain.deal.errors import DealNotFoundError, DuplicateDealCodeError
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.fakes.deal_counts import DealCountsMixin
 from tests.fakes.deal_search import (
     check_risk_basis,
@@ -30,7 +31,7 @@ from tests.support.default_vendor import DEFAULT_VENDOR_ID
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
-    from datetime import datetime
+    from datetime import date, datetime
 
     from app.application.ports.deal_repository import (
         ContactReference,
@@ -184,6 +185,20 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         ]
         return max(found, key=lambda a: (a.acted_on, a.id), default=None)
 
+    def _earliest_open_due(self, code: DealCode) -> date | None:
+        """Open인 Next Action 행 중 가장 이른 Due(RK-R4). 없으면 None. 기준 행과 무관하다."""
+        if self._actions is None:
+            return None
+        dues = [
+            a.content.due_date
+            for a in self._actions._items.values()
+            if a.deal_code == code
+            and a.content.due_date is not None
+            and a.next_action_state is not None
+            and a.next_action_state.status is NextActionStatus.OPEN
+        ]
+        return min(dues, default=None)
+
     def _item(self, deal: Deal) -> DealListItem:
         from app.application.ports.deal_repository import (  # noqa: PLC0415 - 지연 import
             DealListItem,
@@ -208,6 +223,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         return DealListItem(
             deal=copy.deepcopy(deal),
             next_action=summary,
+            earliest_open_due=self._earliest_open_due(deal.id),
             last_updated_on=last_updated,
             license_contract_count=sum(1 for c in contracts if c.deal_code == deal.id),
             has_issued_license_contract=any(
@@ -279,7 +295,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         return risk_matches(
             query,
             forecast_key=deal.sync.forecast_key,
-            due_date=item.next_action.due_date if item.next_action else None,
+            earliest_open_due=item.earliest_open_due,
             last_updated_on=item.last_updated_on,
         )
 

@@ -21,14 +21,14 @@ LONG_AGO = date(2026, 1, 1)
 def _risk(
     *,
     forecast_key: str = "pipeline",
-    due_date: date | None = None,
+    earliest_open_due: date | None = None,
     last_updated_on: date = FRESH,
     today: date = TODAY,
     stale_days: int = STALE_DAYS,
 ) -> Risk | None:
     return compute_risk(
         forecast_key=forecast_key,
-        due_date=due_date,
+        earliest_open_due=earliest_open_due,
         last_updated_on=last_updated_on,
         today=today,
         stale_days=stale_days,
@@ -41,7 +41,7 @@ def test_due_today_is_not_overdue() -> None:
     테스트 코드: RK-010
     """
     # when: Due가 오늘인 Deal을 판정한다
-    actual = _risk(due_date=TODAY)
+    actual = _risk(earliest_open_due=TODAY)
     # then: risk가 없다
     assert actual is None
 
@@ -52,7 +52,7 @@ def test_due_yesterday_is_overdue() -> None:
     테스트 코드: RK-009
     """
     # when: Due가 어제인 Deal을 판정한다
-    actual = _risk(due_date=date(2026, 10, 19))
+    actual = _risk(earliest_open_due=date(2026, 10, 19))
     # then: risk가 overdue다
     assert actual is Risk.OVERDUE
 
@@ -63,18 +63,45 @@ def test_due_tomorrow_is_not_overdue() -> None:
     테스트 코드: RK-010
     """
     # when: Due가 내일인 Deal을 판정한다
-    actual = _risk(due_date=date(2026, 10, 21))
+    actual = _risk(earliest_open_due=date(2026, 10, 21))
     # then: risk가 없다
     assert actual is None
 
 
 def test_no_action_is_not_overdue() -> None:
-    """기준 행이 없으면 기한초과가 아니다.
+    """Open Next Action이 없으면(earliest_open_due 없음) 기한초과가 아니다.
 
     테스트 코드: RK-011
     """
     # when: Due가 없는 Deal을 판정한다
-    actual = _risk(due_date=None)
+    actual = _risk(earliest_open_due=None)
+    # then: risk가 없다
+    assert actual is None
+
+
+def test_earliest_open_due_before_today_is_overdue_even_if_other_opens_are_later() -> None:
+    """Open Next Action이 여럿이면 가장 이른 Due 하나만 지나도 기한초과다.
+
+    테스트 코드: RK-072
+    """
+    # given: Open Next Action 두 건의 Due가 어제와 다음 달이고, 서비스는 가장 이른 값(어제)을 넘긴다
+    earliest = min(date(2026, 10, 19), date(2026, 11, 20))
+
+    # when: 가장 이른 Open Due로 판정한다
+    actual = _risk(earliest_open_due=earliest)
+
+    # then: risk가 overdue다
+    assert actual is Risk.OVERDUE
+
+
+def test_all_open_dues_today_or_later_is_not_overdue() -> None:
+    """Open Next Action의 Due가 모두 오늘 이후면 기한초과가 아니다(가장 이른 값이 오늘).
+
+    테스트 코드: RK-072
+    """
+    # when: 가장 이른 Open Due가 오늘인 Deal을 판정한다
+    actual = _risk(earliest_open_due=min(TODAY, date(2026, 11, 20)))
+
     # then: risk가 없다
     assert actual is None
 
@@ -118,7 +145,7 @@ def test_overdue_and_stale_is_overdue_stale() -> None:
     테스트 코드: RK-017
     """
     # when: Due가 지났고 14일 전에 갱신한 Deal을 판정한다
-    risk = _risk(due_date=date(2026, 10, 1), last_updated_on=STALE_BOUNDARY)
+    risk = _risk(earliest_open_due=date(2026, 10, 1), last_updated_on=STALE_BOUNDARY)
 
     # then: risk가 overdue_stale이다
     assert risk is Risk.OVERDUE_STALE
@@ -130,7 +157,7 @@ def test_overdue_only_is_not_marked_stale() -> None:
     테스트 코드: RK-017
     """
     # when: Due가 지났고 최근 갱신한 Deal을 판정한다
-    actual = _risk(due_date=date(2026, 10, 1), last_updated_on=FRESH)
+    actual = _risk(earliest_open_due=date(2026, 10, 1), last_updated_on=FRESH)
     # then: risk가 overdue다
     assert actual is Risk.OVERDUE
 
@@ -144,7 +171,7 @@ def test_won_and_lost_have_no_risk(forecast_key: str) -> None:
     # when: Due가 지났고 오래전에 갱신한 Won·Lost Deal을 판정한다
     risk = _risk(
         forecast_key=forecast_key,
-        due_date=date(2026, 10, 1),
+        earliest_open_due=date(2026, 10, 1),
         last_updated_on=LONG_AGO,
     )
 
@@ -159,7 +186,7 @@ def test_open_forecasts_keep_their_risk(forecast_key: str) -> None:
     테스트 코드: RK-018
     """
     # when: Due가 지난 pipeline·best·commit·upside Deal을 판정한다
-    actual = _risk(forecast_key=forecast_key, due_date=date(2026, 10, 1))
+    actual = _risk(forecast_key=forecast_key, earliest_open_due=date(2026, 10, 1))
     # then: risk가 overdue다
     assert actual is Risk.OVERDUE
 

@@ -310,7 +310,13 @@ describe('Action 검색: Next Action 상태 필터', () => {
   // 테스트 코드: NA-054
   it('lists only Open actions for Open and none for closed when everything is open', async () => {
     // given: 모든 Action이 Open인 Deal이다.
-    const { user, table } = await openActions()
+    const { user, table, client } = await openActions('admin')
+    const code = await dealCodeOf(1)
+    // 시드는 앞선 Action을 종료(수행)로 두므로(RK-R4) 모두 Open으로 되돌려 전제를 만든다.
+    for (const a of await gateway.actions.list(code, {})) {
+      if (a.nextActionStatus !== null && a.nextActionStatus !== 'open') await gateway.actions.changeNextActionStatus(a.id, { status: 'open', comment: '' })
+    }
+    await client.invalidateQueries()
     // when: Next Action 상태 "Open"으로 검색한다.
     await user.selectOptions(screen.getByLabelText('Next Action 상태'), 'Open')
     await user.click(screen.getByRole('button', { name: '검색' }))

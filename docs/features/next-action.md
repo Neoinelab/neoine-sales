@@ -67,7 +67,7 @@ Next Action 상태 변경(backend)
 - **NA-R32** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `next_action_closed_on`은 저장된 `next_action_closed_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다. 값이 없던 행은 계속 null이다. 상태·종료일 CHECK(종료 상태일 때만 값)는 새 컬럼 기준으로 다시 만든다. 행 수는 그대로이고 시각만 버린다. downgrade는 종료일의 업무 시간대 00:00으로 되살린다.
 - **NA-R5** 상태 변경은 상태·종료 시각과 Action `updated_at`만 바꾼다(Comment는 CM-R15).
   - 그대로인 것: 진행사항·Next Action·Due Date·유형·수행일·작성자·등록 시점 Status·Forecast, Deal `updated_at`.
-  - Deal의 최종 업데이트와 기한초과 판정은 바뀌지 않는다(RK-R2, RK-R4).
+  - Deal의 최종 업데이트는 바뀌지 않는다(RK-R2). 기한초과는 바뀔 수 있다: 종료하면 그 Next Action은 기한초과 판정에서 빠지고 Open으로 되돌리면 다시 판정 대상이 된다(RK-R4, 2026-11-18).
 - **NA-R6** 권한: 업무 쓰기 가드(PL-R6) 때문에 `user`는 403 읽기 전용 문구다. 가드를 지난 뒤 `admin`은 모든 Action, `sales`는 자기가 작성자인 Action만 바꿀 수 있다. 그 밖은 403 `forbidden` "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."다. 도메인 판정도 `user`는 작성자여도 거절한다.
 - **NA-R7** 판정 순서(앞에서 거절되면 뒤는 하지 않는다)
   1. 미인증 401 → CSRF 403 → `user` 403(PL-R4~R6)
@@ -708,3 +708,4 @@ NA-R21~R31.
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): 상세 팝업에서도 상태 변경 가능(NA-R21 추가 문구, AC-R54·AC-144·AC-145 참조, 서버 동작 변경 없음). 이전 초안 내용: AC Actions 탭 개편(AC-R21 담당자·Memo 열 제거, AC-R49 상세 팝업)에 맞춤. NA-R24(Memo는 상세 팝업에서 보임), NA-R28(정렬 머리글 5→4, 담당자 제외 — 서버 `actor_*` 정렬 값은 유지), NA-UC5. 서버 동작 변경 없음 | 변경 NA-047, NA-059, NA-061, NA-063, NA-064 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 종료 메모를 종료 Comment로(NA-R2 `comment`·예전 `memo` 422, NA-R3 전체 교체, NA-R4·R5·R7·R8·R9, NA-R14 키워드가 Action Comment 본문도 검색, 2.1·2.2·2.6·2.8). 프런트 규칙 NA-R22·R23·R25·R30은 프런트 후속에서 개정(CM 2.7) | 변경 NA-005~NA-010, NA-013, NA-016, NA-017, NA-026. 폐기 NA-001~NA-003, NA-018. 프런트 후속 NA-047, NA-050, NA-066, NA-068 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): 종료 대화상자·되돌리기·검색 placeholder·게이트웨이를 Comment로(NA-R22~R25, R30). "프런트 후속" 해소 | 변경 NA-047, NA-050, NA-052, NA-066, NA-068 |
+| 2026-11-18 | RK-R4 변경(기한초과는 Open Next Action만)에 맞춰 NA-R5 하위 항목 문구 갱신. NA 동작·케이스 변경 없음, 상태 줄 그대로 | 없음(관련 RK-013, RK-071) |

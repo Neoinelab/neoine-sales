@@ -39,6 +39,20 @@ async def _seed(case: ReportCase) -> None:
         done, kst(2026, 10, 26), next_action="계획", due_date=TODAY - timedelta(days=1)
     )
     await case.deals.add_action(done, kst(2026, 10, 26, 13), action="진행만", next_action="")
+    # 종료한 지난 Next Action만 있는 Deal(정상)과 앞선 Open이 지난 Deal(기한초과, RK-R4)
+    ended = await case.add_deal(name="ended", created=kst(2026, 10, 20, 9))
+    closed_action = await case.deals.add_action(
+        ended, kst(2026, 10, 25), next_action="계획", due_date=TODAY - timedelta(days=2)
+    )
+    await case.deals.set_next_action_status(closed_action, "done", kst(2026, 10, 25, 10))
+    older = await case.add_deal(name="older_open", created=kst(2026, 10, 20, 9))
+    await case.deals.add_action(
+        older, kst(2026, 10, 24), next_action="예전", due_date=TODAY - timedelta(days=3)
+    )
+    newer = await case.deals.add_action(
+        older, kst(2026, 10, 26), next_action="최근", due_date=TODAY + timedelta(days=7)
+    )
+    await case.deals.set_next_action_status(newer, "done", kst(2026, 10, 26, 10))
 
 
 async def _list_codes(case: ReportCase, **criteria: object) -> list[str]:
@@ -80,7 +94,7 @@ async def test_risk_status_days_and_last_updated_match_the_deal_list(
     for item in listed:
         risk = compute_risk(
             forecast_key=item.deal.sync.forecast_key,
-            due_date=item.next_action.due_date if item.next_action else None,
+            earliest_open_due=item.earliest_open_due,
             last_updated_on=item.last_updated_on,
             today=TODAY,
             stale_days=14,
@@ -112,6 +126,27 @@ async def test_risk_in_overdue_equals_the_list_overdue_filter(report_case: Repor
     list_codes = await _list_codes(report_case, overdue=True)
     # then: 두 결과가 같다
     assert report_codes == list_codes
+
+
+async def test_report_overdue_uses_open_next_actions_like_the_list(
+    report_case: ReportCase,
+) -> None:
+    """리포트 deal.risk는 종료한 Due를 무시하고 앞선 Open Next Action의 Due를 본다.
+
+    테스트 코드: RK-075
+    """
+    # given: 종료만 지난 Deal(ended)과 앞선 Open이 지난 Deal(older_open)을 포함한 시드
+    await _seed(report_case)
+
+    # when: 기한초과 조건으로 조회하고 두 Deal의 이름·경고를 읽는다
+    rows = await report_case.rows([col("deal.name"), col("deal.risk")])
+    risks = {name: risk for name, risk in rows if name in {"ended", "older_open"}}
+
+    # then: ended는 경고 없음, older_open은 기한초과이며 목록 overdue 필터와 같은 집합이다
+    assert risks == {"ended": None, "older_open": "기한초과"}
+    assert await _report_codes(report_case, "in", ["overdue"]) == await _list_codes(
+        report_case, overdue=True
+    )
 
 
 async def test_risk_in_stale_equals_the_list_stale_filter(report_case: ReportCase) -> None:

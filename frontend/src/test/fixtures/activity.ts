@@ -121,8 +121,9 @@ export function seedActivity(
         progress: draft.progress,
         nextAction: draft.nextAction,
         dueDate: i === 0 ? env.date(spec.due) : addDays(actedAt.slice(0, 10), 7),
-        nextActionStatus: 'open',
-        nextActionClosedOn: null,
+        // RK-R4: 기한초과는 Open Next Action 전체로 판정하므로 가장 최근 행(i=0)만 Open이고, 앞선 행은 다음 Action 수행일에 종료(수행)된 것으로 둔다.
+        nextActionStatus: i === 0 ? 'open' : 'done',
+        nextActionClosedOn: i === 0 ? null : env.at(spec.lastAgo + ACTION_SPACING * (i - 1), actionHour(spec.no, i - 1)).slice(0, 10),
         statusKey: draft.statusKey,
         forecastKey: draft.forecastKey,
       })

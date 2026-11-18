@@ -1,4 +1,6 @@
+import { useToday } from '../../../data/today'
 import { canEditAction, type Viewer } from '../../../shared/model/permissions'
+import { isOverdueRow } from '../../../shared/model/risk'
 import { badgeText } from '../../../shared/model/commentBadge'
 import type { ActionSortKey, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import './comments.css'
@@ -26,14 +28,10 @@ interface ActionTableProps {
   onOpenComment?: (action: DealAction) => void
 }
 
-/**
- * 현재 Next Action(= Next Action이 있는 가장 최근 Action) 행인지. 기한초과 여부는 서버가 계산한 deal.risk를 따른다.
- * 그 뒤에 Next Action이 있는 Action이 더 생겼다면 지난 Action의 Due는 표시만 한다.
- */
-function isCurrentOverdue(action: DealAction, deal: DealDetail): boolean {
-  const current = deal.nextAction
+/** 서버 risk가 기한초과이고, 이 행의 Next Action이 Open이며 Due가 앱 시계의 오늘보다 앞이면 true. */
+function isOverdueAction(action: DealAction, deal: DealDetail, today: string): boolean {
   if (deal.risk !== 'overdue' && deal.risk !== 'overdue_stale') return false
-  return current !== null && current.text === action.nextAction && current.dueDate === action.dueDate
+  return isOverdueRow(action.nextActionStatus, action.dueDate, today)
 }
 
 const noop = () => undefined
@@ -60,6 +58,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
   const header = (label: string, key: ActionSortKey) => (
     <SortableHeader label={label} active={sort.sort === key} order={sort.order} onSort={() => onSort(key)} />
   )
+  const { today } = useToday()
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
     <div className="dd-scroll">
@@ -100,7 +99,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
               <td className="dd-col-short">
                 <span className="dd-row">
                   <span>{a.dueDate ?? '—'}</span>
-                  {isCurrentOverdue(a, deal) && <RiskBadge risk="overdue" />}
+                  {isOverdueAction(a, deal, today) && <RiskBadge risk="overdue" />}
                 </span>
               </td>
               <td className="dd-col-short">

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useToday } from '../../../data/today'
 import { formatRelativeDays } from '../../../shared/format'
 import { NEXT_ACTION_STATUS_LABEL } from '../../../shared/model/nextActionStatus'
+import { isOverdueRow } from '../../../shared/model/risk'
 import { userLabel } from '../../../shared/model/period'
 import type { DealRow } from '../../../shared/model/types'
 import { CommentBadge } from '../../../shared/ui/CommentBadge'
@@ -18,7 +19,7 @@ interface DealRowItemProps {
   onSaved: (message: string) => void
 }
 
-function NextActionCells({ row }: { row: DealRow }) {
+function NextActionCells({ row, today }: { row: DealRow; today: string }) {
   const next = row.nextAction
   if (!next) {
     return (
@@ -29,7 +30,7 @@ function NextActionCells({ row }: { row: DealRow }) {
       </>
     )
   }
-  const overdue = row.risk === 'overdue' || row.risk === 'overdue_stale'
+  const overdue = (row.risk === 'overdue' || row.risk === 'overdue_stale') && isOverdueRow(next.status, next.dueDate, today)
   return (
     <>
       <td className="next-action">
@@ -44,7 +45,7 @@ function NextActionCells({ row }: { row: DealRow }) {
 /** 목록 한 줄(+ 펼친 빠른 보기). Risk 행 색은 배지 텍스트와 함께 쓴다(색만으로 구분하지 않음). */
 export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
   const [open, setOpen] = useState(false)
-  const { now } = useToday()
+  const { now, today } = useToday()
   const lastUpdated = formatRelativeDays(row.lastUpdatedOn, now)
   const cell = (field: 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate') => (
     <InlineCell row={row} field={field} canWrite={canWrite} onSaved={onSaved} />
@@ -84,7 +85,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
             {lastUpdated}
           </time>
         </td>
-        <NextActionCells row={row} />
+        <NextActionCells row={row} today={today} />
       </tr>
       {open && (
         <tr className="quick-view-row">

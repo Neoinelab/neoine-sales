@@ -77,7 +77,9 @@ class DealQuery:
     next_action_status: NextActionStatusFilter | None = (
         None  # 기준 행(Next Action 있는 최근 행)의 상태
     )
-    overdue: bool = False  # 기한초과 Deal만(stale와 함께면 OR). Won·Lost 제외
+    overdue: bool = (
+        False  # 기한초과(Open Next Action의 Due < 오늘) Deal만(stale와 함께면 OR). Won·Lost 제외
+    )
     stale: bool = False  # 미업데이트 Deal만
     risk_basis: RiskBasis | None = None  # overdue/stale 판정 기준(`with_risk_basis`로 채운다)
     sort: DealSort = DealSort.LAST_UPDATED_AT
@@ -171,6 +173,7 @@ class DealListItem:
     deal: Deal
     next_action: NextActionSummary | None
     last_updated_on: date
+    earliest_open_due: date | None  # Open Next Action 중 가장 이른 Due
     license_contract_count: int  # 이 Deal의 라이선스 계약 수(Won 이탈 확인용)
     has_issued_license_contract: bool  # 발급 상태 계약이 있음(Won 이탈 차단 표시용)
     unread_comment_count: int  # 읽지 않은 Comment 수(Deal+Action Comment, read_at IS NULL, 0 이상)

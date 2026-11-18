@@ -149,7 +149,7 @@ def check_risk_basis(query: DealQuery) -> RiskBasis:
 
 
 def risk_matches(
-    query: DealQuery, *, forecast_key: str, due_date: date | None, last_updated_on: date
+    query: DealQuery, *, forecast_key: str, earliest_open_due: date | None, last_updated_on: date
 ) -> bool:
     """overdue/stale 필터. 판정은 compute_risk로 독립 계산한다(SQL 경계 변환을 베끼지 않음)."""
     if not query.wants_risk():
@@ -157,7 +157,7 @@ def risk_matches(
     basis = check_risk_basis(query)
     risk = compute_risk(
         forecast_key=forecast_key,
-        due_date=due_date,
+        earliest_open_due=earliest_open_due,
         last_updated_on=last_updated_on,
         today=basis.today,
         stale_days=basis.stale_days,

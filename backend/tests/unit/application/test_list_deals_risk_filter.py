@@ -12,6 +12,7 @@ import pytest
 from app.application.ports.deal_repository import DealQuery
 from app.domain.alert.thresholds import AlertThresholds
 from app.domain.deal.risk import Risk
+from app.domain.deal_action.next_action_status import NextActionStatus
 from tests.factories import make_deal_action
 from tests.factories_deal import SALES, make_patch
 from tests.support.user_ids import ACTOR_ID, OWNER_ID
@@ -213,3 +214,43 @@ async def test_a_risk_filter_combines_with_other_conditions_using_and(env: DealE
     # then: 둘 다 Deal 하나만 나온다
     assert _codes(page) == {_code(deals["both"])}
     assert page.total == 1
+
+
+async def test_overdue_filter_follows_open_next_actions_not_the_basis_row(env: DealEnv) -> None:
+    """overdue 필터는 종료한 기한 지난 Deal을 빼고 예전 Open이 기한 지난 Deal을 넣는다.
+
+    테스트 코드: RK-074
+    """
+    # given: 지난 Due를 종료한 Deal, 지난 Due가 Open인 Deal, 예전 Open 뒤 최근 종료 건이 있는 Deal
+    closed = await env.new_deal(name="closed")
+    opened = await env.new_deal(name="opened")
+    mixed = await env.new_deal(name="mixed")
+    done = make_deal_action(
+        deal_code=closed.item.deal.id,
+        now=env.clock.now(),
+        actor_user_id=ACTOR_ID,
+        due_date=date(2026, 1, 2),
+    )
+    await env.uow.deal_actions.add(done)
+    await _act(env, opened, due_date=date(2026, 1, 2))
+    await _act(env, mixed, due_date=date(2026, 1, 2))
+    env.clock.advance(60)
+    latest = make_deal_action(
+        deal_code=mixed.item.deal.id,
+        now=env.clock.now(),
+        actor_user_id=ACTOR_ID,
+        due_date=date(2026, 1, 30),
+    )
+    await env.uow.deal_actions.add(latest)
+    done.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
+    latest.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
+    await env.uow.deal_actions.update(done)
+    await env.uow.deal_actions.update(latest)
+    env.clock.advance(2 * DAY)  # 오늘 = 01-03
+
+    # when: overdue 필터로 조회한다
+    page = await env.list.execute(DealQuery(overdue=True))
+
+    # then: 종료만 한 Deal은 빠지고 Open이 지난 두 Deal이 나온다
+    assert _codes(page) == {_code(opened), _code(mixed)}
+    assert page.total == 2

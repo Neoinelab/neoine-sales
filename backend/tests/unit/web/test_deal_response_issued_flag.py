@@ -18,6 +18,7 @@ def _view(*, issued: bool) -> DealView:
         item=DealListItem(
             deal=deal,
             next_action=None,
+            earliest_open_due=None,
             last_updated_on=deal.created_at.astimezone().date(),
             license_contract_count=1,
             has_issued_license_contract=issued,

@@ -12,7 +12,7 @@ from app.application.ports.deal_repository import DealQuery, NextActionSummary
 from app.domain.deal.risk import Risk
 from app.domain.deal_action.next_action_status import NextActionStatus
 from app.domain.deal_action.value_objects import DealActionId
-from tests.factories import make_deal_action
+from tests.factories import make_action_content, make_deal_action
 from tests.support.user_ids import ACTOR_ID
 
 if TYPE_CHECKING:
@@ -46,24 +46,132 @@ async def _listed(env: DealEnv, code: str) -> DealView:
     return row
 
 
-async def test_closed_next_action_keeps_overdue(env: DealEnv) -> None:
-    """기한이 지난 Next Action을 종료해도 기한초과가 유지된다.
+@pytest.mark.parametrize("closed", [NextActionStatus.DONE, NextActionStatus.NOT_DONE])
+async def test_closing_the_overdue_next_action_clears_overdue(
+    env: DealEnv, closed: NextActionStatus
+) -> None:
+    """기한이 지난 Next Action을 종료(수행·미수행)하면 기한초과가 풀린다.
 
     테스트 코드: RK-013
     """
-    # given: Due가 어제 지난 Next Action이 있는 Deal이다
+    # given: Due가 01-02인 Open Next Action이 있고 오늘이 01-03이라 기한초과다
     view = await env.new_deal()
+    code = view.item.deal.id.value
     action = await _act(env, view, due_date=date(2026, 1, 2))
-    env.clock.advance(2 * DAY)  # 오늘 = 01-03
-    action.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
-    # when: 2일 뒤 Next Action을 done으로 바꾸고 조회한다
+    env.clock.advance(2 * DAY)
+    assert (await env.get.execute(code)).risk is Risk.OVERDUE
+
+    # when: 그 Next Action을 종료로 바꾼다
+    action.change_next_action_status(closed, "", env.clock.now())
     await env.uow.deal_actions.update(action)
 
-    code = view.item.deal.id.value
+    # then: 목록과 상세 모두 risk가 없다
+    assert (await env.get.execute(code)).risk is None
+    assert (await _listed(env, code)).risk is None
 
-    # then: 목록과 상세 모두 risk가 overdue다
+
+async def test_older_open_next_action_keeps_overdue_when_the_basis_row_is_closed(
+    env: DealEnv,
+) -> None:
+    """기준 행이 종료여도 앞선 Open의 Due가 지났으면 기한초과이고 next_action은 기준 행이다.
+
+    테스트 코드: RK-070
+    """
+    # given: 오래된 Open(Due 01-02)과 더 최근에 등록해 종료한 Next Action(Due 01-20)이 있다
+    view = await env.new_deal()
+    code = view.item.deal.id.value
+    await _act(env, view, next_action="오래된 것", due_date=date(2026, 1, 2))
+    env.clock.advance(DAY)
+    newer = await _act(env, view, next_action="최근 것", due_date=date(2026, 1, 20))
+    newer.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
+    await env.uow.deal_actions.update(newer)
+    env.clock.advance(2 * DAY)  # 오늘 = 01-04
+
+    # when: 목록과 상세를 조회한다
+    detail = await env.get.execute(code)
+    listed = await _listed(env, code)
+
+    # then: 기한초과이고 next_action은 기준 행(최근 것, done)이다
+    for view_ in (detail, listed):
+        assert view_.risk is Risk.OVERDUE
+        assert view_.item.next_action == NextActionSummary(
+            text="최근 것", due_date=date(2026, 1, 20), status=NextActionStatus.DONE
+        )
+
+
+async def test_reopening_a_closed_overdue_next_action_makes_the_deal_overdue_again(
+    env: DealEnv,
+) -> None:
+    """종료한 Next Action을 Open으로 되돌리면 Due가 지났을 때 다시 기한초과다.
+
+    테스트 코드: RK-071
+    """
+    # given: 기한 지난 Next Action을 종료해 기한초과가 풀린 Deal이다
+    view = await env.new_deal()
+    code = view.item.deal.id.value
+    action = await _act(env, view, due_date=date(2026, 1, 2))
+    env.clock.advance(2 * DAY)
+    action.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
+    await env.uow.deal_actions.update(action)
+    assert (await env.get.execute(code)).risk is None
+
+    # when: Open으로 되돌린다
+    action.change_next_action_status(NextActionStatus.OPEN, "", env.clock.now())
+    await env.uow.deal_actions.update(action)
+
+    # then: 다시 기한초과다
     assert (await env.get.execute(code)).risk is Risk.OVERDUE
     assert (await _listed(env, code)).risk is Risk.OVERDUE
+
+
+async def test_one_overdue_open_next_action_among_many_makes_the_deal_overdue(
+    env: DealEnv,
+) -> None:
+    """Open Next Action이 여럿이면 하나라도 Due가 지나면 기한초과이고 모두 오늘 이후면 아니다.
+
+    테스트 코드: RK-072
+    """
+    # given: Open Next Action 두 건(Due 01-02, 01-20)이 있는 Deal과 모두 오늘 이후인 Deal
+    late = await env.new_deal(name="late")
+    await _act(env, late, due_date=date(2026, 1, 20))
+    await _act(env, late, due_date=date(2026, 1, 2))
+    fine = await env.new_deal(name="fine")
+    await _act(env, fine, due_date=date(2026, 1, 20))
+    await _act(env, fine, due_date=date(2026, 1, 3))
+
+    # when: 오늘이 01-03일 때 상세를 조회한다
+    env.clock.advance(2 * DAY)
+    late_risk = (await env.get.execute(late.item.deal.id.value)).risk
+    fine_risk = (await env.get.execute(fine.item.deal.id.value)).risk
+
+    # then: 하나라도 지난 Deal만 기한초과다(Due 오늘은 아님)
+    assert late_risk is Risk.OVERDUE
+    assert fine_risk is None
+
+
+async def test_fixing_the_due_or_deleting_the_overdue_action_clears_overdue(
+    env: DealEnv,
+) -> None:
+    """기한 지난 Open Next Action의 Due를 오늘 이후로 고치거나 그 Action을 지우면 풀린다.
+
+    테스트 코드: RK-073
+    """
+    # given: 기한 지난 Open Next Action을 가진 Deal 둘(오늘 = 01-03)
+    edited = await env.new_deal(name="edited")
+    removed = await env.new_deal(name="removed")
+    to_edit = await _act(env, edited, due_date=date(2026, 1, 2))
+    to_remove = await _act(env, removed, due_date=date(2026, 1, 2))
+    env.clock.advance(2 * DAY)
+    assert (await env.get.execute(edited.item.deal.id.value)).risk is Risk.OVERDUE
+
+    # when: 한쪽은 Due를 내일로 고치고 다른 쪽은 Action을 지운다
+    to_edit.revise(make_action_content(due_date=date(2026, 1, 4)), env.clock.now())
+    await env.uow.deal_actions.update(to_edit)
+    await env.uow.deal_actions.delete(to_remove.id)
+
+    # then: 둘 다 기한초과가 아니다
+    assert (await env.get.execute(edited.item.deal.id.value)).risk is None
+    assert (await env.get.execute(removed.item.deal.id.value)).risk is None
 
 
 async def test_overdue_uses_the_latest_row_that_has_a_next_action(env: DealEnv) -> None:

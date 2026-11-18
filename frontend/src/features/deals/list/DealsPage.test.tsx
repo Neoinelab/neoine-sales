@@ -162,7 +162,7 @@ describe('목록 표 (T-LIST-01~04)', () => {
   })
 
   // 범례가 경고 색을 텍스트로 설명한다.
-  // 테스트 코드: RK-052
+  // 테스트 코드: RK-052, RK-078
   // 경고 색을 색만이 아니라 범례 문구로 설명한다(RK)
   it('explains the risk colors with a legend, not by color alone', async () => {
     // when: Deals 목록을 연다 (전제: 경고 범례)
@@ -171,6 +171,8 @@ describe('목록 표 (T-LIST-01~04)', () => {
     // then: 범례에 '기한초과' 배지와 '14일 이상 미업데이트'가 보인다
     expect(within(legend).getByText('기한초과')).toBeVisible()
     expect(await within(legend).findByText('14일 이상 미업데이트')).toBeVisible()
+    // then: 기한초과 설명은 Open인 Next Action의 Due Date 기준이다
+    expect(within(legend).getByText('Open인 Next Action의 Due Date가 지났습니다')).toBeVisible()
   })
 
   // Deal 이름은 상세 화면 링크다

@@ -555,3 +555,50 @@ describe('deals.list의 서버 검증 정렬 (DL 목록 Fake가 서버 422를 �
     expect(byForecasts).toBeDefined()
   })
 })
+
+describe('deals risk: Open Next Action 중 가장 이른 Due로 기한초과를 판정한다', () => {
+  const next = (nextAction: string, dueDate: string) => ({ type: { name: '미팅' }, progress: '진행', nextAction, dueDate, comment: '' })
+
+  /** P(유일한 Next Action이 지났고 done), Q(기준 행은 미래·done, 앞선 Open이 지남), R(Open·미래)를 만든다. */
+  async function scenario() {
+    const { gateway } = await mockAs('kim')
+    const make = async (name: string) => (await gateway.deals.create(dealInput(USER_ID.kim, { name }))).code
+    const [p, q, r] = [await make('RK-P'), await make('RK-Q'), await make('RK-R')]
+    const pAction = await gateway.actions.create(p, next('P 할 일', '2026-10-10'))
+    await gateway.actions.changeNextActionStatus(pAction.id, { status: 'done', comment: '' })
+    await gateway.actions.create(q, next('Q 앞선 할 일', '2026-10-10'))
+    const qBasis = await gateway.actions.create(q, next('Q 기준 할 일', '2026-12-31'))
+    await gateway.actions.changeNextActionStatus(qBasis.id, { status: 'done', comment: '' })
+    await gateway.actions.create(r, next('R 할 일', '2026-12-31'))
+    return { gateway, p, q, r, pAction }
+  }
+
+  // 기준 행이 종료여도 앞선 Open이 지난 Deal만 기한초과이고 목록 필터·상세가 같다.
+  // 테스트 코드: RK-079
+  it('flags only the deal whose older open next action is past due', async () => {
+    // given: Fake 시계 오늘 2026-10-15와 P·Q·R Deal
+    const { gateway, p, q, r } = await scenario()
+
+    // when: overdue 필터로 목록을 읽고 세 Deal의 상세를 읽는다
+    const filtered = (await gateway.deals.list({ overdue: true, keyword: 'RK-' })).items.map((d) => d.code)
+    const risks = [(await gateway.deals.get(p)).risk, (await gateway.deals.get(q)).risk, (await gateway.deals.get(r)).risk]
+
+    // then: Q만 기한초과다
+    expect(filtered).toEqual([q])
+    expect(risks).toEqual([null, 'overdue', null])
+  })
+
+  // 종료한 Next Action을 Open으로 되돌리면 다시 기한초과다.
+  // 테스트 코드: RK-079
+  it('turns overdue again when the closed past-due next action is reopened', async () => {
+    // given: P의 지난 Next Action이 종료(수행)되어 risk가 null이다
+    const { gateway, p, pAction } = await scenario()
+    expect((await gateway.deals.get(p)).risk).toBeNull()
+
+    // when: 그 Next Action을 Open으로 되돌린다
+    await gateway.actions.changeNextActionStatus(pAction.id, { status: 'open', comment: '' })
+
+    // then: P가 기한초과다
+    expect((await gateway.deals.get(p)).risk).toBe('overdue')
+  })
+})

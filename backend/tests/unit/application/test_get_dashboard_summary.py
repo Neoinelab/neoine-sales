@@ -13,6 +13,7 @@ import pytest
 from app.application.dashboard.criteria import DashboardCriteria
 from app.application.forecast.get_summary import GetForecastSummary
 from app.application.ports.forecast_repository import ForecastCriteria
+from app.domain.deal_action.next_action_status import NextActionStatus
 from app.domain.forecast.period import ForecastPeriod
 from app.domain.forecast.summary import Tally
 from tests.factories import make_deal_action
@@ -480,6 +481,33 @@ async def test_overdue_count_ignores_period_and_excludes_closed_deals(env: DealE
     attention = (await summary(env, criteria_of(quarters={1}))).attention
 
     # then: 기한초과는 old 1건뿐이다(기간 밖이어도 세고 Lost·Due 오늘은 제외)
+    assert attention.overdue == 1
+
+
+async def test_overdue_count_follows_open_next_actions_only(env: DealEnv) -> None:
+    """기한초과 수는 종료한 Next Action을 세지 않고 예전 Open이 지난 Deal을 센다.
+
+    테스트 코드: RK-074
+    """
+    # given: Due가 어제인 Next Action을 종료한 Deal과 Open으로 둔 Deal
+    closed = await new_deal(env, "pipeline", 1, date(2026, 10, 5))
+    opened = await new_deal(env, "pipeline", 1, date(2026, 10, 5))
+    for view in (closed, opened):
+        action = make_deal_action(
+            deal_code=view.item.deal.id,
+            now=env.clock.now(),
+            actor_user_id=ACTOR_ID,
+            due_date=date(2026, 10, 22),
+        )
+        await env.uow.deal_actions.add(action)
+        if view is closed:
+            action.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
+            await env.uow.deal_actions.update(action)
+
+    # when: Dashboard 요약을 조회한다
+    attention = (await summary(env)).attention
+
+    # then: 기한초과는 Open인 Deal 1건뿐이다
     assert attention.overdue == 1
 
 

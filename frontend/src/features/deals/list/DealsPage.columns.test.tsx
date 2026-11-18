@@ -185,7 +185,7 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
   })
 
   // 기한초과 행은 Due 칸만 강조하고 Next Action 칸과 정상 행 Due 칸은 강조하지 않는다.
-  // 테스트 코드: RK-055
+  // 테스트 코드: RK-055, RK-077
   // 기한초과 Due만 강조한다
   // 테스트 코드: DL-059
   it('marks an overdue Next Action date and not a normal one', async () => {
@@ -204,6 +204,29 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     expect(isOverdueMarked(overdueDue)).toBe(true)
     expect(isOverdueMarked(cellOf(normalRow, 'Due'))).toBe(false)
     expect(isOverdueMarked(cellOf(overdueRow, 'Next Action'))).toBe(false)
+  })
+
+  // 기준 행이 종료이고 다른 Open Next Action 때문에 기한초과인 Deal은 이름 옆 배지·행 색만 보이고 Due 칸은 강조하지 않는다.
+  // 테스트 코드: RK-077
+  it('does not mark the Due cell when the basis row is closed but an older open row is overdue', async () => {
+    // given: Deal 1에 Due가 지난 Open Next Action과, 그 뒤에 Due 미래인 종료(수행) Next Action(기준 행)이 있다
+    const code = await dealCodeOf(1)
+    const { client } = await renderAt('/deals?q=한빛은행 ITDR')
+    await rowOf(/한빛은행 ITDR 도입/)
+    const past = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '예전 약속', nextAction: '예전 할 일', dueDate: '2000-01-01', comment: '' })
+    const basis = await gateway.actions.create(code, { type: { name: '미팅' }, progress: '최근', nextAction: '다음 할 일', dueDate: '2999-12-31', comment: '' })
+    await gateway.actions.changeNextActionStatus(basis.id, { status: 'done', comment: '' })
+    expect(past.id).not.toBe(basis.id)
+
+    // when: 목록을 다시 읽는다
+    await client.invalidateQueries()
+
+    // then: 이름 옆 '기한초과' 배지와 risk-overdue 행 클래스는 있고 Due 칸 강조는 없다
+    await waitFor(async () => expect(await rowOf(/한빛은행 ITDR 도입/)).toHaveClass('risk-overdue'))
+    const row = await rowOf(/한빛은행 ITDR 도입/)
+    expect(within(row).getByText('기한초과')).toBeVisible()
+    expect(cellOf(row, 'Due')).toHaveTextContent('2999-12-31')
+    expect(isOverdueMarked(cellOf(row, 'Due'))).toBe(false)
   })
 
   // 종료 상태 라벨은 상태 칸에만 보인다

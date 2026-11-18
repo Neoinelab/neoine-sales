@@ -21,15 +21,18 @@ def is_closed_forecast(forecast_key: str) -> bool:
 def compute_risk(
     *,
     forecast_key: str,
-    due_date: date | None,
+    earliest_open_due: date | None,
     last_updated_on: date,
     today: date,
     stale_days: int,
 ) -> Risk | None:
-    """종결이면 None. overdue는 기한이 오늘보다 앞, stale은 마지막 갱신 후 stale_days 이상 경과."""
+    """종결이면 None. overdue는 Open Next Action의 가장 이른 Due < 오늘.
+
+    stale은 마지막 갱신 후 stale_days 이상 경과.
+    """
     if is_closed_forecast(forecast_key):
         return None
-    overdue = due_date is not None and due_date < today
+    overdue = earliest_open_due is not None and earliest_open_due < today
     stale = (today - last_updated_on).days >= stale_days
     if overdue and stale:
         return Risk.OVERDUE_STALE

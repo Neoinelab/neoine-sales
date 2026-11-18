@@ -139,6 +139,7 @@ class SqlDealRepository(SavepointWriter):
                     )
                 ),
                 last_updated_on=row.last_updated_on,
+                earliest_open_due=row.earliest_open_due,
                 license_contract_count=int(row.license_contract_count),
                 unread_comment_count=int(row.unread_comment_count),
                 has_issued_license_contract=bool(row.has_issued_license_contract),

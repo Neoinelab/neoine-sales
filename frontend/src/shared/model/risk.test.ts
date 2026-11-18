@@ -1,27 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STALE_DAYS } from './constants'
-import { computeRisk, statusDays } from './risk'
+import { computeRisk, isOverdueRow, statusDays } from './risk'
 
 const NOW = '2026-10-15T09:00:00+09:00'
 const STALE = 14
 
 describe('computeRisk', () => {
-  const base = { forecastKey: 'commit', dueDate: '2026-10-20', lastUpdatedOn: '2026-10-14' }
+  const base = { forecastKey: 'commit', earliestOpenDue: '2026-10-20', lastUpdatedOn: '2026-10-14' }
 
   // Due가 오늘이면 기한초과가 아니다.
-  // 테스트 코드: RK-066
+  // 테스트 코드: RK-066, RK-079
   it('T-RISK-01 Due가 오늘이면 기한초과가 아니다', () => {
-    // when: Due가 오늘인 Deal을 판정한다
-    const result = computeRisk({ ...base, dueDate: '2026-10-15' }, NOW, STALE)
+    // when: 가장 이른 Open Due가 오늘인 Deal을 판정한다
+    const result = computeRisk({ ...base, earliestOpenDue: '2026-10-15' }, NOW, STALE)
     // then: risk가 null이다
     expect(result).toBeNull()
   })
 
   // Due가 어제면 기한초과다.
-  // 테스트 코드: RK-066
+  // 테스트 코드: RK-066, RK-079
   it('T-RISK-02 Due가 어제면 기한초과다', () => {
     // when: Due가 어제인 Deal을 판정한다
-    const result = computeRisk({ ...base, dueDate: '2026-10-14' }, NOW, STALE)
+    const result = computeRisk({ ...base, earliestOpenDue: '2026-10-14' }, NOW, STALE)
     // then: risk가 overdue다
     expect(result).toBe('overdue')
   })
@@ -41,7 +41,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('T-RISK-04 둘 다면 overdue_stale이다', () => {
     // when: Due가 지났고 오래 갱신하지 않은 Deal을 판정한다
-    const result = computeRisk({ ...base, dueDate: '2026-10-01', lastUpdatedOn: '2026-09-20' }, NOW, STALE)
+    const result = computeRisk({ ...base, earliestOpenDue: '2026-10-01', lastUpdatedOn: '2026-09-20' }, NOW, STALE)
     // then: risk가 overdue_stale이다
     expect(result).toBe(
       'overdue_stale',
@@ -52,7 +52,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('T-RISK-05 Won·Lost 종결 Deal은 항상 risk가 없다', () => {
     // given: Due가 지나고 오래전에 갱신한 상태다
-    const stale = { dueDate: '2026-01-01', lastUpdatedOn: '2026-01-01' }
+    const stale = { earliestOpenDue: '2026-01-01', lastUpdatedOn: '2026-01-01' }
     // when: Due가 지나고 오래된 Won·Lost Deal을 판정한다
     const result = computeRisk({ forecastKey: 'won', ...stale }, NOW, STALE)
     // then: 둘 다 null이다
@@ -61,10 +61,10 @@ describe('computeRisk', () => {
   })
 
   // Action이 없어 Due가 null이면 기한초과가 아니다.
-  // 테스트 코드: RK-066
-  it('Action이 없어 dueDate가 null이면 기한초과가 아니다', () => {
+  // 테스트 코드: RK-066, RK-079
+  it('Open Next Action이 없어 earliestOpenDue가 null이면 기한초과가 아니다', () => {
     // when: Due가 null인 Deal을 판정한다
-    const result = computeRisk({ ...base, dueDate: null }, NOW, STALE)
+    const result = computeRisk({ ...base, earliestOpenDue: null }, NOW, STALE)
     // then: risk가 null이다
     expect(result).toBeNull()
   })
@@ -73,7 +73,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('오늘은 now 문자열의 달력 날짜를 쓴다(UTC로 바꾸지 않는다)', () => {
     // when: 서울 00:30(UTC로는 전날)에 판정한다
-    const result = computeRisk({ ...base, dueDate: '2026-10-14' }, '2026-10-15T00:30:00+09:00', STALE)
+    const result = computeRisk({ ...base, earliestOpenDue: '2026-10-14' }, '2026-10-15T00:30:00+09:00', STALE)
     // then: 서울 달력 날짜로 어제 Due가 기한초과다
     expect(result).toBe('overdue')
   })
@@ -106,7 +106,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('combines overdue with the custom threshold', () => {
     // given: Due가 지났고 7일 전에 갱신한 Deal이다
-    const input = { ...base, dueDate: '2026-10-01', lastUpdatedOn: '2026-10-08' }
+    const input = { ...base, earliestOpenDue: '2026-10-01', lastUpdatedOn: '2026-10-08' }
     // when: 기준 7일과 8일로 판정한다
     const result = computeRisk(input, NOW, 7)
     // then: 7일이면 overdue_stale, 8일이면 overdue다
@@ -118,7 +118,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('keeps closed deals null whatever the threshold', () => {
     // when: 기준 1일로 오래된 Won Deal을 판정한다
-    const result = computeRisk({ forecastKey: 'won', dueDate: '2020-01-01', lastUpdatedOn: '2020-01-01' }, NOW, 1)
+    const result = computeRisk({ forecastKey: 'won', earliestOpenDue: '2020-01-01', lastUpdatedOn: '2020-01-01' }, NOW, 1)
     // then: risk가 null이다
     expect(result).toBeNull()
   })
@@ -162,5 +162,41 @@ describe('statusDays', () => {
     const result = statusDays('2026-10-14', '2026-10-14T23:30:00-05:00')
     // then: 진입 당일이라 0이다
     expect(result).toBe(0)
+  })
+})
+
+describe('isOverdueRow', () => {
+  // Open이고 Due가 오늘보다 앞이면 기한초과 행이다.
+  it('is overdue when the next action is open and the due date is before today', () => {
+    // when: Open이고 Due가 어제인 행을 판정한다
+    const result = isOverdueRow('open', '2026-10-14', '2026-10-15')
+    // then: true다
+    expect(result).toBe(true)
+  })
+
+  // Due가 오늘이면 기한초과가 아니다.
+  it('is not overdue when the due date is today', () => {
+    // when: Open이고 Due가 오늘인 행을 판정한다
+    const result = isOverdueRow('open', '2026-10-15', '2026-10-15')
+    // then: false다
+    expect(result).toBe(false)
+  })
+
+  // 종료(수행·미수행) 행은 Due가 지나도 기한초과가 아니다.
+  it.each(['done', 'notDone'])('is not overdue when the status is %s', (status) => {
+    // when: 종료 상태이고 Due가 지난 행을 판정한다
+    const result = isOverdueRow(status, '2026-10-01', '2026-10-15')
+    // then: false다
+    expect(result).toBe(false)
+  })
+
+  // Due가 없거나 상태가 없으면(Next Action 없음) 기한초과가 아니다.
+  it('is not overdue without a due date or without a status', () => {
+    // when: Due가 null인 행과 상태가 null인 행을 판정한다
+    const noDue = isOverdueRow('open', null, '2026-10-15')
+    const noStatus = isOverdueRow(null, '2026-10-01', '2026-10-15')
+    // then: 둘 다 false다
+    expect(noDue).toBe(false)
+    expect(noStatus).toBe(false)
   })
 })

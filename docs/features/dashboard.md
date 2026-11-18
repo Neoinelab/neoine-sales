@@ -39,7 +39,7 @@
 
 ### 2.2 데이터 모델
 
-DSH는 테이블을 소유하지 않는다. 읽는 값: `deals`(DE-R4, `revenue_date`·`revenue_amount`·`status_key`·`forecast_key`·`owner_user_id`·`vendor_id`), `codes`(CD-R1·CD-R5, 순서·이름·outcome), `deal_actions`(AC-R2의 Action 값, 기한초과·미업데이트 판정의 Next Action 기준 행·최종 업데이트 — RK-R1, RK-R2), `alert_settings`(RK-R11).
+DSH는 테이블을 소유하지 않는다. 읽는 값: `deals`(DE-R4, `revenue_date`·`revenue_amount`·`status_key`·`forecast_key`·`owner_user_id`·`vendor_id`), `codes`(CD-R1·CD-R5, 순서·이름·outcome), `deal_actions`(AC-R2의 Action 값, 기한초과 판정의 Open Next Action 행 — RK-R4, 미업데이트 판정의 최종 업데이트 — RK-R2), `alert_settings`(RK-R11).
 
 서버 조건 모델 `DashboardCriteria`(application, 각 숫자의 조건 정의 단일 출처): `period`(`ForecastPeriod`: `year` 1900~9999 + 고른 분기 집합 또는 없음, 월은 쓰지 않음), `owner_user_id`, `vendor_id`. 숫자마다 만드는 Deal 목록 조건(`DealQuery`)은 DSH-R11 표와 같다. 집계 Port는 `DashboardTallyRepository.tally_by_status(DealQuery)`(Status별 건수·금액)와 `tally_by_quarter(DealQuery)`(연 단위 질의 전용, 분기×Forecast key별, Lost 포함)이고 Forecast 타일은 FC의 `ForecastTallyRepository.tally`(FC-R5)를 같이 쓴다.
 
@@ -546,3 +546,4 @@ DSH-R13~DSH-R29.
 | 2026-11-11 | 최초 작성(구현된 동작을 정본으로 옮김, 초안) | DSH-001~DSH-056 |
 | 2026-11-11 | 사용자 결정 반영(추천대로): F1 Fake를 서버 동작에 맞춤(DSH-R29 신설: 범위 밖 연도·분기 422 `request-validation`), F2 Dashboard 연도에 '전체' 없음(DSH-R16, DL-R24 문구 정리), F4 FC 이름 참조를 FC 규칙 번호로(FC 범위 FC-R1~R35, 합계 행 FC-R4~R6, 조건 FC-R3, 집계 FC-R5)와 다른 문서 참조를 번호로(CL-R3·R7~R10, DE-R4, CD-R1·R5, AC-R2, RK-R1·R2), F5 운영 코드 주석 "슬라이드 7·9"는 그대로 | 없음(케이스 기대 결과 변경 없음) |
 | 2026-11-16 | 확정(2026-11-16 사용자 확인): DL 변경(Deal 목록 연도 선택 상자 이름 "Close 연도", DL-R24)에 따라 DSH-050 Then의 Deals 필터 바 표기를 고침. Dashboard 화면의 "연도" 라벨·동작은 그대로 | 변경: DSH-050 |
+| 2026-11-18 | RK-R4 변경(기한초과는 Open Next Action만)에 맞춰 2.2 읽는 값 문구 갱신. DSH 규칙·케이스 변경 없음(기한초과 수는 RK 판정을 그대로 씀), 상태 줄 그대로 | 없음(관련 RK-074) |

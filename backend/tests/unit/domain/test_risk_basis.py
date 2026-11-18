@@ -15,7 +15,7 @@ TODAY = date(2026, 10, 22)
 def _flagged_stale(day: date, stale_days: int) -> bool:
     risk = compute_risk(
         forecast_key="pipeline",
-        due_date=None,
+        earliest_open_due=None,
         last_updated_on=day,
         today=TODAY,
         stale_days=stale_days,

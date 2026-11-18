@@ -122,6 +122,16 @@ function contactOf(data: SeedData, id: number): Contact {
   return found
 }
 
+/** RK-R4: 이 Deal의 Open Next Action 행 가운데 가장 이른 Due(없으면 null). 기준 행과 무관하다. */
+export function earliestOpenDue(data: SeedData, dealCode: string): string | null {
+  let best: string | null = null
+  for (const a of data.actions) {
+    if (a.dealCode !== dealCode || a.nextActionStatus !== 'open' || a.dueDate === null) continue
+    if (best === null || a.dueDate < best) best = a.dueDate
+  }
+  return best
+}
+
 export function dealRow(ctx: MockContext, deal: Deal): DealRow {
   const { data } = ctx.store
   const latest = latestAction(data, deal.code)
@@ -151,7 +161,7 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
     lastUpdatedOn,
     statusDays: statusDays(deal.statusChangedOn, now),
     risk: computeRisk(
-      { forecastKey: deal.forecastKey, dueDate: nextAction?.dueDate ?? null, lastUpdatedOn },
+      { forecastKey: deal.forecastKey, earliestOpenDue: earliestOpenDue(data, deal.code), lastUpdatedOn },
       now,
       data.alerts.staleDays,
     ),

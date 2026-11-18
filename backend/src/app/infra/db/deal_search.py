@@ -19,7 +19,12 @@ from app.infra.db.deal_derived import (
     last_updated_scalar,
 )
 from app.infra.db.deal_list_order import order_clause
-from app.infra.db.deal_risk import not_closed_condition, overdue_condition, stale_condition
+from app.infra.db.deal_risk import (
+    earliest_open_due_scalar,
+    not_closed_condition,
+    overdue_condition,
+    stale_condition,
+)
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
 from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_comment import DealCommentRow
@@ -38,7 +43,9 @@ if TYPE_CHECKING:
 
 # 목록 질의의 한 행: (Deal 행, last_updated_on, 기준 행의 next_action·due_date·상태, 계약 수)
 # 기준 행 outer join이라 Next Action이 없는 Deal은 세 값이 모두 NULL이다.
-type ItemSelect = Select[tuple[DealRow, date, str | None, date | None, str | None, int]]
+type ItemSelect = Select[
+    tuple[DealRow, date, str | None, date | None, str | None, date | None, int, int, bool]
+]
 
 
 def _keyword_condition(keyword: str) -> ColumnElement[bool]:
@@ -177,7 +184,11 @@ def _has_issued_contract() -> ColumnElement[bool]:
 
 
 def item_select() -> ItemSelect:
-    """Deal 행과 파생값(last_updated_on, 기준 행의 next_action·due_date·상태)."""
+    """Deal 행과 파생값.
+
+    최종 업데이트일, 기준 행의 Next Action·Due·상태, 가장 이른 Open Due,
+    계약 수·읽지 않은 Comment 수, 발급 계약 여부.
+    """
     return (
         select(
             DealRow,
@@ -185,6 +196,7 @@ def item_select() -> ItemSelect:
             LATEST_NEXT.c.next_action,
             LATEST_NEXT.c.due_date,
             LATEST_NEXT.c.next_action_status.label("basis_status"),
+            earliest_open_due_scalar().label("earliest_open_due"),
             _contract_count().label("license_contract_count"),
             _unread_comment_count().label("unread_comment_count"),
             _has_issued_contract().label("has_issued_license_contract"),

@@ -47,7 +47,9 @@ class Spec:
     created: datetime = field(default_factory=lambda: _at(-60))
     # (수행 시각 — 날짜만 쓰인다, next_action 있음, due_date, 상태 변경) 목록
     actions: tuple[tuple[datetime, str, date | None, str | None], ...] = ()
-    expected_due: date | None = None  # 기준 행의 Due(테스트가 직접 적은 값)
+    expected_open_due: date | None = (
+        None  # Open Next Action 중 가장 이른 Due(테스트가 직접 적은 값, 없으면 None)
+    )
     expected_updated: datetime | None = None  # 최종 업데이트(직접 적은 값)
 
     @property
@@ -60,14 +62,14 @@ SPECS = [
     Spec(
         "A001",
         actions=((_at(0), "계획", TODAY - timedelta(days=1), None),),
-        expected_due=TODAY - timedelta(days=1),
+        expected_open_due=TODAY - timedelta(days=1),
         expected_updated=_at(0),
     ),
     # (b) Due = 오늘은 기한초과가 아니다
     Spec(
         "A002",
         actions=((_at(0), "계획", TODAY, None),),
-        expected_due=TODAY,
+        expected_open_due=TODAY,
         expected_updated=_at(0),
     ),
     # (c) Next Action 없음, 오래된 Action -> 미업데이트만
@@ -91,45 +93,65 @@ SPECS = [
         "A007",
         forecast="won",
         actions=((_at(-30), "계획", TODAY - timedelta(days=5), None),),
-        expected_due=TODAY - timedelta(days=5),
+        expected_open_due=TODAY - timedelta(days=5),
         expected_updated=_at(-30),
     ),
     Spec(
         "A008",
         forecast="lost",
         actions=((_at(-30), "계획", TODAY - timedelta(days=5), None),),
-        expected_due=TODAY - timedelta(days=5),
+        expected_open_due=TODAY - timedelta(days=5),
         expected_updated=_at(-30),
     ),
-    # (i) 기준 행이 종료(done)여도 Due가 지났으면 기한초과(배지와 동일)
+    # (i) 종료(done)한 Next Action은 Due가 지났어도 기한초과가 아니다(RK-R4)
     Spec(
         "A009",
         actions=((_at(0), "계획", TODAY - timedelta(days=3), "done"),),
-        expected_due=TODAY - timedelta(days=3),
+        expected_open_due=None,
         expected_updated=_at(0),
     ),
     # (j) 오래된 Next Action 뒤에 진행사항만 있는 최근 Action: 기준 행은 앞의 것(기한초과)
     Spec(
         "A010",
         actions=((_at(-30), "계획", TODAY - timedelta(days=2), None), (_at(-1), "", None, None)),
-        expected_due=TODAY - timedelta(days=2),
+        expected_open_due=TODAY - timedelta(days=2),
         expected_updated=_at(-1),
     ),
-    # (k) Next Action이 둘이면 더 최근 것이 기준 행(미래 Due) -> 기한초과 아님
+    # (k) Open Next Action이 둘이면 하나라도 지나면 기한초과(가장 이른 Open Due = 5일 전)
     Spec(
         "A011",
         actions=(
             (_at(-3), "예전 계획", TODAY - timedelta(days=5), None),
             (_at(-2), "새 계획", TODAY + timedelta(days=5), None),
         ),
-        expected_due=TODAY + timedelta(days=5),
+        expected_open_due=TODAY - timedelta(days=5),
+        expected_updated=_at(-2),
+    ),
+    # (m) 기준 행(더 최근)은 종료인데 앞선 Open의 Due가 지났다 -> 기한초과(RK-070)
+    Spec(
+        "A013",
+        actions=(
+            (_at(-3), "예전 계획", TODAY - timedelta(days=4), None),
+            (_at(-2), "새 계획", TODAY + timedelta(days=9), "done"),
+        ),
+        expected_open_due=TODAY - timedelta(days=4),
+        expected_updated=_at(-2),
+    ),
+    # (n) 지난 Due는 종료, Open은 오늘 -> 기한초과 아님
+    Spec(
+        "A014",
+        actions=(
+            (_at(-3), "예전 계획", TODAY - timedelta(days=4), "not_done"),
+            (_at(-2), "새 계획", TODAY, None),
+        ),
+        expected_open_due=TODAY,
         expected_updated=_at(-2),
     ),
     # (l) 기한초과이면서 미업데이트
     Spec(
         "A012",
         actions=((_at(-20), "계획", TODAY - timedelta(days=10), None),),
-        expected_due=TODAY - timedelta(days=10),
+        expected_open_due=TODAY - timedelta(days=10),
         expected_updated=_at(-20),
     ),
 ]
@@ -159,7 +181,7 @@ def _expected(accepted: set[Risk]) -> list[str]:
         for spec in SPECS
         if compute_risk(
             forecast_key=spec.forecast,
-            due_date=spec.expected_due,
+            earliest_open_due=spec.expected_open_due,
             last_updated_on=(spec.expected_updated or spec.created).date(),
             today=TODAY,
             stale_days=STALE_DAYS,
@@ -191,6 +213,27 @@ async def test_each_filter_returns_exactly_the_rows_compute_risk_flags(
     assert stale == _expected(STALE_SET)
     assert either == _expected(OVERDUE_SET | STALE_SET)
     assert (overdue_total, stale_total, either_total) == (len(overdue), len(stale), len(either))
+
+
+async def test_overdue_follows_open_next_actions_regardless_of_the_basis_row(
+    deal_case: DealCase,
+) -> None:
+    """실제 저장소의 overdue 필터는 종료한 Due를 무시하고 앞선 Open의 Due를 본다.
+
+    테스트 코드: RK-075
+    """
+    # given: 종료 Due(A009·A014), 앞선 Open이 지난 Deal(A011·A013)을 포함한 Deal들이 있다
+    await _seed(deal_case)
+
+    # when: 기한초과 필터로 검색하고 같은 Deal의 행 earliest_open_due를 읽는다
+    overdue, _ = await _found(deal_case, overdue=True)
+    rows = {i.deal.id.value: i for i in await deal_case.deals.search(DealQuery(limit=200))}
+
+    # then: 종료 Due만 지난 Deal은 빠지고 앞선 Open이 지난 Deal은 들며 행 값이 가장 이른 Open Due다
+    assert {"20261016-A011", "20261016-A013"} <= set(overdue)
+    assert not {"20261016-A009", "20261016-A014"} & set(overdue)
+    assert rows["20261016-A011"].earliest_open_due == TODAY - timedelta(days=5)
+    assert rows["20261016-A009"].earliest_open_due is None
 
 
 def test_the_expected_sets_are_not_trivial() -> None:

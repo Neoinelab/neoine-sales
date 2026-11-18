@@ -81,7 +81,7 @@ export function DealsPage() {
       <ul className="risk-legend" aria-label="Risk 범례">
         <li>
           <span className="badge risk-overdue">기한초과</span>
-          <span className="hint">Next Action의 Due Date가 지났습니다</span>
+          <span className="hint">Open인 Next Action의 Due Date가 지났습니다</span>
         </li>
         <li>
           <span className="badge risk-stale">미업데이트</span>
