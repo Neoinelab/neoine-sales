@@ -8,7 +8,7 @@ from app.web.schemas.common import Page, RequestModel
 from app.web.schemas.password_field import to_new_password
 from app.web.schemas.profile_changes import ProfileChangesRequest
 from app.web.schemas.server_datetime import ServerDateTime
-from app.web.schemas.user_ref import UserRef
+from app.web.schemas.user_ref import UserOptionRef
 
 if TYPE_CHECKING:
     from app.application.user.delete_user import DeleteOutcome
@@ -85,7 +85,7 @@ UserPage = Page[UserResponse]
 class UserOptionPage(BaseModel):
     """선택 UI용 후보 전체. 조건에 맞는 사용자를 모두 돌려주므로 페이징 필드가 없다."""
 
-    items: list[UserRef]
+    items: list[UserOptionRef]
 
 
 class DeleteUserResponse(BaseModel):

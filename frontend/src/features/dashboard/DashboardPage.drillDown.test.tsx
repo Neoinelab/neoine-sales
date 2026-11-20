@@ -67,12 +67,12 @@ describe('이동과 목록 조건', () => {
     // when: 기회발굴 행 링크를 누른다
     await view.user.click(within(row).getByRole('link'))
 
-    // then: 필터 바에 기회발굴·2026·Q4·김영업이 보이고 Forecast 구분 칸은 없다
+    // then: 필터 바에 기회발굴·2026·Q4·김영업 (kim)이 보이고 Forecast 구분 칸은 없다
     expect(await screen.findByLabelText('Status')).toHaveDisplayValue('기회발굴')
     expect(screen.queryByLabelText('Forecast 구분')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('2026')
     expect(screen.getByRole('button', { name: 'Quarter Q4' })).toBeVisible()
-    expect(screen.getByLabelText('담당자')).toHaveDisplayValue('김영업')
+    await waitFor(() => expect(screen.getByLabelText('담당자')).toHaveValue('김영업 (kim)'))
   })
 
   // 테스트 코드: DSH-050

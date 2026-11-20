@@ -30,35 +30,58 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     expect(dataRows()).toHaveLength(3)
   })
 
-  // 담당자를 고르면 즉시 URL에 반영된다
+  // 담당자 후보를 고르면 즉시 URL에 반영되고 그 담당자의 Deal만 보이며 내 딜만을 켰다 끄면 mine이 생겼다 지워진다
   // 테스트 코드: DL-066
-  it('filters by owner', async () => {
-    // given: 시드 목록
+  it('filters by an owner candidate at once and toggles mine without a search press', async () => {
+    // given: 재직 sales 박영업(park)이 있는 시드 목록
     const { user, location } = await renderAt(ALL_DEALS)
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
-    await user.selectOptions(await screen.findByLabelText('담당자'), '박영업')
+    const owner = await screen.findByRole('combobox', { name: '담당자' })
 
-    // when: 담당자 칸에서 사용자를 고른다
+    // when: 담당자 칸에 "박"을 입력해 후보 "박영업 (park)"을 고른다
+    await user.type(owner, '박')
+    await user.click(await screen.findByRole('option', { name: '박영업 (park)' }))
     await screen.findByRole('row', { name: /미래전자 EDR 교체/ })
 
-    // then: URL에 owner가 생기고 그 담당자의 Deal만 보인다
+    // then: 검색을 누르지 않아도 URL에 owner가 생기고 그 담당자의 Deal만 보인다
     expect(location()).toContain(`owner=${USER_ID.park}`)
     expect(dataRows()).toHaveLength(6)
+
+    // when: 내 딜만을 켠다
+    await user.click(screen.getByRole('checkbox', { name: '내 딜만' }))
+
+    // then: URL에 mine=1이 생긴다
+    await waitFor(() => expect(location()).toContain('mine=1'))
+
+    // when: 내 딜만을 끈다
+    await user.click(screen.getByRole('checkbox', { name: '내 딜만' }))
+
+    // then: mine이 지워진다
+    await waitFor(() => expect(location()).not.toContain('mine'))
   })
 
-  // 담당자 선택지에 퇴사자도 있다
+  // 퇴사한 담당자는 후보에 없고 "이름(퇴사)"를 입력해 검색해야 그의 Deal이 보인다
   // 테스트 코드: DL-066
-  it('offers resigned owners in the owner filter', async () => {
-    // given: 퇴사한 담당자가 있는 시드
-    const { user } = await renderAt(ALL_DEALS)
-    const owner = await screen.findByLabelText('담당자')
-    await within(owner).findByRole('option', { name: '강퇴사(퇴사)' })
+  it('does not offer resigned owners as candidates but finds them by the typed name with the resigned mark', async () => {
+    // given: 퇴사한 담당자 강퇴사가 Deal을 가진 시드
+    const { user, location } = await renderAt(ALL_DEALS)
+    await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
+    const owner = await screen.findByRole('combobox', { name: '담당자' })
 
-    // when: 퇴사한 담당자를 고른다
-    await user.selectOptions(owner, '강퇴사(퇴사)')
+    // when: 담당자 칸에 "강"을 입력한다
+    await user.type(owner, '강')
+
+    // then: 후보 목록이 없다
+    expect(screen.queryByRole('listbox', { name: '담당자' })).not.toBeInTheDocument()
+
+    // when: "강퇴사(퇴사)"를 입력하고 검색한다
+    await user.clear(owner)
+    await user.type(owner, '강퇴사(퇴사)')
+    await user.click(screen.getByRole('button', { name: '검색' }))
+
+    // then: URL이 owner_name이고 그의 Deal만 보인다
     await screen.findByRole('row', { name: /한빛은행 PAM/ })
-
-    // then: 퇴사자가 선택지에 있고 그의 Deal만 보인다
+    expect(new URLSearchParams(location().split('?')[1]).get('owner_name')).toBe('강퇴사(퇴사)')
     expect(dataRows()).toHaveLength(1)
   })
 

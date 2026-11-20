@@ -1,6 +1,6 @@
 import { api } from '../../shared/api/client'
 import type { UsersGateway } from '../types'
-import { toProfileBody, toUser, toUserRef } from './mappers/user'
+import { toProfileBody, toUser, toUserOption } from './mappers/user'
 import { unwrap, unwrapVoid } from './request'
 
 /** 서버 목록 한 번에 받을 수 있는 최대 개수. */
@@ -45,7 +45,7 @@ export function createUsersHttp(): UsersGateway {
             params: { query: { include_resigned: query.includeResigned ?? false, role: query.role } },
           }),
         )
-      ).items.map(toUserRef),
+      ).items.map(toUserOption),
     // 비밀번호·이메일·전화는 값이 있을 때만 보낸다(AD 모드에서 비밀번호를 보내면 서버가 422).
     create: async (input) =>
       toUser(

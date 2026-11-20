@@ -9,6 +9,7 @@ import { parseMonth } from '../../../shared/model/month'
 import { effectiveQuarters, monthsOfQuarters, parseQuarterParam, quarterParam, toggleQuarter } from '../../../shared/model/quarterSet'
 import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
+import { validOwnerName } from '../../../shared/model/ownerInput'
 import { parseForecastParam } from '../../../shared/model/forecastKeys'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
@@ -116,8 +117,11 @@ export function listQueryFromParams(params: URLSearchParams): DealListQuery {
   if (isCalendarDate(updatedTo)) query.updatedTo = updatedTo
 
   // Owner·Vendor는 정수 id만 받는다. 예전 UUID·이름 기반 URL 값은 무시한다.
+  // owner_name(이름 글자)이 있으면 owner는 쓰지 않는다(둘을 함께 보내면 서버 422).
+  const ownerName = validOwnerName(params.get('owner_name'))
   const ownerId = parseId(params.get('owner'))
-  if (ownerId !== undefined) query.ownerId = ownerId
+  if (ownerName !== undefined) query.ownerName = ownerName
+  else if (ownerId !== undefined) query.ownerId = ownerId
   const vendorId = parseId(params.get('vendor'))
   if (vendorId !== undefined) query.vendorId = vendorId
   // Product는 자유 텍스트(부분 일치)라 id로 해석하지 않고 트림한 값을 그대로 쓴다.

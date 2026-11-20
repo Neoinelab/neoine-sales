@@ -4,9 +4,9 @@ import { createUsersHttp } from './users'
 
 afterEach(() => vi.unstubAllGlobals())
 
-/** 서버 UserRef 응답 조각. 서버는 모든 UserRef에 role을 담는다. */
-function refWithRole(id: number, name: string, role: 'admin' | 'sales' | 'user', resigned = false) {
-  return { id, name, label: resigned ? `${name}(퇴사)` : name, resigned, role }
+/** 서버 UserOption 응답 조각. 서버는 모든 항목에 role과 login_id를 담는다(US-R20). */
+function refWithRole(id: number, name: string, role: 'admin' | 'sales' | 'user', resigned = false, loginId = `login${id}`) {
+  return { id, name, label: resigned ? `${name}(퇴사)` : name, resigned, role, login_id: loginId }
 }
 
 const userRefBody = (id: number, name: string, resigned = false) => refWithRole(id, name, 'admin', resigned)
@@ -121,7 +121,7 @@ describe('users over HTTP', () => {
     expect(url.pathname).toBe('/api/v1/user-options')
     expect(url.searchParams.get('role')).toBe('sales')
     expect(url.searchParams.get('include_resigned')).toBe('false')
-    expect(options).toEqual([{ id: 2, name: '박영업', role: 'sales', status: 'active' }])
+    expect(options).toEqual([{ id: 2, name: '박영업', role: 'sales', status: 'active', loginId: 'login2' }])
   })
 
   // role이 없으면 role 쿼리를 보내지 않는다
@@ -154,6 +154,22 @@ describe('users over HTTP', () => {
     expect(sent.get('role')).toBe('sales')
     expect(sent.has('offset')).toBe(false)
     expect(sent.has('limit')).toBe(false)
+  })
+
+  // 선택 목록 항목의 login_id를 loginId로 바꾸고 다른 필드 변환은 그대로다
+  // 테스트 코드: US-117
+  it('options maps login_id to loginId for active and resigned users and keeps the other fields', async () => {
+    // given: login_id가 있는 재직·퇴사 항목 응답
+    stubFetch(json({ items: [refWithRole(2, '김영업', 'sales', false, 'kim1'), refWithRole(9, '강퇴사', 'sales', true, 'old')] }))
+
+    // when: 퇴사자 포함으로 읽는다
+    const options = await createUsersHttp().options({ includeResigned: true })
+
+    // then: loginId가 아이디이고 이름·역할·상태 변환은 그대로다
+    expect(options).toEqual([
+      { id: 2, name: '김영업', role: 'sales', status: 'active', loginId: 'kim1' },
+      { id: 9, name: '강퇴사', role: 'sales', status: 'resigned', loginId: 'old' },
+    ])
   })
 
   // 선택 목록은 서버 역할을 그대로 쓴다(퇴사자 포함)

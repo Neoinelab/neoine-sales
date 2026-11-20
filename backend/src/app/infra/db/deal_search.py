@@ -10,8 +10,9 @@ Expected Close 연/분기는 DealQuery.revenue_window()의 양끝 포함 범위�
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, and_, exists, extract, func, or_, select
+from sqlalchemy import ColumnElement, String, and_, exists, extract, func, literal, or_, select
 
+from app.domain.deal.owner_name import resigned_owner_name
 from app.infra.db.deal_derived import (
     LAST_UPDATED,
     LATEST_ACTED,
@@ -26,6 +27,7 @@ from app.infra.db.deal_risk import (
     stale_condition,
 )
 from app.infra.db.like import LIKE_ESCAPE, like_pattern
+from app.infra.db.models_auth import UserRow
 from app.infra.db.models_catalog import CodeRow
 from app.infra.db.models_comment import DealCommentRow
 from app.infra.db.models_contact import ContactRow
@@ -126,6 +128,23 @@ def _window_conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     return found
 
 
+def _owner_name_condition(text: str) -> ColumnElement[bool]:
+    """담당자 화면 이름(표시 이름, 없으면 아이디) 검색(DL-R39). 재직 부분 일치, 퇴사 정확 일치."""
+    name = func.coalesce(func.nullif(UserRow.display_name, ""), UserRow.login_id)
+    active = and_(UserRow.deleted_at.is_(None), name.ilike(like_pattern(text), escape=LIKE_ESCAPE))
+    resigned = resigned_owner_name(text)
+    matched = active
+    if resigned is not None:
+        matched = or_(
+            active,
+            and_(
+                UserRow.deleted_at.is_not(None),
+                func.lower(name) == func.lower(literal(resigned, String)),
+            ),
+        )
+    return exists().where(UserRow.id == DealRow.owner_user_id, matched).correlate(DealRow)
+
+
 def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     """query의 조건을 AND로 결합할 WHERE 절 목록. 기간은 양끝을 포함한다."""
     found: list[ColumnElement[bool]] = []
@@ -136,6 +155,8 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
         (DealRow.vendor_id, query.vendor_id),
         (DealRow.status_key, query.status_key),
     )
+    if query.owner_name is not None:
+        found.append(_owner_name_condition(query.owner_name))
     if query.forecast_keys is not None:
         found.append(DealRow.forecast_key.in_(sorted(query.forecast_keys)))
     if query.forecast_outcome is not None:

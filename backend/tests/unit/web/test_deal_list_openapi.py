@@ -149,3 +149,25 @@ def test_the_list_query_parameters_do_not_include_unread_comment_count(
     """
     # then: 읽지 않은 수로 거르거나 정렬하는 파라미터는 없다
     assert "unread_comment_count" not in parameters
+
+
+@pytest.mark.parametrize("path", ["/api/v1/deals", "/api/v1/deals/export"])
+def test_owner_name_is_an_optional_string_query_of_at_most_100_characters(
+    contract: dict[str, Any], path: str
+) -> None:
+    """/deals·/deals/export에 선택 문자열 쿼리 owner_name(maxLength 100)이 있다.
+
+    테스트 코드: DL-135
+    """
+    # when: 두 경로의 GET 파라미터를 읽는다 (전제: 앱 계약·커밋된 계약 모두)
+    listed = {p["name"]: p for p in contract["paths"][path]["get"]["parameters"]}
+    parameter = listed["owner_name"]
+    options = parameter["schema"].get("anyOf", [parameter["schema"]])
+    strings = [o for o in options if o.get("type") == "string"]
+    # then: 쿼리 파라미터이고 필수가 아니며 문자열 maxLength 100이다
+    assert parameter["in"] == "query"
+    assert parameter.get("required", False) is False
+    assert strings
+    assert strings[0]["maxLength"] == 100
+    # then: owner_user_id가 그대로 있다
+    assert "owner_user_id" in listed

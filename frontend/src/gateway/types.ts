@@ -98,8 +98,8 @@ import type {
   UserCreateInput,
   Role,
   UserListFilter,
+  UserOption,
   UserOptionsQuery,
-  UserRef,
   UserRemoveResult,
   Vendor,
 } from '../shared/model/types'
@@ -427,7 +427,7 @@ export interface UsersGateway {
   /** admin만. 등록일 최신순. */
   list(filter: UserListFilter): Promise<User[]>
   /** 모든 로그인 사용자. 선택 목록용(이름순). 퇴사자는 includeResigned일 때만. */
-  options(query: UserOptionsQuery): Promise<UserRef[]>
+  options(query: UserOptionsQuery): Promise<UserOption[]>
   /** admin만. 같은 loginId 재직자가 있으면 409 "이미 존재하는 사용자입니다: <loginId>" (퇴사자와는 겹쳐도 됨). 검증 422. */
   create(input: UserCreateInput): Promise<User>
   /**

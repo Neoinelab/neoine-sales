@@ -19,13 +19,18 @@ function matches(
   viewerId: number,
   thisYear: number,
   outcomeOf: ReadonlyMap<string, ForecastOutcome>,
+  ownerMatches: (ownerId: number) => boolean,
 ): boolean {
   if (query.keyword) {
     const needle = query.keyword.trim().toLowerCase()
     const haystack = [row.name, row.customer.company, row.activePartner?.company ?? '', row.code]
     if (!haystack.some((text) => text.toLowerCase().includes(needle))) return false
   }
-  if (query.ownerId && row.ownerId !== query.ownerId) return false
+  // mine이 켜져 있으면 담당자 id·이름 조건은 무시한다(DL-R5). 이름은 DL-R39.
+  if (!query.mine) {
+    if (query.ownerId && row.ownerId !== query.ownerId) return false
+    if (!ownerMatches(row.ownerId)) return false
+  }
   if (query.vendorId && row.vendor?.id !== query.vendorId) return false
   const product = query.product?.trim().toLowerCase()
   if (product && !row.product.toLowerCase().includes(product)) return false
@@ -75,6 +80,25 @@ function isAbsent(row: DealRow, sort: DealSortKey): boolean {
   return false
 }
 
+const OWNER_EXCLUSIVE = '담당자는 사용자 id와 이름 중 하나로만 지정하세요.'
+const RESIGNED_SUFFIX = '(퇴사)'
+
+/**
+ * 담당자 이름 조건(DL-R39). 앞뒤 공백을 지운 글자 t가 비면 조건 없음.
+ * 재직: 화면 이름에 t가 대소문자 무시로 들어 있으면(역할 무관). 퇴사: t가 '(퇴사)'로 끝나고 앞 글자가 화면 이름과 대소문자 무시로 정확히 같을 때만.
+ */
+function ownerNameMatcher(ctx: MockContext, ownerName: string | undefined): (ownerId: number) => boolean {
+  const t = (ownerName ?? '').trim().toLowerCase()
+  if (t === '') return () => true
+  const resignedName = t.endsWith(RESIGNED_SUFFIX) ? t.slice(0, -RESIGNED_SUFFIX.length) : null
+  return (ownerId) => {
+    const owner = ctx.store.data.users.find((u) => u.id === ownerId)
+    if (!owner) return false
+    const name = owner.name.toLowerCase()
+    return owner.status === 'resigned' ? resignedName === name : name.includes(t)
+  }
+}
+
 const REQUEST_FORMAT = '요청 형식이 올바르지 않습니다'
 const DATE_MIN = '1900-01-01'
 const DATE_MAX = '2999-12-31'
@@ -83,6 +107,10 @@ const DATE_MAX = '2999-12-31'
 function validateQuery(query: DealListQuery): void {
   // 예전 solution 쿼리는 폐지된 파라미터라 422다(2026-11-16 product로 이름 변경, DL-R3).
   if ('solution' in query) throw validation(REQUEST_FORMAT)
+  if (query.ownerName !== undefined) {
+    if (Array.from(query.ownerName).length > 100) throw validation(REQUEST_FORMAT)
+    if (query.ownerName.includes('\u0000')) throw validation('담당자에는 NUL 문자를 쓸 수 없습니다')
+  }
   if (query.keyword !== undefined) {
     if (Array.from(query.keyword).length > 100) throw validation(REQUEST_FORMAT)
     if (query.keyword.includes('\u0000')) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
@@ -113,6 +141,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   if (query.updatedFrom && query.updatedTo && query.updatedFrom > query.updatedTo) {
     throw validation('최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다')
   }
+  if (!query.mine && query.ownerId && (query.ownerName ?? '').trim() !== '') throw validation(OWNER_EXCLUSIVE)
   if (normalizedQuarters(query.quarters) !== undefined && query.month !== undefined) throw validation(QUARTER_MONTH_EXCLUSIVE)
   const thisYear = Number(ctx.clock.today().slice(0, 4))
   const codes = codeSetOf(ctx)
@@ -147,7 +176,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
   }
   const rows = ctx.store.data.deals
     .map((deal) => dealRow(ctx, deal))
-    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf))
+    .filter((row) => matches(row, query, viewer.id, thisYear, outcomeOf, ownerNameMatcher(ctx, query.ownerName)))
     .sort((a, b) => {
       const absentA = isAbsent(a, sort)
       const absentB = isAbsent(b, sort)

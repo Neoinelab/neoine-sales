@@ -20,6 +20,7 @@ from app.domain.user.errors import (
 )
 from app.domain.user.value_objects import (
     UserId,
+    UserOption,
     UserRef,
     UserStatusFilter,
 )
@@ -62,6 +63,16 @@ def _to_entity(row: UserRow) -> User:
         deleted_at=row.deleted_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+def _to_option(row: UserRow) -> UserOption:
+    return UserOption(
+        id=UserId(row.id),
+        name=row.display_name or row.login_id,
+        resigned=row.deleted_at is not None,
+        role=Role(row.role),
+        login_id=row.login_id,
     )
 
 
@@ -155,7 +166,7 @@ class SqlUserRepository(SqlRepository[UserRow]):
         include_resigned: bool,
         role: Role | None = None,
         limit: int | None = None,
-    ) -> Sequence[UserRef]:
+    ) -> Sequence[UserOption]:
         if limit is not None:
             check_page(0, limit)
         statement = select(UserRow).order_by(UserRow.created_at, UserRow.id)
@@ -170,7 +181,7 @@ class SqlUserRepository(SqlRepository[UserRow]):
         if limit is not None:
             statement = statement.limit(limit)
         statement = statement.execution_options(populate_existing=True)
-        return [_to_ref(row) for row in (await self._session.scalars(statement)).all()]
+        return [_to_option(row) for row in (await self._session.scalars(statement)).all()]
 
     async def count_active_admins(self) -> int:
         statement = (

@@ -21,7 +21,7 @@ interface UserSelectProps {
 /** 사용자 선택. 기본은 재직 sales만(Owner 후보), 표시는 퇴사자면 "이름(퇴사)". */
 export function UserSelect({ label, name, value, onChange, required, current, includeResigned = false, error }: UserSelectProps) {
   const options = useUserOptions(includeResigned ? { includeResigned: true } : { role: 'sales' })
-  const users = [...(options.data ?? [])]
+  const users: UserRef[] = [...(options.data ?? [])]
   if (current && !users.some((u) => u.id === current.id)) users.push(current)
 
   return (

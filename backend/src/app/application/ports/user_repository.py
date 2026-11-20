@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from app.domain.auth.credentials import LoginId
     from app.domain.auth.principal import Role
     from app.domain.user.entities import User
-    from app.domain.user.value_objects import UserId, UserRef
+    from app.domain.user.value_objects import UserId, UserOption, UserRef
 
 
 class UserRepository(Protocol):
@@ -59,7 +59,7 @@ class UserRepository(Protocol):
         include_resigned: bool,
         limit: int | None = None,
         role: Role | None = None,
-    ) -> Sequence[UserRef]:
+    ) -> Sequence[UserOption]:
         """표시 이름(없으면 login_id로 대체) 부분 일치(대소문자 무시) 참조를 (created_at, id) 순.
 
         표시 이름이 있는 사용자는 login_id로 검색되지 않는다.

@@ -275,7 +275,10 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
 
     def _found(self, query: DealQuery) -> list[Deal]:
         contacts = self._contact_map()
-        found = [d for d in self._items.values() if matches(d, query, contacts, self._outcome_of)]
+        users = self._users._items if self._users is not None else {}
+        found = [
+            d for d in self._items.values() if matches(d, query, contacts, self._outcome_of, users)
+        ]
         if has_updated_period(query):
             found = [
                 d for d in found if updated_in_range(self._item(d, None).last_updated_on, query)

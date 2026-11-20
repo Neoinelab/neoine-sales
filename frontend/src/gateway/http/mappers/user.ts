@@ -1,5 +1,5 @@
 import type { Schemas } from '../../../shared/api/client'
-import type { Me, MyProfile, ProfileChange, User, UserRef } from '../../../shared/model/types'
+import type { Me, MyProfile, ProfileChange, User, UserOption, UserRef } from '../../../shared/model/types'
 
 export function toMe(principal: Schemas['PrincipalResponse']): Me {
   return { id: principal.user_id, loginId: principal.subject, name: principal.name, role: principal.role }
@@ -8,6 +8,10 @@ export function toMe(principal: Schemas['PrincipalResponse']): Me {
 /** 서버 UserRef의 role을 그대로 사용한다. */
 export function toUserRef(ref: Schemas['UserRef']): UserRef {
   return { id: ref.id, name: ref.name, role: ref.role, status: ref.resigned ? 'resigned' : 'active' }
+}
+
+export function toUserOption(ref: Schemas['UserOptionRef']): UserOption {
+  return { ...toUserRef(ref), loginId: ref.login_id }
 }
 
 export function toUser(row: Schemas['UserResponse']): User {

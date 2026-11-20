@@ -120,10 +120,10 @@ async def test_options_keyword_matches_the_login_id_only_as_the_fallback_name(
     assert [o.name for o in options] == ["newbie"]
 
 
-async def test_options_do_not_carry_a_login_id_field(
+async def test_options_carry_the_login_id_of_each_user(
     admin: AdminStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """선택 목록 항목에는 아이디 필드가 없다
+    """선택 목록 항목은 login_id를 가진다(이름과 다를 수 있다)
 
     테스트 코드: US-069
     """
@@ -133,8 +133,8 @@ async def test_options_do_not_carry_a_login_id_field(
     # when: 읽는다
     (option,) = await admin.list_user_options.execute()
 
-    # then: 항목에 login_id가 없다
-    assert not hasattr(option, "login_id")
+    # then: 이름은 표시 이름이고 login_id는 아이디다
+    assert (option.name, option.login_id) == ("홍길동", "hong")
 
 
 async def test_options_name_falls_back_to_login_id_before_first_login(
@@ -152,6 +152,58 @@ async def test_options_name_falls_back_to_login_id_before_first_login(
 
     # then: 이름·라벨이 아이디다
     assert (option.name, option.label) == ("newbie", "newbie")
+
+
+async def test_options_always_carry_login_id_for_every_role_and_resigned_users(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """선택 목록은 재직·퇴사·모든 역할 항목에 login_id를 항상 준다
+
+    테스트 코드: US-115
+    """
+    # given: 같은 이름의 재직 sales kim1·kim2, admin root, 이름 없는 user lee, 퇴사 sales old
+    await _named(uow_factory, "kim1", "김영업", 1)
+    await _named(uow_factory, "kim2", "김영업", 2)
+    root = await seed_user(uow_factory, "root", Role.ADMIN, now=later(3))
+    await seed_user(uow_factory, "lee", Role.USER, now=later(4))
+    await _named(uow_factory, "old", "박영업", 5, resigned=True)
+    async with uow_factory() as uow:
+        stored = await uow.users.get(root.id)
+        stored.record_login(later(3), display_name="관리자", email=None)
+        await uow.users.update(stored)
+        await uow.commit()
+
+    # when: 조건 없이, include_resigned로 읽는다
+    active = await admin.list_user_options.execute()
+    with_resigned = await admin.list_user_options.execute(include_resigned=True)
+
+    # then: 재직자 네 명의 login_id가 있고, 퇴사자도 login_id와 (퇴사) 라벨을 가진다
+    assert [(o.login_id, o.name) for o in active] == [
+        ("kim1", "김영업"),
+        ("kim2", "김영업"),
+        ("root", "관리자"),
+        ("lee", "lee"),
+    ]
+    old = with_resigned[-1]
+    assert (old.login_id, old.label) == ("old", "박영업(퇴사)")
+
+
+async def test_options_keyword_does_not_find_users_by_login_id_even_though_it_is_returned(
+    admin: AdminStack, uow_factory: UnitOfWorkFactory
+) -> None:
+    """keyword는 login_id를 내려줘도 표시 이름이 있는 사용자를 아이디로 찾지 않는다
+
+    테스트 코드: US-115
+    """
+    # given: 표시 이름이 "김영업"인 kim1·kim2
+    await _named(uow_factory, "kim1", "김영업", 1)
+    await _named(uow_factory, "kim2", "김영업", 2)
+
+    # when: 아이디 일부로 검색한다
+    options = await admin.list_user_options.execute(keyword="kim")
+
+    # then: 0건이다
+    assert list(options) == []
 
 
 async def test_options_return_every_matching_user_beyond_the_old_200_cap(

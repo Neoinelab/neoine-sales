@@ -25,6 +25,7 @@ function toListParams(q: DealListQuery) {
   return {
     ...(q.keyword ? { keyword: q.keyword } : {}),
     ...(q.ownerId ? { owner_user_id: q.ownerId } : {}),
+    ...(q.ownerName ? { owner_name: q.ownerName } : {}),
     ...(q.vendorId ? { vendor_id: q.vendorId } : {}),
     ...(q.product ? { product: q.product } : {}),
     ...(q.statusKey ? { status_key: q.statusKey } : {}),

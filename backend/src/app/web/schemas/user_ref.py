@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
 
     from app.domain.user.value_objects import UserId
+    from app.domain.user.value_objects import UserOption as DomainUserOption
     from app.domain.user.value_objects import UserRef as DomainUserRef
     from app.web.use_case_provider import UseCaseProvider
 
@@ -45,3 +46,20 @@ async def resolve_refs(
 def ref_of(refs: Mapping[UserId, DomainUserRef], user_id: UserId) -> UserRef:
     """FK가 보장하므로 항상 있다. 없으면 정합이 깨진 것이라 KeyError로 드러낸다."""
     return UserRef.from_domain(refs[user_id])
+
+
+class UserOptionRef(UserRef):
+    """사용자 선택 후보. UserRef에 아이디(login_id)를 더한다(동명이인 구분용)."""
+
+    login_id: str
+
+    @classmethod
+    def from_option(cls, option: DomainUserOption) -> UserOptionRef:
+        return cls(
+            id=option.id,
+            name=option.name,
+            resigned=option.resigned,
+            label=option.label,
+            role=option.role,
+            login_id=option.login_id,
+        )

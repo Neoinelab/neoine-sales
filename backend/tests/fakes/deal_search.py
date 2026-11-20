@@ -9,6 +9,9 @@
 - last_updated_on = 가장 최근 활동의 acted_on(없으면 등록일, Deal 수정은 반영하지 않음)
 
 이 모듈은 Deal·연락처 도메인 객체를 속성으로만 읽는다(새 모델 구현이 없어도 가져올 수 있다).
+- owner_name: 담당자 화면 이름(표시 이름, 없으면 login_id)과 비교한다. 재직자는 대소문자 무시
+  부분 일치, 퇴사자는 `이름(퇴사)` 전체가 같을 때만(`%`, `_`, `\\`는 글자 그대로). 일치하는 사용자가
+  없으면 0건. 구현의 `resigned_owner_name`을 베끼지 않고 독립적으로 계산한다
 - 연/분기/월: Expected Close가 그 해(분기·월)에 속함(Q1=1~3월 … Q4=10~12월)
 - forecast_outcome: Forecast 코드의 outcome이 허용 집합에 듦(open/won/lost, not_lost=open+won).
   outcome은 코드 저장소에서 읽는다(구현의 `ForecastOutcomeFilter.outcomes()`를 베끼지 않는다)
@@ -56,14 +59,35 @@ def _in_quarters(query: DealQuery, day: date) -> bool:
     return quarters is None or (day.month - 1) // 3 + 1 in quarters
 
 
+_RESIGNED_MARK = "(퇴사)"
+
+
+def owner_name_allowed(deal: Any, query: DealQuery, users: Mapping[Any, Any]) -> bool:  # noqa: ANN401
+    """query.owner_name이 있으면 담당자의 화면 이름이 그 글자와 맞는가(재직 부분·퇴사 정확)."""
+    text = getattr(query, "owner_name", None)
+    if text is None:
+        return True
+    owner = users.get(deal.details.owner_user_id)
+    if owner is None:
+        return False
+    screen = str(owner.display_name or owner.login_id.value).lower()
+    needle = text.lower()
+    if owner.is_active:
+        return needle in screen
+    return bool(needle.endswith(_RESIGNED_MARK) and needle[: -len(_RESIGNED_MARK)] == screen)
+
+
 def matches(
     deal: Any,  # noqa: ANN401
     query: DealQuery,
     contacts: Mapping[Any, Any],
     outcome_of: Callable[[str], str] | None = None,
+    users: Mapping[Any, Any] | None = None,
 ) -> bool:
     details = deal.details
-    if outcome_of is not None and not outcome_allowed(query, deal.sync.forecast_key, outcome_of):
+    if not owner_name_allowed(deal, query, users or {}) or (
+        outcome_of is not None and not outcome_allowed(query, deal.sync.forecast_key, outcome_of)
+    ):
         return False
     if query.keyword:
         needle = query.keyword.lower()

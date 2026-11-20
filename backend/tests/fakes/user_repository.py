@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from app.application.ports.pagination import DEFAULT_LIMIT, check_page
 from app.domain.user.errors import UserInUseError, UserNotFoundError
-from app.domain.user.value_objects import UserStatusFilter
+from app.domain.user.value_objects import UserOption, UserStatusFilter
 from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
@@ -22,6 +22,18 @@ if TYPE_CHECKING:
     from app.domain.auth.principal import Role
     from app.domain.user.entities import User
     from app.domain.user.value_objects import UserId, UserRef
+
+
+def _option_of(user: User) -> UserOption:
+    """선택 목록 항목(US-R20): UserRef + login_id."""
+    ref = user.to_ref()
+    return UserOption(
+        id=ref.id,
+        name=ref.name,
+        resigned=ref.resigned,
+        role=ref.role,
+        login_id=user.login_id.value,
+    )
 
 
 def _matches_status(user: User, status: UserStatusFilter) -> bool:
@@ -87,7 +99,7 @@ class FakeUserRepository(InMemoryStore["User"]):
         include_resigned: bool,
         role: Role | None = None,
         limit: int | None = None,
-    ) -> Sequence[UserRef]:
+    ) -> Sequence[UserOption]:
         if limit is not None:
             check_page(0, limit)
         needle = keyword.lower() if keyword else None
@@ -100,7 +112,7 @@ class FakeUserRepository(InMemoryStore["User"]):
         ]
         found.sort(key=lambda u: (u.created_at, u.id))
         chosen = found if limit is None else found[:limit]
-        return [u.to_ref() for u in chosen]
+        return [_option_of(u) for u in chosen]
 
     def names_of(self, user_id: UserId) -> list[str]:
         """키워드 검색용 이름 후보(표시 이름, 로그인 아이디). Deal Fake의 조인 대용."""

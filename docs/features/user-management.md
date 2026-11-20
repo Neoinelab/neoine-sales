@@ -1,4 +1,4 @@
-# 사용자 관리   (feature 코드: US, 상태: 확정(2026-11-13 사용자 확인))
+# 사용자 관리   (feature 코드: US, 상태: 확정(2026-11-20 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/{users,user_options}.py`, `app/web/schemas/{user,user_ref,profile_changes,password_field}.py`, `app/application/user/*.py`, `app/domain/user/*.py`, `app/domain/auth/{credentials,password_policy}.py`, `app/domain/common/{contact,validation}.py`, `app/infra/db/{user_repository,user_links}.py`, `frontend/src/features/admin/users/*.tsx`, `data/users.ts`, `gateway/http/users.ts`, `gateway/http/mappers/user.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 화면·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/us-plan.md`)의 확인 필요 질문으로 분리했습니다.
 >
@@ -96,7 +96,13 @@
 - **US-R19** 마지막 admin 판정의 "재직 admin 수"는 퇴사한 admin을 세지 않는다. API로는 요청자 자신이 재직 admin이므로 보통 자기 자신 규칙(US-R13·US-R16)에 먼저 걸리고, 이 규칙은 그 밖의 경우를 막는 방어 규칙이다.
 
 선택 목록
-- **US-R20** `GET /user-options`는 로그인한 모든 역할이 부른다(역할 가드 없음). 쿼리: `include_resigned`(불리언, 기본 false = 재직자만), `keyword`(최대 100자), `role`(`admin`·`sales`·`user`, 없으면 모든 역할). 모르는 파라미터(`limit`·`offset` 포함)·형식 오류는 422 `request-validation`. 응답은 `{items: UserRef[]}`로 조건에 맞는 사용자 **전부**(페이지 없음, 200명 초과도 전부)를 등록 시각·id 순으로 돌려준다. `keyword`는 화면 이름(표시 이름, 없거나 빈 값이면 아이디)의 부분 일치이고 대소문자를 무시하며 `%`·`_`는 글자로 취급한다. 표시 이름이 있는 사용자는 아이디로 찾아지지 않는다. 항목에 이메일·아이디 필드가 없고, 표시 이름이 있는 사용자의 아이디 값은 응답 어디에도 나오지 않는다. 조건은 모두 AND다.
+- **US-R20** `GET /user-options`는 로그인한 모든 역할이 부른다(역할 가드 없음). 쿼리: `include_resigned`(불리언, 기본 false = 재직자만), `keyword`(최대 100자), `role`(`admin`·`sales`·`user`, 없으면 모든 역할). 모르는 파라미터(`limit`·`offset` 포함)·형식 오류는 422 `request-validation`. 응답은 `{items: UserOption[]}`로 조건에 맞는 사용자 **전부**(페이지 없음, 200명 초과도 전부)를 등록 시각·id 순으로 돌려준다. `keyword`는 화면 이름(표시 이름, 없거나 빈 값이면 아이디)의 부분 일치이고 대소문자를 무시하며 `%`·`_`는 글자로 취급한다. 표시 이름이 있는 사용자는 아이디로 찾아지지 않는다. 항목(`UserOption`)은 UserRef(`id`·`name`·`resigned`·`label`·`role`)에 `login_id`(문자열, null 아님)를 더한 것이다(2026-11-20, 사용자 결정 — Deals 목록 담당자 후보 `이름 (아이디)` 표시, DL-R40).
+- `login_id`는 재직·퇴사와 역할에 관계없이 모든 항목에 항상 있다.
+- 이 경로는 로그인한 모든 역할(admin·sales·user)이 부르므로, 로그인한 사용자는 누구나 다른 사용자의 로그인 아이디를 볼 수 있다(사용자 수용 2026-11-20).
+- 이메일 필드는 계속 없다.
+- `keyword`는 여전히 화면 이름만 찾는다. 아이디로는 찾지 않는다.
+- 다른 응답 속 UserRef(Deal 담당자·작성자 등)에는 `login_id`가 없다.
+- 다른 화면의 사용자 선택 상자(Deal 등록 Owner, Dashboard·Forecast·계약·파트너 Activity·Actions 검색·Reports) 표시는 바꾸지 않는다. 계속 이름, 퇴사자는 `이름(퇴사)`다. 조건은 모두 AND다.
 - **US-R21** 사용자 한 명을 읽거나 통째로 바꾸는 API는 없다: `GET`·`PUT`·`POST /users/{user_id}`는 405다(정보 수정은 `PATCH`, US-R14).
 
 화면(frontend, `/admin/users`, 가드 PL-R31)
@@ -109,7 +115,7 @@
 - **US-R28** 삭제 확인 대화상자(제목 "사용자 삭제", 위험 버튼 "삭제"): "<아이디> (<이름>) 사용자를 삭제할까요?"·"연결된 데이터가 있으면 퇴사 처리되고, 없으면 완전히 삭제됩니다."·"로그인 세션은 모두 종료됩니다.". 성공하면 결과에 따라 알림 "<아이디> 사용자가 퇴사 처리되었습니다." 또는 "<아이디> 사용자가 삭제되었습니다."를 보이고 목록을 다시 읽는다. 실패하면 대화상자를 닫고 페이지 오류 배너에 서버 문구를 보인다. "취소"는 요청 없이 닫는다.
 - **US-R29** 페이지 알림·오류: 목록·설정·삭제·역할 변경 오류는 페이지 오류 배너 하나에 보인다(문구 PL-R37). 새 작업(삭제·역할 변경·정보 수정·재설정 시작)을 하면 이전 성공 알림을 지운다. 알림은 닫을 수 있다.
 - **US-R30** 캐시 갱신: 등록 성공 뒤 사용자 목록·선택 목록을, 역할 변경·삭제·정보 수정 성공 뒤 사용자 목록·선택 목록·Deal·Forecast 조회를 다시 읽게 한다. 재설정은 캐시를 바꾸지 않는다.
-- **US-R31** 게이트웨이(`gateway/http/users.ts`): 목록은 `limit=200`으로 가득 찬 페이지가 오는 동안 `offset`을 늘려 이어 읽고(최대 50페이지) 덜 찬 페이지에서 멈춘다. 선택 목록은 요청 한 번이며 `limit`·`offset`을 보내지 않고, `include_resigned`(기본 false)와 `role`(있을 때만)을 보낸다. 등록 본문은 `login_id`·`role`·`display_name`과, 값이 있을 때만 `password`·`email`·`phone`. 정보 수정은 준 키만 `PATCH`(null은 비움), 재설정은 `PUT …/password`(204), 역할 변경은 `PUT …/role`, 삭제는 쿼리 없이 `DELETE /users/{id}`이고 결과(`deleted`·`resigned`)를 돌려준다. 응답 변환: 화면 이름 = `display_name ?? login_id`, 퇴사 시각 = `deleted_at`, UserRef의 `role`은 서버 값 그대로, `resigned` → 상태 `resigned`. 화면 모델 `User`에는 등록자·퇴사 사유 필드가 없다(2026-11-13).
+- **US-R31** 게이트웨이(`gateway/http/users.ts`): 목록은 `limit=200`으로 가득 찬 페이지가 오는 동안 `offset`을 늘려 이어 읽고(최대 50페이지) 덜 찬 페이지에서 멈춘다. 선택 목록은 요청 한 번이며 `limit`·`offset`을 보내지 않고, `include_resigned`(기본 false)와 `role`(있을 때만)을 보낸다. 등록 본문은 `login_id`·`role`·`display_name`과, 값이 있을 때만 `password`·`email`·`phone`. 정보 수정은 준 키만 `PATCH`(null은 비움), 재설정은 `PUT …/password`(204), 역할 변경은 `PUT …/role`, 삭제는 쿼리 없이 `DELETE /users/{id}`이고 결과(`deleted`·`resigned`)를 돌려준다. 응답 변환: 화면 이름 = `display_name ?? login_id`, 퇴사 시각 = `deleted_at`, UserRef의 `role`은 서버 값 그대로, 선택 목록 항목의 `login_id` → `loginId`(2026-11-20), `resigned` → 상태 `resigned`. 화면 모델 `User`에는 등록자·퇴사 사유 필드가 없다(2026-11-13).
 
 ### 2.4 상태와 전이
 
@@ -143,7 +149,7 @@
 | PUT `/users/{user_id}/role` | `UserRoleRequest` `{role}` | 200 `UserResponse` | 404, 409 `invalid-state`, 422 |
 | PUT `/users/{user_id}/password` | `UserPasswordRequest` `{password: str(≤256)}` | 204 | 404, 409 `invalid-state`, 422 |
 | DELETE `/users/{user_id}` | 쿼리 없음(어떤 쿼리든 422 `request-validation`) | 200 `DeleteUserResponse` `{outcome: "deleted"\|"resigned"}` | 404, 409 `invalid-state`, 422 |
-| GET `/user-options` | query `include_resigned`(bool, 기본 false), `keyword`(≤100), `role` | 200 `UserOptionPage` `{items: UserRef[]}` | 422 |
+| GET `/user-options` | query `include_resigned`(bool, 기본 false), `keyword`(≤100), `role` | 200 `UserOptionPage` `{items: UserOption[]}`(UserRef + `login_id: string`, 2026-11-20 하위 호환 추가) | 422 |
 | GET·PUT·POST `/users/{user_id}` | — | — | 405 |
 
 - `UserResponse`·`UserRef` 필드는 US-R11·US-R12. 공통 오류(401·403·CSRF·id 형식 422)는 PL. 모든 본문은 모르는 필드를 거부한다(422 `request-validation`).
@@ -237,9 +243,9 @@ US-R22~US-R31.
 
 ### US-UC8 사용자 선택 목록 조회
 - 행위자: 로그인한 모든 역할(화면의 사용자 선택 UI)
-- 기본 흐름: `GET /user-options`(조건) → 조건에 맞는 UserRef 전부(US-R20, R12)
+- 기본 흐름: `GET /user-options`(조건) → 조건에 맞는 UserOption(UserRef + `login_id`) 전부(US-R20, R12)
 - 예외: 잘못된 파라미터 422
-- 결과: 이메일·아이디 없이 이름·퇴사 표기·역할을 가진 후보 목록
+- 결과: 이메일 없이 이름·로그인 아이디(`login_id`)·퇴사 표기·역할을 가진 후보 목록(2026-11-20: 아이디 포함으로 변경)
 
 ## 4. BDD 테스트 케이스
 
@@ -315,7 +321,7 @@ US-R22~US-R31.
 | US-066 | 재직 admin이 하나뿐이면 그 admin을 삭제할 수 없고 퇴사한 admin은 세지 않는다 | US-R16, US-R19, US-UC7 | backend | `application/test_user_delete.py::test_delete_user_refuses_the_last_active_admin`<br>`application/test_user_delete.py::test_admin_count_drops_after_an_admin_is_deleted`<br>`application/test_user_resign_delete.py::test_last_admin_protection_also_applies_to_the_resign_branch`<br>`application/test_user_resign_delete.py::test_a_resigned_admin_is_not_counted_as_an_active_admin`<br>`domain/test_user_policy.py::test_cannot_delete_last_admin` |
 | US-067 | 재직 admin이 둘이면 다른 admin을 삭제할 수 있다 | US-R16, US-R19, US-UC7 | backend | `application/test_user_delete.py::test_delete_user_allows_removing_an_admin_while_another_remains`<br>`domain/test_user_policy.py::test_can_delete_admin_when_another_admin_remains` |
 | US-068 | 모든 역할이 사용자 선택 목록을 읽는다 | US-R20, US-UC8 | backend | `web/test_user_options_routes.py::test_every_signed_in_role_reads_the_user_options` |
-| US-069 | 선택 목록 항목은 id·name·resigned·label·role만 담고 이메일·아이디가 없다 | US-R20, US-R12, US-UC8 | backend | `application/test_user_options.py::test_options_do_not_carry_a_login_id_field`<br>`application/test_user_options.py::test_options_name_falls_back_to_login_id_before_first_login`<br>`application/test_user_options.py::test_options_expose_no_email`<br>`application/test_user_options.py::test_options_carry_the_role_of_each_user`<br>`domain/test_user_ref.py::test_label_is_the_name_for_an_active_user`<br>`domain/test_user_ref.py::test_user_ref_of_an_active_user_uses_display_name`<br>`domain/test_user_ref.py::test_user_ref_has_only_id_name_resigned_and_role_fields_and_no_login_id`<br>`domain/test_user_ref.py::test_user_ref_carries_the_role_of_the_user`<br>`domain/test_user_ref.py::test_user_ref_name_falls_back_to_login_id_without_display_name`<br>`web/test_user_options_routes.py::test_option_items_carry_only_id_name_resigned_label_and_role`<br>`web/test_user_ref_schema.py::test_serialized_fields_are_exactly_id_name_resigned_label_and_role` |
+| US-069 | 선택 목록 항목은 id·name·resigned·label·role·login_id만 담고 이메일이 없다 | US-R20, US-R12, US-UC8 | backend | `application/test_user_options.py::test_options_carry_the_login_id_of_each_user`<br>`application/test_user_options.py::test_options_name_falls_back_to_login_id_before_first_login`<br>`application/test_user_options.py::test_options_expose_no_email`<br>`application/test_user_options.py::test_options_carry_the_role_of_each_user`<br>`domain/test_user_ref.py::test_label_is_the_name_for_an_active_user`<br>`domain/test_user_ref.py::test_user_ref_of_an_active_user_uses_display_name`<br>`domain/test_user_ref.py::test_user_ref_has_only_id_name_resigned_and_role_fields_and_no_login_id`<br>`domain/test_user_ref.py::test_user_ref_carries_the_role_of_the_user`<br>`domain/test_user_ref.py::test_user_ref_name_falls_back_to_login_id_without_display_name`<br>`web/test_user_options_routes.py::test_option_items_carry_exactly_id_name_resigned_label_role_and_login_id`<br>`web/test_user_ref_schema.py::test_serialized_fields_are_exactly_id_name_resigned_label_and_role` |
 | US-070 | 선택 목록은 기본이 재직자이고 include_resigned면 퇴사자를 "(퇴사)"와 함께 더한다 | US-R20, US-R12, US-UC8 | backend | `application/test_user_options.py::test_options_default_to_active_users_with_labels`<br>`application/test_user_options.py::test_options_include_resigned_users_with_the_resigned_label`<br>`domain/test_user_ref.py::test_label_adds_resigned_suffix_for_a_resigned_user`<br>`domain/test_user_ref.py::test_user_ref_of_a_resigned_user_still_carries_the_role`<br>`domain/test_user_ref.py::test_user_ref_of_a_resigned_user_is_flagged_and_labelled`<br>`web/test_user_options_routes.py::test_options_hide_resigned_users_unless_include_resigned_is_true`<br>`web/test_user_ref_schema.py::test_from_domain_of_a_resigned_user_keeps_the_role_and_label` |
 | US-071 | keyword는 화면 이름을 대소문자 무시로 찾고 표시 이름이 있는 사용자는 아이디로 찾지 않는다 | US-R20, US-UC8 | backend | `application/test_user_options.py::test_options_keyword_matches_the_display_name_ignoring_case`<br>`application/test_user_options.py::test_options_keyword_does_not_match_the_login_id_of_a_user_with_a_display_name`<br>`application/test_user_options.py::test_options_keyword_matches_the_login_id_only_as_the_fallback_name`<br>`web/test_user_options_routes.py::test_options_filter_by_keyword_and_role_over_http` |
 | US-072 | role 필터는 그 역할만 돌려주고 include_resigned·keyword와 함께 쓸 수 있다 | US-R20, US-UC8 | backend | `application/test_user_options.py::test_options_filter_by_role_returns_only_active_users_of_that_role`<br>`application/test_user_options.py::test_options_filter_by_role_with_resigned_includes_resigned_users_of_that_role`<br>`application/test_user_options.py::test_options_without_role_keep_returning_every_role`<br>`application/test_user_options.py::test_options_filter_by_role_combines_with_keyword`<br>`web/test_user_options_routes.py::test_options_filter_by_keyword_and_role_over_http` |
@@ -361,6 +367,9 @@ US-R22~US-R31.
 | US-112 | 다른 사용자를 등록한 admin도 다른 연결이 없으면 물리 삭제되고 그가 등록한 사용자는 재직 그대로다 | US-R17, US-UC7 | backend | `application/test_user_resign_delete.py::test_an_admin_who_only_registered_another_user_is_deleted_physically`<br>`repositories/test_user_links_contract.py::test_other_user_rows_never_make_a_user_linked`<br>`web/test_user_routes.py::test_delete_of_an_admin_who_registered_another_user_keeps_that_user_active` |
 | US-113 | 사용자 삭제에 쿼리 파라미터(없앤 reason 포함)를 보내면 422이고 사용자는 그대로다 | US-R16, US-UC7 | backend | `web/test_user_routes.py::test_delete_with_any_query_parameter_is_422_and_keeps_the_user`<br>`web/test_user_routes.py::test_delete_without_a_query_reports_deleted_after_the_query_was_refused` |
 | US-114 | API 계약(OpenAPI)의 UserResponse에 created_by·delete_reason이 없고 사용자 삭제에 쿼리 파라미터가 없다 | US-R11, US-R16, 2.6 | backend | `web/test_openapi_documented_shapes.py::test_user_response_has_exactly_the_documented_fields_and_no_password`<br>`web/test_openapi_documented_shapes.py::test_user_delete_documents_the_outcome_no_query_and_errors` |
+| US-115 | 선택 목록은 재직·퇴사·모든 역할 항목에 login_id를 항상 주고 keyword는 아이디로 찾지 않는다 | US-R20, US-UC8 | backend | `application/test_user_options.py`, `web/test_user_options_routes.py`, `repositories/test_user_options_login_id_contract.py` |
+| US-116 | API 계약(OpenAPI)의 선택 목록 항목은 UserOption(UserRef + 필수 login_id)이고 UserRef는 그대로다 | US-R20, 2.6 | backend | `web/test_openapi_documented_shapes.py` |
+| US-117 | 게이트웨이: 선택 목록의 login_id를 loginId로 바꾼다 | US-R31, US-UC8 | frontend | `gateway/http/users.test.ts` |
 
 ### US-001 AD 모드에서 아이디·역할로 등록하면 201과 Location·사용자가 돌아오고 본문에 등록자·퇴사 사유가 없다
 - Given ROOT로 로그인, 인증 방식 `ad`
@@ -677,10 +686,14 @@ US-R22~US-R31.
 - When `GET /user-options`
 - Then 모두 200이다
 
-### US-069 선택 목록 항목은 id·name·resigned·label·role만 담고 이메일·아이디가 없다
+### US-069 선택 목록 항목은 id·name·resigned·label·role·login_id만 담고 이메일이 없다
 - Given kim(표시 이름 "김영업", 이메일 있음), lee(표시 이름 없음)
 - When `GET /user-options`
-- Then 각 항목 키는 정확히 `id`·`name`·`resigned`·`label`·`role`이다. 응답 어디에도 kim의 이메일과 아이디 "kim"이 없고, lee의 `name`은 "lee"다
+- Then
+  - 각 항목 키는 정확히 `id`·`name`·`resigned`·`label`·`role`·`login_id`다.
+  - kim의 `login_id`는 "kim", lee의 `name`·`login_id`는 모두 "lee"다.
+  - 응답 어디에도 kim의 이메일이 없다.
+  - Deal 응답의 `owner`(UserRef)에는 `login_id`가 없다.
 
 ### US-070 선택 목록은 기본이 재직자이고 include_resigned면 퇴사자를 "(퇴사)"와 함께 더한다
 - Given hong·kim 재직, gone 퇴사(이름 "고원")
@@ -892,10 +905,33 @@ US-R22~US-R31.
 - When 앱이 만든 OpenAPI 문서를 읽는다
 - Then `UserResponse`의 속성은 US-R11의 10개이고 `created_by`·`delete_reason`이 없으며 `UserDeleteReason` 스키마가 없다. `DELETE /api/v1/users/{user_id}`의 파라미터는 경로 `user_id` 하나다
 
+### US-115 선택 목록은 재직·퇴사·모든 역할 항목에 login_id를 항상 주고 keyword는 아이디로 찾지 않는다
+- Given 다음 사용자
+  - 재직 sales kim1·kim2(표시 이름 모두 "김영업")
+  - 재직 admin root(표시 이름 "관리자")
+  - 퇴사 sales old(표시 이름 "박영업")
+  - 재직 user lee(표시 이름 없음)
+- When 조건 없이, `include_resigned=true`로, `keyword=kim`으로 각각 조회한다
+- Then
+  - 조건 없음: 재직자 네 명의 `login_id`가 각각 "kim1"·"kim2"·"root"·"lee"다.
+  - `include_resigned=true`: old도 `login_id` "old"와 `label` "박영업(퇴사)"를 가진다.
+  - `keyword=kim`: 0건이다(표시 이름에 "kim"이 없고 아이디로는 찾지 않는다).
+
+### US-116 API 계약(OpenAPI)의 선택 목록 항목은 UserOption(UserRef + 필수 login_id)이고 UserRef는 그대로다
+- Given 앱의 openapi 문서
+- When `GET /user-options` 200 응답 스키마와 `UserRef` 스키마를 본다
+- Then 항목 스키마에는 `UserRef`의 다섯 필드와 `login_id`(string, 필수, null 불가)가 있다. `UserRef`에는 `login_id`가 없다
+
+### US-117 게이트웨이: 선택 목록의 login_id를 loginId로 바꾼다
+- Given `/user-options`가 `login_id` "kim1"인 항목을 돌려주는 fetch
+- When `users.options({includeResigned: true})`를 부른다
+- Then 결과 항목의 `loginId`는 "kim1"이고 다른 필드 변환은 그대로다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 사용자 관리 동작을 정본 명세로 옮김. 규칙 US-R1~R31, use case US-UC1~UC8, BDD 케이스 US-001~US-111 | US-001~US-111(신규) |
-| 2026-11-13 | 초안(사용자 확인 대기): 등록자·퇴사 사유 제거(사용자 요청·결정 D1~D3). `users.created_by_user_id`(FK·인덱스)·`delete_reason`(CHECK 2개) 컬럼 제거(SC-R21), 등록자는 연결이 아님(연결 17→16종), `UserResponse`의 `created_by`·`delete_reason`·`UserDeleteReason` 제거, `DELETE`의 `reason` 쿼리 제거(보내면 422, Q2), 등록 401(요청자 행 없음) 제거(Q1), 화면 '등록자'·'퇴사 사유' 열 제거(11→9칸). 규칙 변경: 2.1 퇴사자·연결, 2.2, US-R8, US-R11, US-R12(문구), US-R16, US-R17, US-R22, US-R31, 2.4, 2.6, 2.8, US-UC2·UC7 | 신규 US-112~US-114. 변경 US-001, US-008, US-024, US-028, US-058, US-078, US-080, US-086, US-110, US-111. 폐기 US-022, US-030, US-059, US-062 |
+| 2026-11-13 | 확정(2026-11-13 사용자 확인): 등록자·퇴사 사유 제거(사용자 요청·결정 D1~D3). `users.created_by_user_id`(FK·인덱스)·`delete_reason`(CHECK 2개) 컬럼 제거(SC-R21), 등록자는 연결이 아님(연결 17→16종), `UserResponse`의 `created_by`·`delete_reason`·`UserDeleteReason` 제거, `DELETE`의 `reason` 쿼리 제거(보내면 422, Q2), 등록 401(요청자 행 없음) 제거(Q1), 화면 '등록자'·'퇴사 사유' 열 제거(11→9칸). 규칙 변경: 2.1 퇴사자·연결, 2.2, US-R8, US-R11, US-R12(문구), US-R16, US-R17, US-R22, US-R31, 2.4, 2.6, 2.8, US-UC2·UC7 | 신규 US-112~US-114. 변경 US-001, US-008, US-024, US-028, US-058, US-078, US-080, US-086, US-110, US-111. 폐기 US-022, US-030, US-059, US-062 |
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): CM 확정: Memo → Comment 엔티티 분리. 사용자 연결 종류 16→17종(`deal_comments.author_user_id` "Comment 작성자", 2.2·US-R17). CM-041이 Comment 연결을 검증 | 변경 US-058(연결 종류 수), US-112(문구) |
+| 2026-11-20 | 확정(2026-11-20 사용자 확인): Deals 목록 담당자 후보를 `이름 (로그인 아이디)`로 보이기로 함(사용자 결정, DL-R40).<br>바뀐 규칙: US-R20(선택 목록 항목 `UserOption` = UserRef + `login_id`, 모든 항목에 항상 포함, keyword는 계속 이름만), 2.6, US-R31.<br>**API 하위 호환 추가**(응답 필드 추가). 아이디 비노출 원칙을 이 경로에서 폐지하므로 로그인한 모든 역할이 다른 사용자의 로그인 아이디를 볼 수 있다(사용자 수용).<br>다른 화면의 사용자 선택 표시는 그대로이고 마이그레이션은 없다 | 신규 US-115~US-117. 변경 US-069(키 집합) |

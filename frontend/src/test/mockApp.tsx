@@ -12,6 +12,7 @@ import { buildLegacyProductSeed } from './fixtures/legacyProduct'
 import { buildSampleSeed } from './fixtures/sampleSeed'
 import { USER_ID } from './fake/seed/ids'
 import type { SavedReport } from '../shared/model/reportTypes'
+import type { SeedData } from './fake/store'
 
 /** 테스트에서 고를 수 있는 역할. null은 로그인하지 않은 상태. */
 export type TestRole = 'admin' | 'sales' | 'user' | null
@@ -42,6 +43,8 @@ export interface RenderAtOptions {
   seed?: 'sample' | 'empty' | 'empty-with-vendor' | 'legacy-product'
   /** 저장 리포트를 이 목록으로 채우고 시작한다. 기본은 비어 있다. */
   savedReports?: SavedReport[]
+  /** 고른 시드를 만든 직후 데이터를 손봐 돌려준다(사용자·Deal 구성이 다른 시나리오용). */
+  adjustSeed?: (data: SeedData) => SeedData
 }
 
 /** RouterProvider 기본 오류 화면이 렌더 오류를 삼키지 않도록 다시 던진다. */
@@ -70,7 +73,9 @@ function NavigateProbe({ onReady }: { onReady: (navigate: NavigateFunction) => v
  * - `goTo(path)`는 화면에 링크가 없는 경로로 이동하고, 숫자(-1)면 브라우저 뒤로 가기와 같은 history 이동을 한다
  */
 export async function renderAt(url: string, options: RenderAtOptions = {}) {
-  defaultMock.setSeed(SEEDS[options.seed ?? 'sample'])
+  const base = SEEDS[options.seed ?? 'sample']
+  const adjust = options.adjustSeed
+  defaultMock.setSeed(adjust ? (clock) => adjust(base(clock)) : base)
   mockControl.resetData() // 일부 테스트는 resetData를 감싸 최초 설정 상태를 만든다
   mockControl.setStorageFailure(false)
   if (options.savedReports) mockControl.seedSavedReports(options.savedReports)

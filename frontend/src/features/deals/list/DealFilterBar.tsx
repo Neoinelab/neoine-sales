@@ -12,7 +12,9 @@ import { forecastSummary, parseForecastParam, toggleForecastParam } from '../../
 import { ErrorBanner } from '../../../shared/ui/ErrorBanner'
 import { CheckboxField, SelectField, TextField } from '../../../shared/ui/fields'
 import { MultiCheckSelect } from '../../../shared/ui/MultiCheckSelect'
-import { UserSelect } from '../../../shared/ui/UserSelect'
+import { ComboBox } from '../../../shared/ui/ComboBox'
+import { useUserOptions } from '../../../data/users'
+import { ownerCandidates, ownerFieldText, ownerOptionText } from '../../../shared/model/ownerInput'
 import type { Quarter } from '../../../shared/model/period'
 import { QUARTERS, effectiveQuarters, quarterSummary } from '../../../shared/model/quarterSet'
 import { effectiveMonth, monthOptions, quarterClearPatch, quartersOf, quarterTogglePatch } from './listQuery'
@@ -66,6 +68,17 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
     setSeenProduct(urlProduct)
     setProduct(urlProduct)
   }
+  // 담당자: 후보는 재직 sales, 칸 글자 해석을 위해 퇴사자·다른 역할도 읽는다. 칸은 제품 칸처럼 검색(버튼·Enter)으로 반영하고 후보를 고르면 즉시 반영한다.
+  const userOptions = useUserOptions({ includeResigned: true })
+  const allUsers = userOptions.data ?? []
+  const urlOwnerText = ownerFieldText(params.get('owner_name'), params.get('owner'), allUsers)
+  const [ownerText, setOwnerText] = useState(urlOwnerText)
+  const [seenOwnerText, setSeenOwnerText] = useState(urlOwnerText)
+  if (urlOwnerText !== seenOwnerText) {
+    setSeenOwnerText(urlOwnerText)
+    setOwnerText(urlOwnerText)
+  }
+  const ownerComboOptions = ownerCandidates(allUsers).map((u) => ({ value: ownerOptionText(u), id: u.id }))
   // 모르는 값은 '전체'로 보이고 조회에도 쓰이지 않는다(listQueryFromParams와 같은 판정).
   const nextStatus = nextActionStatusFromParam(params.get('next_status'))
   const quarters = quartersOf(params)
@@ -120,11 +133,25 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       aria-label="Deal 필터"
       onSubmit={(event) => {
         event.preventDefault()
-        onChange({ q: keyword.trim(), product: product.trim() })
+        const patch: Record<string, string | undefined> = { q: keyword.trim(), product: product.trim() }
+        // 칸을 고친 경우에만 담당자 조건을 바꾼다(고치지 않으면 owner id 조건을 그대로 둔다). 비우고 검색하면 해제한다.
+        if (ownerText.trim().toLowerCase() !== urlOwnerText.trim().toLowerCase()) {
+          patch.owner = ''
+          patch.owner_name = ownerText.trim()
+        }
+        onChange(patch)
       }}
     >
       <TextField label="키워드" name="keyword" value={keyword} onChange={setKeyword} />
-      <UserSelect label="담당자" name="owner" value={value('owner')} onChange={(owner) => onChange({ owner })} includeResigned />
+      <ComboBox
+        label="담당자"
+        name="owner"
+        value={ownerText}
+        onChange={setOwnerText}
+        options={ownerComboOptions}
+        onSelectOption={(option) => onChange({ owner: String(option.id), owner_name: '' })}
+        placeholder="이름 입력"
+      />
       <SelectField label="Vendor" name="vendor" value={vendorId} onChange={(vendor) => onChange({ vendor })}>
         <option value="">전체</option>
         {!loaded && vendorId && <option value={vendorId}>선택한 Vendor</option>}
@@ -225,6 +252,7 @@ export function DealFilterBar({ params, onChange, onReset }: DealFilterBarProps)
       <div className="deal-filter-errors">
         <ErrorBanner error={yearOptions.error} />
         <ErrorBanner error={vendorsQuery.error} />
+        <ErrorBanner error={userOptions.error} />
         <ErrorBanner error={periodsQuery.error} />
         <ErrorBanner error={refreshError} />
       </div>

@@ -15,6 +15,7 @@ from app.application.ports.deal_repository import (
     SortOrder,
 )
 from app.application.ports.pagination import MAX_LIMIT
+from app.domain.deal.owner_name import OWNER_NAME_MAX
 from app.domain.deal.values import PRODUCT_MAX
 from app.domain.user.value_objects import UserId
 from app.web.schemas.common import RequestModel
@@ -42,6 +43,7 @@ class DealExportParams(RequestModel):
 
     keyword: Annotated[str | None, Field(max_length=KEYWORD_MAX)] = None
     owner_user_id: QueryId | None = None
+    owner_name: Annotated[str | None, Field(max_length=OWNER_NAME_MAX)] = None
     mine: bool = False
     vendor_id: QueryId | None = None
     product: Annotated[str | None, Field(json_schema_extra=_document_product_max)] = None
@@ -73,10 +75,13 @@ class DealExportParams(RequestModel):
         return None if self.owner_user_id is None else UserId(self.owner_user_id)
 
     def to_query(self, viewer_user_id: UserId) -> DealQuery:
-        criteria = self.model_dump(exclude={"mine", "owner_user_id", "forecast_key", "quarter"})
+        criteria = self.model_dump(
+            exclude={"mine", "owner_user_id", "owner_name", "forecast_key", "quarter"}
+        )
         return DealQuery(
             owner_user_id=viewer_user_id if self.mine else self._owner(),
             forecast_keys=frozenset(self.forecast_key) if self.forecast_key else None,
+            owner_name=None if self.mine else self.owner_name,
             quarters=quarter_set(self.quarter),
             **criteria,
         )

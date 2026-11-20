@@ -6747,7 +6747,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/UserRef"
+              "$ref": "#/components/schemas/UserOptionRef"
             },
             "title": "Items",
             "type": "array"
@@ -6757,6 +6757,44 @@
           "items"
         ],
         "title": "UserOptionPage",
+        "type": "object"
+      },
+      "UserOptionRef": {
+        "description": "사용자 선택 후보. UserRef에 아이디(login_id)를 더한다(동명이인 구분용).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "login_id": {
+            "title": "Login Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resigned": {
+            "title": "Resigned",
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "resigned",
+          "label",
+          "role",
+          "login_id"
+        ],
+        "title": "UserOptionRef",
         "type": "object"
       },
       "UserPasswordRequest": {
@@ -9917,6 +9955,23 @@
           },
           {
             "in": "query",
+            "name": "owner_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "mine",
             "required": false,
             "schema": {
@@ -10338,6 +10393,23 @@
                 }
               ],
               "title": "Owner User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner Name"
             }
           },
           {

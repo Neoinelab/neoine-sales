@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Protocol
 from app.application.ports.pagination import check_page
 from app.domain.common.errors import InvalidValueError
 from app.domain.common.validation import check_date_in_bounds, optional_text
+from app.domain.deal.owner_name import OWNER_NAME_MAX
 from app.domain.deal.period import (
     QUARTER_MONTH_EXCLUSIVE,
     month_range,
@@ -33,6 +34,7 @@ KEYWORD_MAX = 100
 DEFAULT_PAGE_SIZE = 20
 YEAR_MIN = 1900
 YEAR_MAX = 9999
+OWNER_EXCLUSIVE = "담당자는 사용자 id와 이름 중 하나로만 지정하세요."
 UPDATED_RANGE_REVERSED = "최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다"
 
 
@@ -65,6 +67,7 @@ class DealQuery:
 
     keyword: str | None = None  # Deal Name·고객 회사·활성 파트너 회사·code 부분 일치(대소문자 무시)
     owner_user_id: UserId | None = None
+    owner_name: str | None = None  # 담당자 화면 이름 검색(DL-R39). owner_user_id와 배타
     vendor_id: VendorId | None = None
     product: str | None = None  # Product 텍스트 부분 일치(대소문자 무시)
     status_key: str | None = None
@@ -101,6 +104,10 @@ class DealQuery:
         if self.updated_from and self.updated_to and self.updated_from > self.updated_to:
             raise InvalidValueError(UPDATED_RANGE_REVERSED)
         self._check_year_and_quarter()
+        owner_name = optional_text(self.owner_name, "담당자", max_length=OWNER_NAME_MAX)
+        if owner_name is not None and self.owner_user_id is not None:
+            raise InvalidValueError(OWNER_EXCLUSIVE)
+        object.__setattr__(self, "owner_name", owner_name)
         object.__setattr__(
             self, "keyword", optional_text(self.keyword, "검색어", max_length=KEYWORD_MAX)
         )

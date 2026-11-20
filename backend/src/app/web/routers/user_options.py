@@ -12,7 +12,7 @@ from app.web.permissions import BusinessRouter
 from app.web.routers.responses import READ_ERRORS
 from app.web.schemas.common import RequestModel
 from app.web.schemas.user import UserOptionPage
-from app.web.schemas.user_ref import UserRef
+from app.web.schemas.user_ref import UserOptionRef
 
 router = BusinessRouter(prefix="/api/v1/user-options", tags=["users"])
 
@@ -34,4 +34,4 @@ async def list_user_options(
         include_resigned=params.include_resigned,
         role=params.role,
     )
-    return UserOptionPage(items=[UserRef.from_domain(r) for r in refs])
+    return UserOptionPage(items=[UserOptionRef.from_option(r) for r in refs])

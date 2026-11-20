@@ -30,3 +30,10 @@ class UserRef:
     @property
     def label(self) -> str:
         return f"{self.name}{RESIGNED_SUFFIX}" if self.resigned else self.name
+
+
+@dataclass(frozen=True, slots=True)
+class UserOption(UserRef):
+    """사용자 선택 후보. UserRef에 아이디(login_id)를 더한다(동명이인 구분용)."""
+
+    login_id: str

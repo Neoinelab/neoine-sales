@@ -7,8 +7,8 @@ import type {
   User,
   UserCreateInput,
   UserListFilter,
+  UserOption,
   UserOptionsQuery,
-  UserRef,
   UserRemoveResult,
 } from '../shared/model/types'
 import { keys } from './queryKeys'
@@ -20,8 +20,8 @@ export function useUsers(filter: UserListFilter): Query<User[]> {
 }
 
 /** gateway.users.options(query). 키 keys.userOptions. UserSelect·필터·Owner 후보. */
-export function useUserOptions(query: UserOptionsQuery = {}): Query<UserRef[]> {
-  return useQuery<UserRef[], ApiError>({
+export function useUserOptions(query: UserOptionsQuery = {}): Query<UserOption[]> {
+  return useQuery<UserOption[], ApiError>({
     queryKey: keys.userOptions(query),
     queryFn: () => gateway.users.options(query),
     ...NO_RETRY,

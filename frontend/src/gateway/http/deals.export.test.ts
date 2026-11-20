@@ -19,6 +19,22 @@ function csv(headers: Record<string, string> = { 'Content-Disposition': DISPOSIT
 }
 
 describe('deals.exportCsv over HTTP', () => {
+  // 담당자 이름은 목록과 같은 owner_name 키로 인코딩해 보낸다
+  // 테스트 코드: DL-143
+  it('sends ownerName as the encoded owner_name query', async () => {
+    // given: 서버가 CSV로 답한다
+    const { calls } = stubFetch(csv())
+
+    // when: 퇴사자 표기의 이름으로 exportCsv를 부른다
+    await createDealsHttp().exportCsv({ ownerName: '강퇴사(퇴사)' })
+
+    // then: 쿼리에 owner_name이 그 글자로 있고 owner_user_id는 없다
+    const url = new URL(calls[0]?.path ?? '', 'http://localhost')
+    expect(calls[0]?.path).toContain(`owner_name=${encodeURIComponent('강퇴사(퇴사)')}`)
+    expect(url.searchParams.get('owner_name')).toBe('강퇴사(퇴사)')
+    expect(url.searchParams.has('owner_user_id')).toBe(false)
+  })
+
   // 목록 쿼리에서 offset·limit을 빼고 같은 snake_case 키로 보내고 Blob과 파일 이름을 돌려준다
   // 테스트 코드: DL-123
   it('sends the list query without offset and limit and returns the blob with the file name', async () => {

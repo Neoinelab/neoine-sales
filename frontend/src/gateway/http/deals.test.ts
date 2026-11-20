@@ -30,6 +30,36 @@ const input = (over: Partial<DealInput> = {}): DealInput => ({
   ...over,
 })
 
+describe('deals.list owner over HTTP', () => {
+  // 담당자 이름은 owner_name으로, 담당자 id는 owner_user_id로 보내고 서로 섞지 않는다
+  // 테스트 코드: DL-143
+  it('sends ownerName as owner_name and ownerId as owner_user_id without mixing them', async () => {
+    // given: 서버 응답을 흉내 낸 fetch
+    const { calls } = stubFetch(json(page([])), json(page([])))
+
+    // when: 이름만, 그리고 id만 준 list를 호출한다
+    await createDealsHttp().list({ ownerName: '김영' })
+    await createDealsHttp().list({ ownerId: 3 })
+
+    // then: 첫 쿼리는 owner_name만, 둘째 쿼리는 owner_user_id만 가진다
+    expect(Object.fromEntries(query(calls[0]?.path ?? ''))).toEqual({ owner_name: '김영' })
+    expect(Object.fromEntries(query(calls[1]?.path ?? ''))).toEqual({ owner_user_id: '3' })
+  })
+
+  // 이름이 비어 있으면 owner_name을 보내지 않는다
+  // 테스트 코드: DL-143
+  it('does not send owner_name when the name is empty', async () => {
+    // given: 서버 응답을 흉내 낸 fetch
+    const { calls } = stubFetch(json(page([])))
+
+    // when: 빈 이름으로 list를 호출한다
+    await createDealsHttp().list({ ownerName: '' })
+
+    // then: 쿼리에 owner_name이 없다
+    expect(query(calls[0]?.path ?? '').has('owner_name')).toBe(false)
+  })
+})
+
 describe('deals.list month over HTTP (P6)', () => {
   // 월은 year 옆의 month 쿼리 키로 보낸다
   // 테스트 코드: DL-100

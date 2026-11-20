@@ -5,11 +5,11 @@ if TYPE_CHECKING:
 
     from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.auth.principal import Role
-    from app.domain.user.value_objects import UserRef
+    from app.domain.user.value_objects import UserOption
 
 
 class ListUserOptions:
-    """사용자 선택 UI용 후보. 조건에 맞는 사용자 전부를 UserRef(이메일 없음, role 포함)로."""
+    """사용자 선택 UI용 후보. 조건에 맞는 사용자 전부를 UserOption(UserRef + login_id)으로."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory) -> None:
         self._uow_factory = uow_factory
@@ -20,7 +20,7 @@ class ListUserOptions:
         keyword: str | None = None,
         include_resigned: bool = False,
         role: Role | None = None,
-    ) -> Sequence[UserRef]:
+    ) -> Sequence[UserOption]:
         async with self._uow_factory() as uow:
             return await uow.users.search_refs(
                 keyword=keyword,

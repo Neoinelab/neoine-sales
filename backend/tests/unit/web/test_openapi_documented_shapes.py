@@ -193,18 +193,35 @@ def test_user_delete_documents_the_outcome_no_query_and_errors(spec: Spec) -> No
     assert [(p["name"], p["in"]) for p in operation["parameters"]] == [("user_id", "path")]
 
 
-def test_user_options_document_the_filters_and_only_user_ref_items(spec: Spec) -> None:
-    """사용자 선택 목록은 필터를 문서화하고 UserRef 항목만 공개한다."""
-    # when: 사용자 선택 목록 오퍼레이션을 읽는다
+def _item_schema(spec: Spec, page: dict[str, Any]) -> dict[str, Any]:
+    ref = page["properties"]["items"]["items"]["$ref"]
+    schema: dict[str, Any] = spec["components"]["schemas"][str(ref).rsplit("/", 1)[-1]]
+    return schema
+
+
+def test_user_options_document_the_filters_and_items_with_a_required_login_id(spec: Spec) -> None:
+    """사용자 선택 목록은 필터를 문서화하고 항목은 UserRef 필드 + 필수 login_id(문자열)다.
+
+    테스트 코드: US-116
+    """
+    # when: 사용자 선택 목록 오퍼레이션과 항목·UserRef 스키마를 읽는다
     operation = operation_of(spec, "GET", "/api/v1/user-options")
     params = {p["name"]: p for p in operation["parameters"]}
     page = _response_schema(spec, operation)
-    # then: 필터 파라미터가 있고 limit은 없으며 항목은 UserRef, 401·422 응답이 있다
+    item = _item_schema(spec, page)
+    user_ref = spec["components"]["schemas"]["UserRef"]
+    # then: 필터 파라미터가 있고 limit은 없으며 401·422 응답이 있다
     assert {"include_resigned", "keyword", "role"} <= set(params)
     assert "limit" not in params
     assert params["include_resigned"]["schema"]["default"] is False
-    assert "UserRef" in str(page["properties"]["items"])
     assert {"401", "422"} <= set(operation["responses"])
+    # then: 항목은 UserRef의 다섯 필드와 login_id(string, 필수, null 불가)를 가진다
+    assert set(item["properties"]) == {*user_ref["properties"], "login_id"}
+    assert item["properties"]["login_id"]["type"] == "string"
+    assert "anyOf" not in item["properties"]["login_id"]
+    assert "login_id" in item["required"]
+    # then: UserRef에는 login_id가 없다
+    assert "login_id" not in user_ref["properties"]
 
 
 def test_auth_me_response_documents_the_user_id(spec: Spec) -> None:

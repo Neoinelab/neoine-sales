@@ -10,6 +10,7 @@ import type {
   NextActionStatusFilter,
   Poc,
   Quote,
+  UserRef,
   Role,
   UserStatus,
 } from './types'
@@ -118,6 +119,8 @@ export interface DealListQuery {
   /** Deal 이름·고객사·파트너사·Deal code 부분 일치(대소문자 무시). */
   keyword?: string
   ownerId?: number
+  /** 담당자 이름 글자(부분 일치, ownerId와 함께 쓰지 않는다). */
+  ownerName?: string
   vendorId?: number
   /** Product 텍스트 부분 일치(대소문자 무시). */
   product?: string
@@ -259,6 +262,11 @@ export interface NewAccountProfile {
 }
 
 export type UserListFilter = UserStatus | 'all'
+
+/** 선택 후보 사용자: UserRef에 로그인 아이디(동명이인 구분용)를 더한다. */
+export interface UserOption extends UserRef {
+  loginId: string
+}
 
 export interface UserOptionsQuery {
   /** 'sales'면 Owner 후보용(재직 sales만). 지정하지 않으면 재직자 전체. */

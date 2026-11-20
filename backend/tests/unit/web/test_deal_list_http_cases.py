@@ -612,3 +612,83 @@ async def test_filtering_or_sorting_by_unread_comment_count_is_request_validatio
         response = await _get(http, {param: 1 if param != "sort" else "unread_comment_count"})
     # then: 422 request-validation이다
     problem(response, 422, "request-validation")
+
+
+@pytest.mark.parametrize(
+    ("text", "status"),
+    [("가" * 100, 200), ("가" * 101, 422), ("가" * 100 + " ", 422), (" " + "가" * 100, 422)],
+)
+async def test_owner_name_length_is_measured_on_the_raw_text(text: str, status: int) -> None:
+    """owner_name 100자는 되고 101자는(앞뒤 공백 포함) 422 request-validation이다.
+
+    테스트 코드: DL-133
+    """
+    # when: 길이가 다른 담당자 이름으로 조회한다
+    async with client_for(_use_cases()) as http:
+        response = await _get(http, {"owner_name": text})
+    # then: 100자는 200(0건), 그 이상은 422 request-validation이다
+    if status == 200:
+        assert response.status_code == 200, response.text
+        assert response.json()["total"] == 0
+    else:
+        problem(response, 422, "request-validation")
+
+
+async def test_owner_name_with_nul_is_invalid_value_with_its_own_message() -> None:
+    """owner_name에 NUL이 있으면 500이 아니라 422 invalid-value 고정 문구다.
+
+    테스트 코드: DL-133
+    """
+    # when: NUL이 든 담당자 이름으로 조회한다
+    async with client_for(_use_cases()) as http:
+        response = await _get(http, {"owner_name": "a\x00b"})
+    # then: invalid-value와 고정 문구다
+    body = problem(response, 422, "invalid-value")
+    assert body["detail"] == "담당자에는 NUL 문자를 쓸 수 없습니다"
+
+
+async def test_owner_name_trims_blank_is_no_condition_and_matches_the_screen_name() -> None:
+    """owner_name은 앞뒤 공백을 지우고 공백뿐이면 조건이 없으며 화면 이름 부분 일치로 거른다.
+
+    테스트 코드: DL-133
+    """
+    # given: 담당자 sales-user·park의 Deal 각 1건
+    use_cases = _use_cases()
+    async with client_for(use_cases, role=Role.SALES) as http:
+        mine = await _register(use_cases, owner="sales-user")
+        theirs = await _register(use_cases, owner="park")
+        # when: 앞뒤 공백이 있는 값과 공백뿐인 값으로 조회한다
+        trimmed = await _get(http, {"owner_name": "  PAR  "})
+        blank = await _get(http, {"owner_name": "   "})
+    # then: 앞은 park Deal만, 뒤는 조건 없음(둘 다)이다
+    assert [i["code"] for i in trimmed.json()["items"]] == [theirs]
+    assert {i["code"] for i in blank.json()["items"]} == {mine, theirs}
+
+
+async def test_owner_name_is_anded_and_exclusive_with_owner_user_id_and_ignored_by_mine() -> None:
+    """owner_name은 다른 조건과 AND, owner_user_id와 함께면 422, mine=true면 둘 다 무시된다.
+
+    테스트 코드: DL-134
+    """
+    # given: 요청자(sales-user)와 park의 Deal(Status가 서로 다름)
+    use_cases = _use_cases()
+    async with client_for(use_cases, role=Role.SALES) as http:
+        mine = await _register(use_cases, owner="sales-user")
+        theirs = await _register(use_cases, owner="park", status_key="introduction")
+        park_id = int(await use_cases.user_id_of("park"))
+        # when: 네 조건으로 조회한다
+        anded = await _get(http, {"owner_name": "sales", "status_key": "prospecting"})
+        both = await _get(http, {"owner_name": "sales", "owner_user_id": park_id})
+        mine_wins = await _get(
+            http, {"owner_name": "park", "owner_user_id": park_id, "mine": "true"}
+        )
+        blank_name = await _get(http, {"owner_name": "  ", "owner_user_id": park_id})
+    # then: AND는 요청자 Deal만이다
+    assert [i["code"] for i in anded.json()["items"]] == [mine]
+    # then: 동시 지정은 422 invalid-value와 고정 문구다
+    body = problem(both, 422, "invalid-value")
+    assert body["detail"] == "담당자는 사용자 id와 이름 중 하나로만 지정하세요."
+    # then: mine=true는 둘 다 무시해 422 없이 요청자 Deal만이다
+    assert [i["code"] for i in mine_wins.json()["items"]] == [mine]
+    # then: 공백뿐인 이름은 조건이 없어 owner_user_id의 park Deal만이다
+    assert [i["code"] for i in blank_name.json()["items"]] == [theirs]

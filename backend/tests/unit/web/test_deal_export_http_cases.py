@@ -203,3 +203,56 @@ async def test_unauthenticated_export_is_401() -> None:
         response = await _export(http)
     # then: 401 unauthenticated
     problem(response, 401, "unauthenticated")
+
+
+async def _register_owned(use_cases: FakeUseCases, login: str, **overrides: Any) -> str:  # noqa: ANN401
+    """login 아이디의 재직 영업 사용자(없으면 생성)가 담당자인 Deal을 등록한다."""
+    try:
+        owner_id = await use_cases.user_id_of(login)
+    except AssertionError:
+        await use_cases.seed_user(login, Role.SALES)
+        owner_id = await use_cases.user_id_of(login)
+    view = await use_cases.register_deal().execute(
+        make_create_input(owner_user_id=owner_id, **overrides), SALES
+    )
+    return view.item.deal.id.value
+
+
+def _deal_names(response: Any) -> list[str]:  # noqa: ANN401
+    """CSV 본문의 데이터 줄에서 Deal 이름(첫 칸)만 모은다."""
+    lines = response.content[3:].decode("utf-8").split("\r\n")[1:-1]
+    return [line.split(",", 1)[0] for line in lines]
+
+
+async def test_owner_name_filters_the_export_like_the_list_and_validates_the_same_way() -> None:
+    """내보내기의 owner_name은 목록과 같은 결과·검증이다(AND·배타 422·mine 우선·NUL).
+
+    테스트 코드: DL-134
+    """
+    # given: 요청자(sales-user)의 Deal K와 park의 Deal P(Status가 다름)
+    use_cases = _use_cases()
+    async with client_for(use_cases, role=Role.SALES) as http:
+        await _register_owned(use_cases, "sales-user", name="K")
+        await _register_owned(use_cases, "park", name="P", status_key="introduction")
+        park_id = int(await use_cases.user_id_of("park"))
+        # when: 목록과 같은 조건으로 내보낸다
+        anded = await _export(http, {"owner_name": "sales", "status_key": "prospecting"})
+        both = await _export(http, {"owner_name": "sales", "owner_user_id": park_id})
+        mine_wins = await _export(
+            http, {"owner_name": "park", "owner_user_id": park_id, "mine": "true"}
+        )
+        blank_name = await _export(http, {"owner_name": "  ", "owner_user_id": park_id})
+        nul = await _export(http, {"owner_name": "a\x00b"})
+        too_long = await _export(http, {"owner_name": "가" * 101})
+        listed = await http.get("/api/v1/deals", params={"owner_name": "sales"})
+    # then: AND는 K만, 목록의 같은 조건과 같은 Deal이다
+    assert _deal_names(anded) == ["K"]
+    assert [i["name"] for i in listed.json()["items"]] == ["K"]
+    # then: 동시 지정은 422 invalid-value, mine=true는 K만, 공백뿐인 이름은 P만이다
+    body = problem(both, 422, "invalid-value")
+    assert body["detail"] == "담당자는 사용자 id와 이름 중 하나로만 지정하세요."
+    assert _deal_names(mine_wins) == ["K"]
+    assert _deal_names(blank_name) == ["P"]
+    # then: NUL은 invalid-value, 101자는 request-validation이다
+    assert problem(nul, 422, "invalid-value")["detail"] == "담당자에는 NUL 문자를 쓸 수 없습니다"
+    problem(too_long, 422, "request-validation")

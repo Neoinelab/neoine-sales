@@ -3798,7 +3798,24 @@ export interface components {
          */
         UserOptionPage: {
             /** Items */
-            items: components["schemas"]["UserRef"][];
+            items: components["schemas"]["UserOptionRef"][];
+        };
+        /**
+         * UserOptionRef
+         * @description 사용자 선택 후보. UserRef에 아이디(login_id)를 더한다(동명이인 구분용).
+         */
+        UserOptionRef: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Login Id */
+            login_id: string;
+            /** Name */
+            name: string;
+            /** Resigned */
+            resigned: boolean;
+            role: components["schemas"]["Role"];
         };
         /**
          * UserPasswordRequest
@@ -6112,6 +6129,7 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 owner_user_id?: number | null;
+                owner_name?: string | null;
                 mine?: boolean;
                 vendor_id?: number | null;
                 product?: string | null;
@@ -6240,6 +6258,7 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 owner_user_id?: number | null;
+                owner_name?: string | null;
                 mine?: boolean;
                 vendor_id?: number | null;
                 product?: string | null;

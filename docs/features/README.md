@@ -63,14 +63,14 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | AU | [login-session.md](login-session.md) (로그인·세션·대체 로그인) | 확정(2026-11-09) |
 | SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-13) |
 | IN | [integration-settings.md](integration-settings.md) (연동 설정: AD 서버·저장 위치) | 확정(2026-11-09) |
-| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-13 사용자 확인) |
+| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-20 선택 목록에 로그인 아이디 사용자 확인) |
 | ME | [my-account.md](my-account.md) (내 정보) | 확정(2026-11-09) |
 | CD | [status-forecast-codes.md](status-forecast-codes.md) (Status·Forecast 코드) | 확정(2026-11-10) |
 | CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-16 사용자 확인) |
 | CT | [contacts.md](contacts.md) (고객·파트너 연락처) | 확정(2026-11-10) |
 | DE | [deal-entry.md](deal-entry.md) (Deal 등록·수정) | 확정(2026-11-16 사용자 확인) |
 | DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-18) |
-| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-20 기준 행 변경 사용자 확인) |
+| DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-20 담당자 자동완성 사용자 확인) |
 | RK | [deal-risk.md](deal-risk.md) (경고·파생 값·경고 기준) | 확정(2026-11-20 기준 행 변경 사용자 확인) |
 | AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-20 종료 대상 변경 사용자 확인) |
 | NA | [next-action.md](next-action.md) (Next Action 상태·Action 검색) | 확정(2026-11-17 사용자 확인) |

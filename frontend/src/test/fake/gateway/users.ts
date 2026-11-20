@@ -44,15 +44,17 @@ export function createUsersGateway(ctx: MockContext): UsersGateway {
           .sort((a, b) => compareIso(b.createdAt, a.createdAt) || b.id - a.id)
           .map((u) => userView(u))
       }),
+    // 서버 UserOption: UserRef + 로그인 아이디(US-R20, 모든 항목에 항상 있다)
     options: (query) =>
-      read(ctx, (): UserRef[] => {
+      read(ctx, (): (UserRef & { loginId: string })[] => {
         requireUser(ctx)
         const { data } = ctx.store
         return data.users
           .filter((u) => (query.includeResigned ? true : u.status === 'active'))
           .filter((u) => (query.role ? u.role === query.role : true))
-          .sort((a, b) => a.name.localeCompare(b.name, 'ko') || a.id - b.id)
-          .map((u) => userRef(data, u.id))
+          // 서버(US-R20)는 등록 시각·id 순으로 돌려주고 이름순 정렬은 화면(DL-R40)이 한다.
+          .sort((a, b) => compareIso(a.createdAt, b.createdAt) || a.id - b.id)
+          .map((u) => ({ ...userRef(data, u.id), loginId: u.loginId }))
       }),
     create: (input) =>
       write(ctx, () => {

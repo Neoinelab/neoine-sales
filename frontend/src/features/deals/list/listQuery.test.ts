@@ -290,9 +290,11 @@ describe('hasActiveFilter', () => {
 })
 
 describe('FILTER_KEYS', () => {
-  it('검색 조건 키는 15개이고 outcome·BANT 키는 없으며 month와 overdue/stale은 있다', () => {
+  it('검색 조건 키는 16개이고 outcome·BANT 키는 없으며 month·owner_name과 overdue/stale은 있다', () => {
     // when·then: 상수 목록(검색 조건 키·기억 키)을 확인한다
-    expect(FILTER_KEYS).toHaveLength(15)
+    expect(FILTER_KEYS).toHaveLength(16)
+    expect(FILTER_KEYS).toContain('owner_name')
+    expect(REMEMBERED_LIST_KEYS).toContain('owner_name')
     expect(FILTER_KEYS).not.toContain('outcome')
     expect(REMEMBERED_LIST_KEYS).not.toContain('outcome')
     expect(FILTER_KEYS).toContain('month')

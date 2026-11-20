@@ -11,7 +11,7 @@ from tests.fakes.use_cases import FakeUseCases
 from tests.unit.web.vendor_http import client_for, problem
 
 OPTIONS = "/api/v1/user-options"
-OPTION_KEYS = {"id", "name", "resigned", "label", "role"}
+OPTION_KEYS = {"id", "name", "resigned", "label", "role", "login_id"}
 
 
 @pytest.mark.parametrize("role", [Role.ADMIN, Role.SALES, Role.USER])
@@ -32,25 +32,51 @@ async def test_every_signed_in_role_reads_the_user_options(role: Role) -> None:
     assert "kim" in [item["name"] for item in response.json()["items"]]
 
 
-async def test_option_items_carry_only_id_name_resigned_label_and_role() -> None:
-    """선택 목록 항목은 id·name·resigned·label·role만 담고 이메일·아이디가 없다.
+async def test_option_items_carry_exactly_id_name_resigned_label_role_and_login_id() -> None:
+    """선택 목록 항목은 id·name·resigned·label·role·login_id만 담고 이메일이 없다.
 
     테스트 코드: US-069
     """
-    # given: 표시 이름이 있는 사용자(아이디 kim, 이름 김영업)
+    # given: 표시 이름이 있는 사용자(아이디 kim, 이름 김영업)와 이름 없는 lee
     use_cases = FakeUseCases()
     await use_cases.seed_user("kim", Role.SALES, display_name="김영업")
+    await use_cases.seed_user("lee", Role.USER)
     async with client_for(use_cases) as http:
         # when: 선택 목록을 읽는다
         response = await http.get(OPTIONS)
 
-    # then: 모든 항목의 키가 다섯 개뿐이고 표시 이름이 있는 사용자의 아이디 값은 어디에도 없다
+    # then: 모든 항목의 키가 여섯 개이고 login_id는 아이디다
     items = response.json()["items"]
     assert all(set(item) == OPTION_KEYS for item in items)
-    kim = next(item for item in items if item["name"] == "김영업")
-    assert kim["role"] == "sales"
-    assert '"kim"' not in response.text
+    by_name = {item["name"]: item for item in items}
+    assert by_name["김영업"]["login_id"] == "kim"
+    assert by_name["김영업"]["role"] == "sales"
+    assert (by_name["lee"]["name"], by_name["lee"]["login_id"]) == ("lee", "lee")
     assert "email" not in response.text
+
+
+async def test_option_login_id_is_present_for_resigned_users_and_every_reader_role() -> None:
+    """선택 목록 login_id는 퇴사자 항목에도 있고 어느 역할이 읽어도 같다.
+
+    테스트 코드: US-115
+    """
+    # given: 재직 kim과 퇴사한 gone
+    use_cases = FakeUseCases()
+    await use_cases.seed_user("kim", Role.SALES, display_name="김영업")
+    gone = await use_cases.seed_user("gone", Role.SALES, display_name="이탈자")
+    await use_cases.resign_user(gone.id)
+    results = []
+    for role in (Role.ADMIN, Role.SALES, Role.USER):
+        async with client_for(use_cases, role=role) as http:
+            # when: 각 역할로 퇴사자를 포함해 읽는다
+            response = await http.get(f"{OPTIONS}?include_resigned=true")
+        found = {i["name"]: (i["login_id"], i["label"]) for i in response.json()["items"]}
+        results.append({name: found[name] for name in ("김영업", "이탈자")})  # 로그인 계정 제외
+
+    # then: 퇴사자는 login_id와 (퇴사) 라벨이 있고 세 역할의 결과가 같다
+    assert results[0]["이탈자"] == ("gone", "이탈자(퇴사)")
+    assert results[0]["김영업"] == ("kim", "김영업")
+    assert results[0] == results[1] == results[2]
 
 
 async def test_options_hide_resigned_users_unless_include_resigned_is_true() -> None:
