@@ -72,7 +72,7 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | DD | [deal-detail.md](deal-detail.md) (Deal 상세·변경 적용·이력·삭제) | 확정(2026-11-18) |
 | DL | [deal-list.md](deal-list.md) (Deal 목록·검색) | 확정(2026-11-20 담당자 자동완성 사용자 확인) |
 | RK | [deal-risk.md](deal-risk.md) (경고·파생 값·경고 기준) | 확정(2026-11-20 기준 행 변경 사용자 확인) |
-| AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-20 종료 대상 변경 사용자 확인) |
+| AC | [deal-actions.md](deal-actions.md) (Action 등록·수정·삭제) | 확정(2026-11-21 상세 팝업 크기 변경 사용자 확인) |
 | NA | [next-action.md](next-action.md) (Next Action 상태·Action 검색) | 확정(2026-11-17 사용자 확인) |
 | CM | [deal-comments.md](deal-comments.md) (Deal·Action Comment, Memo 분리) | 확정(2026-11-18) |
 | AT | [deal-attachments.md](deal-attachments.md) (Deal 첨부 파일) | 확정(2026-11-10) |
@@ -83,7 +83,7 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | RC | [report-charts.md](report-charts.md) (Reports 차트) | 확정(2026-11-11) |
 | PA | [partner-activity.md](partner-activity.md) (파트너 Activity) | 확정(2026-11-11) |
 | LC | [license-contracts.md](license-contracts.md) (계약관리) | 확정(2026-11-16 사용자 확인) |
-| UI | [ui-common.md](ui-common.md) (공통 입력·표시 컴포넌트, frontend 전용) | 확정(2026-11-16 사용자 확인) |
+| UI | [ui-common.md](ui-common.md) (공통 입력·표시 컴포넌트, frontend 전용) | 확정(2026-11-21 Modal className 사용자 확인) |
 
 ## feature 경계
 

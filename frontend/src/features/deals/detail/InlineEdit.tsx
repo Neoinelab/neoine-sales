@@ -30,6 +30,8 @@ interface InlineEditProps {
   asHeading?: boolean
   /** 입력기 접근성 이름(기본 label). */
   inputLabel?: string
+  /** true면 값 버튼이 칸 폭 전체를 쓰고, 여는 순간 값 버튼 높이를 `startHeight`로 입력기에 전한다(여러 줄 칸용). */
+  fill?: boolean
   /** 저장. 화면 검증 문구는 throw new Error(message)로, 서버 오류는 그대로 reject하면 된다. 성공하면 편집이 닫힌다. */
   onSave: (text: string, option?: ComboOption) => Promise<void>
 }
@@ -42,12 +44,13 @@ interface InlineEditProps {
  * 검증·서버 오류는 입력란 옆에 보이고 편집 상태를 유지한다(다시 고쳐 재시도).
  */
 export function InlineEdit(props: InlineEditProps) {
-  const { label, canEdit, display, initial, kind = 'text', options = [], control, noSpace = false, hint, asHeading = false, onSave } = props
+  const { label, canEdit, display, initial, kind = 'text', options = [], control, noSpace = false, hint, asHeading = false, fill = false, onSave } = props
   const inputLabel = props.inputLabel ?? label
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(initial)
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
+  const [startHeight, setStartHeight] = useState(0)
   const wrapRef = useRef<HTMLDivElement>(null)
   const openerRef = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
@@ -69,6 +72,7 @@ export function InlineEdit(props: InlineEditProps) {
 
   function start() {
     skipBlur.current = false
+    setStartHeight(fill ? (openerRef.current?.offsetHeight ?? 0) : 0)
     setText(initial)
     setError(null)
     setEditing(true)
@@ -133,7 +137,7 @@ export function InlineEdit(props: InlineEditProps) {
       <button
         ref={openerRef}
         type="button"
-        className="dd-click"
+        className={fill ? 'dd-click dd-click-fill' : 'dd-click'}
         aria-label={asHeading ? undefined : `${label} 수정`}
         title={asHeading ? `${label} 수정` : undefined}
         onClick={start}
@@ -160,6 +164,7 @@ export function InlineEdit(props: InlineEditProps) {
           onPick={(option) => void commit(option.value, option)}
           commit={(v) => void commit(v)}
           control={control}
+          startHeight={startHeight}
         />
       </div>
       {(hint || flashed[label]) && <p className="field-hint">{flashed[label] ? WHITESPACE_MESSAGE : hint}</p>}

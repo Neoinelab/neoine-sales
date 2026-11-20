@@ -6,6 +6,32 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { Modal } from './Modal'
 
 describe('Modal', () => {
+  // 테스트 코드: UI-063
+  it('className은 대화상자 클래스 뒤에 덧붙고 없으면 클래스가 그대로다', () => {
+    // given: className이 있는 wide 모달, wide만 있는 모달, 속성 없는 모달
+    // when: 각각 그린다
+    render(
+      <>
+        <Modal title="넓은 창" wide className="x-size" onClose={() => {}}>
+          <p>a</p>
+        </Modal>
+        <Modal title="보통 창" wide onClose={() => {}}>
+          <p>b</p>
+        </Modal>
+        <Modal title="작은 창" onClose={() => {}}>
+          <p>c</p>
+        </Modal>
+      </>,
+    )
+    // then: 클래스는 각각 modal wide x-size, modal wide, modal이고 모두 이름은 제목·aria-modal이다
+    expect(screen.getByRole('dialog', { name: '넓은 창' })).toHaveAttribute('class', 'modal wide x-size')
+    expect(screen.getByRole('dialog', { name: '보통 창' })).toHaveAttribute('class', 'modal wide')
+    expect(screen.getByRole('dialog', { name: '작은 창' })).toHaveAttribute('class', 'modal')
+    for (const name of ['넓은 창', '보통 창', '작은 창']) {
+      expect(screen.getByRole('dialog', { name })).toHaveAttribute('aria-modal', 'true')
+    }
+  })
+
   // 테스트 코드: UI-042
   it('제목을 이름으로 가진 aria-modal 대화상자로 열리고 첫 칸에 포커스한다', () => {
     // given: 제목 "매출 확정"에 입력 칸 "금액"이 든 모달

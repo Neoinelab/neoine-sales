@@ -49,6 +49,7 @@ export function ActionDetailDialog({ deal, action, canWrite, me, pending, error,
 
   return (
     <Modal
+      className="dd-action-detail-modal"
       title="Action 상세"
       wide
       onClose={busy ? () => undefined : onClose}

@@ -63,6 +63,7 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
       <dd className="dd-pre">
         <InlineEdit
           label="진행사항"
+          fill
           kind="custom"
           canEdit={canEdit}
           display={text(action.progress)}
@@ -75,6 +76,7 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
       <dd className="dd-pre">
         <InlineEdit
           label="Next Action · Due Date"
+          fill
           kind="custom"
           canEdit={canEdit}
           display={text(action.nextAction)}

@@ -1,8 +1,10 @@
-# 공통 입력·표시 컴포넌트   (feature 코드: UI, 상태: 확정(2026-11-16 사용자 확인))
+# 공통 입력·표시 컴포넌트   (feature 코드: UI, 상태: 확정(2026-11-21 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-11). 근거는 작업 트리의 코드(`shared/ui/{DateInput,AmountInput,AmountText,ComboBox,MultiCheckSelect,Modal,ConfirmDialog,Pager,useInfiniteScroll,SortableHeader,Tabs,Notice,useLocationNotice,fields}.tsx|.ts`, `shared/ui/kvGrid.css`, `index.css`의 `.content`, `shared/model/{dateText,money}.ts`)와 가드 테스트(`test/dateInputGuard.test.ts`·`moneyUnitGuard.test.ts`), 빈 첫 실행 교차 화면 테스트(`test/emptyState.test.tsx`), 안내서(`docs/user-guide.html` 5.1 "날짜 입력" 상자, 금액 입력 설명)이며 문구·속성은 코드에서 그대로 옮겼습니다. 배경은 하네스 이력 2026-10-28 "공통 날짜 입력" 행과 2026-11-03 "금액 원 단위 통일" 행입니다. 범위 경계·소유는 2026-11-11 사용자 결정으로 정했습니다: 주인 없는 shared 부품(확인 대화상자·탭·알림·화면 이동 알림·금액 표시·기본 필드·CSS·빈 첫 실행)은 UI가 가지고 `UserSelect`·`PeriodField` 등은 원래 feature가 가지며, 금액 판정·문구 정본은 UI-R13·R14, 차트 축 금액은 UI-R16, 빈 첫 실행은 UI-R36, CSS 정적 점검은 UI-059·060, 확인 대화상자의 진행 중 취소·Esc 허용은 현행대로(UI-R29)입니다. 결정 목록은 계획(`artifacts/10-analysis/ui-plan.md`)에 있습니다.
 >
-> 2026-11-16 변경(초안, 사용자 확인 대기): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
+> 2026-11-16 변경(확정 2026-11-16 사용자 확인): Deal의 Solution을 Product로 이름 변경(화면 문구, API 필드·쿼리 `product`, Reports key `deal.product`, DB 컬럼 `deals.product`). 영향 규칙·케이스는 5장.
+>
+> 2026-11-21 변경(확정 2026-11-21 사용자 확인): `Modal`에 선택 속성 `className`을 추가한다(UI-R25, UI-063). Action 상세 팝업의 전용 폭(AC-R55)에 쓴다. 넘기지 않는 기존 모달의 클래스·폭은 그대로다.
 
 ## 1. 개요
 
@@ -84,7 +86,7 @@
 - **UI-R24** 소유: 선택 목록과 버튼 요약 글자(`summary`)는 호출자가 정한다(요약 문구 규칙은 각 feature, 예: Deal 목록 Forecast 요약은 DL). 다중 선택은 열림 상태만 가진다. Esc는 이벤트 전파를 막지 않는다(모달 안에서 쓰는 곳이 없다).
 
 모달 (`Modal`, `ConfirmDialog`)
-- **UI-R25** 모양: 배경(`modal-backdrop`) 안에 `role="dialog"`, `aria-modal="true"`, 이름 = 제목(h2), `footer`가 있으면 아래 버튼 영역, `wide`면 넓은 폭. 모달은 스스로 사라지지 않는다(호출자가 `onClose`에서 상태를 바꿔 없앤다). 배경을 눌러도 닫히지 않는다.
+- **UI-R25** 모양: 배경(`modal-backdrop`) 안에 `role="dialog"`, `aria-modal="true"`, 이름 = 제목(h2), `footer`가 있으면 아래 버튼 영역, `wide`면 넓은 폭. `className`(선택, 2026-11-21)이 있으면 대화상자 요소의 클래스(`modal` 또는 `modal wide`) 뒤에 공백으로 덧붙인다(화면별 폭 등 모양 조정용, 예: AC-R55). 없으면 클래스는 예전과 같다. 모달은 스스로 사라지지 않는다(호출자가 `onClose`에서 상태를 바꿔 없앤다). 배경을 눌러도 닫히지 않는다.
 - **UI-R26** 포커스: 열 때 `data-autofocus`가 붙은 요소, 없으면 첫 포커스 가능 요소(링크, 비활성 아닌 버튼·입력·선택·여러 줄 칸, `tabindex`가 −1이 아닌 요소), 그것도 없으면 대화상자 자체로 포커스를 옮긴다. 닫히면(사라지면) 열기 전 포커스가 있던 요소로 돌려준다.
 - **UI-R27** Esc와 겹친 모달: Esc는 맨 위 모달만 받아 `onClose`를 부르고 전파를 막는다. 안쪽 모달이 바깥 모달의 DOM 안에 그려져도 안쪽이 맨 위다. 안쪽이 닫히면 다음 Esc는 바깥이 받는다. 사라진 모달은 목록에서 빠져, 뒤에 연 모달의 Esc가 그대로 동작한다.
 - **UI-R28** Tab 가두기: 맨 위 모달 안에서 마지막 요소의 Tab은 첫 요소로, 첫 요소의 Shift+Tab은 마지막 요소로 돈다. 포커스가 모달 밖에 있으면 Tab은 첫 요소로 간다. 포커스 가능 요소가 없으면 Tab을 막는다. 바깥 모달의 요소로는 가지 않는다.
@@ -260,6 +262,7 @@ UI-R1~UI-R39.
 | UI-060 | 본문 영역은 모든 너비에서 좌우 5% 여백이고 최대 너비가 없다 | UI-R38 | frontend | `shared/ui/layoutStyle.test.ts` |
 | UI-061 | 기본 필드는 라벨이 접근 이름이고 TextField 날짜 형식은 DateInput이다 | UI-R39, UI-UC1 | frontend | `shared/ui/fields.test.tsx` |
 | UI-062 | required 콤보박스는 입력 칸 required 속성과 루트 required 클래스를 가진다 | UI-R18, UI-UC1 | frontend | `shared/ui/ComboBox.required.test.tsx` |
+| UI-063 | 모달 className은 대화상자 클래스 뒤에 덧붙고 없으면 클래스가 그대로다 | UI-R25, UI-UC5 | frontend | `shared/ui/Modal.test.tsx` |
 ### UI-001 yyyymmdd 8자리를 치면 yyyy.mm.dd로 보이고 ISO 값을 넘긴다
 - Given 빈 "견적일" 날짜 칸(부모 상태와 연결)
 - When `20261120`을 친다(또는 `20270601`을 쳐서 부모 상태를 화면에 보인다)
@@ -558,6 +561,11 @@ UI-R1~UI-R39.
 - When 화면을 그린다
 - Then 첫 칸은 입력 칸에 `required` 속성, 루트에 `required` 클래스가 있고 둘째 칸에는 둘 다 없다. 라벨 글자(접근 이름)는 그대로다
 
+### UI-063 모달 className은 대화상자 클래스 뒤에 덧붙고 없으면 클래스가 그대로다
+- Given 제목 "넓은 창"·`wide`·`className="x-size"`인 모달, 제목 "보통 창"·`wide`만 있는 모달, 제목 "작은 창"·속성 없는 모달
+- When 각각 그린다
+- Then "넓은 창" 대화상자의 클래스는 정확히 `modal wide x-size`, "보통 창"은 `modal wide`, "작은 창"은 `modal`이다. 세 대화상자 모두 이름은 제목이고 `aria-modal="true"`다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -566,4 +574,5 @@ UI-R1~UI-R39.
 | 2026-11-11 | 사용자 결정 반영(추천대로): 범위에 주인 없는 shared 부품 포함·`UserSelect`·`PeriodField` 등은 원래 feature, 금액 판정·문구 정본 UI-R13·R14(DE-R26이 번호로 가리킴), `formatWonAxis` UI-R16, 빈 첫 실행 UI-R36(UI-056~058), CSS 정적 점검 UI-059·060, 확인 대화상자 진행 중 취소·Esc 허용 현행 문서화(UI-R29). 다른 문서의 UI 이름 참조를 규칙 번호로 교체. 동작·케이스 변경 없음 | 없음 |
 | 2026-11-12 | DE 고객 필수 표시 요청에 따라 UI-R18에 `required`의 루트 클래스 규칙 추가(운영 코드 변경 필요) | 신규: UI-062 |
 | 2026-11-13 | DL 기본 조건이 연도 전체로 바뀜(DL 2026-11-13)에 따라 UI-056의 기본 주소를 `/deals?year=all&mine=1`(sales)로 갱신. 문구 동작 변경 없음 | 변경: UI-056 |
-| 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE)에 따라 UI-058 칸 이름 표기 | 변경(표기): UI-058 |
+| 2026-11-16 | 확정(2026-11-16 사용자 확인): Deal Solution → Product 이름 변경(DE)에 따라 UI-058 칸 이름 표기 | 변경(표기): UI-058 |
+| 2026-11-21 | 확정(2026-11-21 사용자 확인): `Modal` 선택 속성 `className` 추가(UI-R25, AC-R55 Action 상세 팝업 폭에 사용, 운영 코드 변경 필요). 기존 모달 동작·클래스 변경 없음 | 신규: UI-063. 회귀 확인: UI-042~UI-046 |

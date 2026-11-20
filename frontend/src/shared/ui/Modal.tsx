@@ -20,10 +20,12 @@ interface ModalProps {
   /** 버튼 영역(우측 정렬). */
   footer?: ReactNode
   wide?: boolean
+  /** 이 Modal에만 붙는 추가 클래스(폭 등). */
+  className?: string
 }
 
 /** 접근 가능한 모달 대화상자: role=dialog, aria-modal, 열 때 포커스 이동(`data-autofocus` 우선), Esc 닫기, Tab 순환, 닫을 때 포커스 복귀. */
-export function Modal({ title, onClose, children, footer, wide = false }: ModalProps) {
+export function Modal({ title, onClose, children, footer, wide = false, className }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -77,7 +79,7 @@ export function Modal({ title, onClose, children, footer, wide = false }: ModalP
 
   return (
     <div className="modal-backdrop">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={wide ? 'modal wide' : 'modal'}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={['modal', wide ? 'wide' : '', className ?? ''].filter(Boolean).join(' ')}>
         <h2 id={titleId}>{title}</h2>
         {children}
         {footer && <div className="modal-actions">{footer}</div>}

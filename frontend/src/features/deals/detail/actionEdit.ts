@@ -35,10 +35,10 @@ export function typePatch(text: string, types: readonly { id: number; name: stri
   return { type: choice }
 }
 
-/** Next Action·Due Date 묶음(편집 중에는 한 글자열 `next\ndue`로 다룬다). */
+/** Next Action·Due Date 묶음(편집 중에는 한 글자열 `next\ndue`로 다룬다. Next Action에 줄바꿈이 있어도 Due는 마지막 줄바꿈 뒤다). */
 export const encodePair = (next: string, due: string) => `${next}\n${due}`
 export function decodePair(value: string): { next: string; due: string } {
-  const at = value.indexOf('\n')
+  const at = value.lastIndexOf('\n')
   return at < 0 ? { next: value, due: '' } : { next: value.slice(0, at), due: value.slice(at + 1) }
 }
 
