@@ -1,4 +1,4 @@
-# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-18 사용자 확인))
+# Deal 목록·검색   (feature 코드: DL, 상태: 확정(2026-11-20 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드(`backend/src/app/web/routers/deals.py`의 `GET ""`·`/updated-periods`·`/years`, `app/web/schemas/{deal.py(DealSearchParams),deal_response.py(DealRowResponse·row_page),deal_years.py,updated_period.py,period_params.py}`, `app/application/deal/{list_deals,deal_years,updated_periods}.py`, `app/application/ports/{deal_repository.py(DealQuery·DealSort·SortOrder),deal_outcome_filter.py,pagination.py}`, `app/application/ports/deal_action_repository.py`의 `NextActionStatusFilter`, `app/domain/deal/{period,updated_period}.py`, `app/domain/common/validation.py`, `app/infra/db/{deal_search,deal_list_order,like}.py`, `features/deals/list/*`, `shared/model/{dealListMemory,quarterSet,forecastKeys,updatedPeriod,periodChoice,yearOptions,vendorFilter,nextActionStatus}.ts`, `shared/ui/useDealListPath.ts`, `data/{deals,dealYears}.ts`, `gateway/http/deals.ts`, `test/fake/gateway/dealsRead.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake·테스트가 어긋나는 점은 계획(`artifacts/10-analysis/dl-plan.md`)의 확인 필요 질문으로 분리했습니다.
 >
@@ -38,7 +38,7 @@
 | 업무 날짜(오늘) | 서버 OS 시간대의 오늘(TM-R4). 화면은 서버 동기 시계(`useToday`, TM-R12) |
 | Expected Close | Deal의 `revenue_date`. 연도·분기·월 조건의 기준 |
 | 최종 업데이트 | 행의 `last_updated_on`(모든 Action 중 가장 늦은 수행일, 없으면 Deal 등록일, Deal 수정은 반영 안 함 — RK-R2) |
-| 기준 행 | Next Action이 있는 가장 최근 Action(RK-R1). Next Action 상태 조건과 Next Action 칸의 기준 |
+| 기준 행 | Deal의 Next Action 기준 행이다(RK-R1, 2026-11-20 변경). 지난 Open Next Action이 있으면 그중 Due가 가장 이른 행이고, 없으면 Next Action이 있는 가장 최근 Action이다. Next Action 상태 조건, 표의 Next Action·Due·Next Action 상태 칸, CSV가 이 행을 기준으로 한다 |
 | 활성 파트너 | 해제되지 않은 파트너 링크의 연락처(Deal당 최대 1개, DE) |
 | 기본 조건 주소 | 조건이 하나도 없는 `/deals`를 대신하는 주소: 로그인 사용자가 sales면 `/deals?year=all&mine=1`, admin·user면 `/deals?year=all`(연도 전체, 정렬은 기본 최종 업데이트 최신순 — DL-R19) |
 | 조건 기억 | 사용자별 sessionStorage에 마지막으로 본 목록 쿼리를 저장해 "목록으로" 링크가 쓰는 것 |
@@ -87,10 +87,10 @@ DL은 테이블을 소유하지 않는다. 읽는 값: `deals`(소유 DE), `cont
   - 분기(정규화 뒤 1~3개)와 월을 함께 보내면 422 `invalid-value` "Quarter와 월은 함께 선택할 수 없습니다.". 네 분기 + 월은 월만 고른 것과 같다.
   - 연도 없이 분기나 월만 보내면 서버 업무 날짜(TM-R4)의 올해로 채운다(예: 업무 날짜가 2027-01-01이면 2027년). 연도를 보내면 그 연도를 쓴다.
 - **DL-R10** 최종 업데이트 기간: `updated_from`·`updated_to`는 `YYYY-MM-DD` 날짜다(형식이 틀리거나 시각이 붙은 값은 422 `request-validation`). 행의 최종 업데이트일(RK-R2)이 `from` 이상 `to` 이하이면 맞는다(날짜 비교) — 양끝 날짜를 포함하고, 한쪽만 주면 그 쪽만 제한한다. 그래서 오래된 Deal도 최근 Action이 있으면 기간에 들어오고, Deal을 수정하기만 해서는 들어오지 않는다. 날짜는 1900-01-01~2999-12-31이어야 하며 밖이면 422 `invalid-value` "updated_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"(`updated_to`도 같은 형식). 시작이 끝보다 늦으면 422 `invalid-value` "최종 업데이트 기간의 시작은 끝보다 늦을 수 없습니다". 시작과 끝이 같은 날은 그 하루다.
-- **DL-R11** Next Action 상태: `next_action_status`는 기준 행(RK-R1)의 상태로 거른다: `open`·`done`·`not_done`은 그 상태, `closed`는 `done`과 `not_done`. 조건이 있으면 Next Action이 없는 Deal은 제외되고, 조건이 없으면 모든 Deal이 나온다. 다른 값(`notDone`·`DONE`·`all`·빈 값 등)은 422 `request-validation`. `total`도 같은 조건으로 센다.
+- **DL-R11** Next Action 상태: `next_action_status`는 그 요청의 업무 날짜로 고른 기준 행(RK-R1)의 상태로 거른다. 이 상태는 행에 보이는 Next Action 상태와 같다. 기한초과 Deal은 기준 행이 Open이므로 `open`에 걸리고 `done`·`not_done`·`closed`에는 걸리지 않는다(2026-11-20): `open`·`done`·`not_done`은 그 상태, `closed`는 `done`과 `not_done`. 조건이 있으면 Next Action이 없는 Deal은 제외되고, 조건이 없으면 모든 Deal이 나온다. 다른 값(`notDone`·`DONE`·`all`·빈 값 등)은 422 `request-validation`. `total`도 같은 조건으로 센다.
 - **DL-R12** 경고 필터: `overdue=true`면 기한초과 Deal만, `stale=true`면 미업데이트 Deal만, 둘 다 켜면 어느 하나라도 해당하는 Deal(OR)이다. 어떤 Deal이 해당하는지는 RK 판정식(RK-R3~R5, RK-R8)이며(종결 Deal 제외 포함), 판정 기준(업무 날짜·저장된 미업데이트 기준일)은 같은 요청의 행 `risk`와 같다(RK-R7). 다른 조건과는 AND이고 `total`도 그 결과다. `false`·`0`이나 생략은 조건 없음, 불리언이 아닌 값(`abc`·`2` 등)은 422 `request-validation`.
 - **DL-R13** 정렬: `sort`는 `name`·`revenue_amount`·`revenue_date`·`last_updated_at`·`status`·`owner`·`customer`·`partner`·`vendor`·`forecast` 10개, `order`는 `asc`·`desc`(소문자)이고 기본은 `last_updated_at` `desc`다. 값 이름은 호환을 위해 그대로 두지만 정렬 대상은 최종 업데이트일 `last_updated_on`이고, 같은 날이면 아래 동률 규칙에 따라 Deal code 오름차순이다. 그 밖의 값(`revenueAmount`, `stage`, `DESC`, `up` 등)은 422 `request-validation`. 텍스트 키(Deal Name·담당자·고객 회사·파트너 회사·Vendor 이름)는 소문자로 바꾼 코드 포인트 순이다(대소문자만 다른 값은 같은 값, 한글은 음절 코드 순). 담당자 키는 표시 이름(비었으면 로그인 아이디)이며 퇴사자도 이름으로 정렬된다. `partner`는 활성 파트너 회사명이다. `status`·`forecast`는 그 코드의 **현재** 순서(CD)이며 순서를 바꾸면 결과도 바뀐다. 파트너·Vendor가 없는 Deal은 방향과 무관하게 맨 뒤다. 정렬 값이 같으면 방향과 무관하게 Deal code 오름차순이다. 그래서 같은 조건의 다음 페이지는 앞 페이지에 빠짐·겹침 없이 이어진다.
-- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status}` 또는 null), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `unread_comment_count`(2026-11-18), `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC·CM(CM-R47))를 따른다. `unread_comment_count`로 거르거나 정렬하는 파라미터는 없다(DL-R3·DL-R13).
+- **DL-R14** 행(`DealRowResponse`)의 필드는 정확히 `code`, `name`, `owner_user_id`, `owner`(UserRef — 역할 포함), `vendor`(`{id, name}` 또는 null), `product`, `users`, `status_key`, `forecast_key`, `revenue_amount`, `revenue_date`, `customer`(연락처), `active_partner`(연락처 또는 null), `partner_links`, `quote`(`submitted`·`submitted_date`), `poc`(`state`·`completed_date`), `procurement`, `bant`(`budget`·`authority`·`need`·`timeline` Label id 또는 null), `next_action`(`{text, due_date, status, action_id}` 또는 null, `action_id`는 기준 행 Action id — RK-R1, 2026-11-20 하위 호환 추가), `last_updated_on`(날짜), `risk`, `status_changed_on`(날짜), `status_days`, `license_contract_count`, `has_issued_license_contract`, `unread_comment_count`(2026-11-18), `created_at`, `updated_at`이다. 상세 응답은 이 필드 + `partner_history`(DD)다. 각 필드의 값 규칙은 소유 feature(DE·RK(RK-R1·R2·R6·R9·R10)·LC·CM(CM-R47))를 따른다. `unread_comment_count`로 거르거나 정렬하는 파라미터는 없다(DL-R3·DL-R13).
 - **DL-R15** Deal 조건 해석(DL-R4~R12)은 서버의 한 곳(`deal_search.conditions`)에만 있고, Forecast 실시간 집계(FC)와 Dashboard 집계(DSH)가 같은 해석을 쓴다. 그래서 같은 조건이면 목록 `total`과 그 집계의 건수가 같다(검증은 FC·DSH).
 
 연도 기준·기간 프리셋
@@ -385,6 +385,9 @@ DL-R18~DL-R32, DL-R37·DL-R38.
 | DL-123 | 게이트웨이 exportCsv는 목록 쿼리에서 offset·limit을 빼고 보내며 Blob과 파일 이름을 돌려준다 | DL-R38, DL-UC8 | frontend | `gateway/http/deals.export.test.ts` |
 | DL-124 | CSV 다운로드 오류 배너는 목록 조건이 바뀌면 사라진다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
 | DL-125 | 다운로드 응답 전에 조건을 바꿔도 파일은 저장되고 응답까지 버튼은 비활성이다 | DL-R37, DL-UC8 | frontend | `features/deals/list/DealsPage.export.test.tsx` |
+| DL-126 | next_action_status는 기한초과 Deal을 지난 Open 기준 행의 상태(open)로 거르고 total도 같다 | DL-R11, RK-R1, DL-UC2 | backend | `application/test_deal_list_next_action_basis.py` |
+| DL-127 | 목록 행과 CSV의 Next Action·Due·Next Action 상태는 같은 기준 행이다 | DL-R35, DL-R14, RK-R1, DL-UC8 | backend | `application/test_deal_list_next_action_basis.py` |
+| DL-128 | Fake 게이트웨이의 next_status 필터는 서버와 같은 기준 행 상태로 거른다 | DL-R11, RK-R21 | frontend | `test/fake/gateway/nextActionBasis.test.ts` |
 ### DL-001 조건 없이 조회하면 offset 0·limit 20의 페이지가 최종 업데이트 최신순으로 온다
 - Given KIM이 Deal "첫째"·"둘째"·"셋째"를 하루 간격으로(각각 다른 날) 등록했고 Action은 없다
 - When 조건 없이 목록을 조회한다
@@ -1009,6 +1012,21 @@ DL-R18~DL-R32, DL-R37·DL-R38.
 - When 응답 전에 검색 조건(또는 정렬·페이지)을 바꾸고, 그 뒤 응답이 성공으로 온다
 - Then 응답이 올 때까지 "CSV 다운로드" 버튼은 비활성이고, 응답이 오면 원래 요청한 조건의 파일이 저장되며 오류 배너는 없다
 
+### DL-126 next_action_status는 기한초과 Deal을 지난 Open 기준 행의 상태(open)로 거르고 total도 같다
+- Given 오늘이 2026-01-10이다. Deal P에는 Action A(01-02 수행, Due 01-05, Open)와 그 뒤 Action B(01-09 수행, Due 01-20, `done`)가 있다. Deal Q에는 Action 하나(Due 01-20, `done`), Deal R에는 Action 하나(Due 01-30, Open)가 있다
+- When `next_action_status`를 `open`, `done`, `closed`로 각각 조회한다
+- Then `open`은 P·R이고 `total`은 2다. P 행의 `next_action`은 A(`status: "open"`, `action_id: A.id`)다. `done`과 `closed`는 Q만이고 `total`은 1이다
+
+### DL-127 목록 행과 CSV의 Next Action·Due·Next Action 상태는 같은 기준 행이다
+- Given DL-126의 P와 Q가 있다
+- When 같은 조건으로 `GET /deals`와 `GET /deals/export`를 부른다
+- Then P의 CSV Next Action·Due·Next Action 상태 칸은 A의 내용, `2026-01-05`, `Open`이고, 목록 행 `next_action`과 같다. Q의 칸은 그 행의 내용, `2026-01-20`, `종료(수행)`이다
+
+### DL-128 Fake 게이트웨이의 next_status 필터는 서버와 같은 기준 행 상태로 거른다
+- Given Fake 시계의 오늘이 2026-01-10이고, Fake 데이터에 DL-126과 같은 P·Q·R이 있다
+- When Fake 게이트웨이로 `nextActionStatus`를 `open`, `done`, `closed`로 각각 지정해 목록을 읽는다
+- Then `open`은 P·R이고, `done`과 `closed`는 Q만이며, `total`도 같다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -1024,3 +1042,4 @@ DL-R18~DL-R32, DL-R37·DL-R38.
 | 2026-11-16 | 초안(사용자 확인 대기): Deal Solution → Product 이름 변경(DE 2026-11-16). 쿼리 `solution` → `product`(예전 이름은 폐지 파라미터 422, DL-R3), 행 키 `product`, 필터 칸 "Product"·URL 키 `product`, 예전 URL 키 `solution`은 무시(DL-R20·R31, 계획 Q1), 문구 "Product에는 NUL 문자를 쓸 수 없습니다". **API 호환 깨짐**(사용자 승인) | 신규 DL-108. 변경(표기·키): DL-006, DL-013, DL-014, DL-047, DL-048, DL-065, DL-067, DL-071, DL-072, DL-100 |
 | 2026-11-18 | 확정(2026-11-18 사용자 확인: 상세 응답 포함, 배지는 표시만, Owner 기준 읽음): 사용자 요청 "Deals 목록 Deal 이름 옆에 읽지 않은 Comment 수". DL-R14 행 키에 `unread_comment_count`(CM-R47, 하위 호환 추가), DL-R28 Deal 칸에 배지(CM-R48), 1장·2.2 참조. 정렬·필터·URL 키·조건 기억 변경 없음, 마이그레이션 없음, **운영 코드 변경 필요**(backend·frontend) | 신규 DL-109, DL-110. 영향: DL-048(키 집합 테스트), DL-058(Deal 칸 내용, 기존 Given에서는 배지 없음), 행 객체를 만드는 frontend 테스트 도우미(`unreadCommentCount` 필수) |
 | 2026-11-18 | 확정(2026-11-18 사용자 확인 — 범위 전체·초과 422·14열(Vendor 뒤 Product)·금액 천 단위 콤마, 리뷰 후 DL-124·DL-125 추가): 사용자 요청 "Deal 목록 검색 결과를 CSV로 다운로드(총 N건 줄 오른쪽 아이콘)". 새 API `GET /deals/export`(DL-R33~R36, **하위 호환 추가**), 파일 이름 `Deals_YYYYMMDD.csv`(사용자 결정: 화면 제목과 같게, 서버 업무 날짜), 화면 버튼 DL-R37, 게이트웨이 DL-R38, DL-R18 문구, 1장·2.5·2.6·2.7·2.8, DL-UC8. 마이그레이션·새 의존성 없음(Python 표준 `csv`), **운영 코드 변경 필요**(backend·frontend) | 신규 DL-111~DL-123. 영향: `tests/support/permission_table.py`(새 경로 등록), openapi 드리프트 테스트, `DealsGateway`를 구현하는 Fake(`test/fake/gateway/dealsRead.ts`)와 http 게이트웨이 계약에 `exportCsv` 추가 |
+| 2026-11-20 | 확정(2026-11-20 사용자 확인): RK-R1 기준 행 변경(지난 Open Next Action 우선)을 목록·CSV·Next Action 상태 필터에 적용한다(사용자 결정 2026-11-20). 바뀐 곳: 용어 기준 행, DL-R11(행에 보이는 상태로 거름), DL-R14(`next_action.action_id`, 하위 호환 추가). 쿼리 키·정렬 변경과 마이그레이션은 없다. **운영 코드 변경 필요**(backend·frontend) | 신규 DL-126~DL-128. 영향: DL-048(행 키 집합 — `next_action` 안쪽 키). 회귀 확인 DL-033(기한초과가 아닌 Given이면 그대로), DL-111~DL-115(CSV 칸 값) |

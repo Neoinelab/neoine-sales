@@ -168,7 +168,7 @@
 </div>
 <ol>
   <li><b>등록</b>: Deal Name, Owner, 고객, Status, Forecast, 금액, Expected Close, Users count를 입력합니다. 시스템이 Deal code를 발급하고 History에 "Deal 등록"을 남깁니다.</li>
-  <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. "이번에 한 일"(진행사항)과 "다음에 무엇을 언제까지 할지"(Next Action, Due Date) 중 하나 이상을 적습니다. 목록에는 <b>Next Action이 있는 가장 최근 Action</b>의 Next Action, Due Date, 상태가 표시됩니다. 계획한 일을 마치면 그 Next Action을 종료(수행 또는 미수행)로 표시합니다(<a href="#next-status">7.4</a>).</li>
+  <li><b>진행</b>: 고객과 통화하거나 미팅할 때마다 Action을 남깁니다. "이번에 한 일"(진행사항)과 "다음에 무엇을 언제까지 할지"(Next Action, Due Date) 중 하나 이상을 적습니다. 목록에는 <b>기준 행</b>(기한이 지난 Open Next Action이 있으면 그중 Due가 가장 이른 것, 없으면 Next Action이 있는 가장 최근 Action)의 Next Action, Due Date, 상태가 표시됩니다. 계획한 일을 마치면 그 Next Action을 종료(수행 또는 미수행)로 표시합니다(<a href="#next-status">7.4</a>).</li>
   <li><b>단계 갱신</b>: 상황이 바뀌면 Status, Forecast, 금액, Expected Close를 고칩니다. 목록이나 상세 화면에서 바로 바꿀 수 있습니다. 바꿀 때마다 History가 남습니다.</li>
   <li><b>경고 관리</b>: Due Date가 지났거나 오래 갱신하지 않으면 경고가 붙습니다. 미업데이트 경고는 Action을 남기면 풀립니다. Deal 자체를 고치는 것으로는 풀리지 않습니다(<a href="#risk">8장</a>).</li>
   <li><b>종결</b>:
@@ -255,7 +255,7 @@
 <!-- 7 -->
 <h2 id="action">7. Action(진행 활동)</h2>
 <h3>7.1 구성</h3>
-<p>Action은 Deal 상세의 <b>Actions 탭</b>에서 다룹니다. 쓰기 권한(sales·admin)이 있으면 <b>"Action 추가"</b> 버튼이 보이고, 누르면 제목이 "Action 추가"인 팝업에 등록 폼이 열립니다. Next Action이 있는 가장 최근 Action이 있으면 폼 위에 <b>이전 Update</b> 카드가 함께 보여 지난 계획을 보면서 입력할 수 있습니다. 카드에는 이전 Action의 진행사항·Next Action·Due가 보이며, <b>"이전 Next Action을 진행사항에 채우기"</b>를 누르면 그 Next Action 내용이 진행사항 칸에 들어가고, <b>"저장 시 이전 Next Action을 종료(수행)로 바꿈"</b> 체크박스가 켜진 채로 나타납니다. 그대로 저장하면 새 Action과 함께 이전 Next Action이 종료(수행)로 바뀝니다(종료일은 저장한 날, Deal History에 두 줄). 체크를 끄거나 저장하지 않고 닫으면 상태는 그대로입니다. 이전 Next Action이 이미 종료 상태면 체크박스가 나오지 않고, 다른 담당자의 Next Action이면(admin 제외) "다른 담당자의 Next Action이라 상태는 바꾸지 않습니다."가 보입니다. 폼을 연 뒤 다른 사람이 Action을 추가해 이전 Next Action이 바뀌었다면 "이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요."와 함께 저장되지 않습니다. 이때 이전 Update 카드가 새 Action으로 바뀌면 채운 내용과 체크가 풀리고 "이전 Update가 바뀌었습니다. 확인 후 다시 채우세요."가 보입니다(진행사항에 적은 글은 그대로). 채우기를 누른 그 Next Action만 종료되므로, 보지 않은 Next Action이 대신 종료되지는 않습니다. (2026-10-26 추가) 목록 행의 "수정"을 누르면 제목이 "Action 수정"인 팝업이 그 Action의 값이 채워진 채로 열립니다(이전 Update 카드와 Status·Forecast 칸은 없음).</p>
+<p>Action은 Deal 상세의 <b>Actions 탭</b>에서 다룹니다. 쓰기 권한(sales·admin)이 있으면 <b>"Action 추가"</b> 버튼이 보이고, 누르면 제목이 "Action 추가"인 팝업에 등록 폼이 열립니다. 기준 행(7.3)이 있으면 폼 위에 <b>이전 Update</b> 카드가 함께 보여 지난 계획을 보면서 입력할 수 있습니다. 카드에는 이전 Action의 진행사항·Next Action·Due가 보이며, <b>"이전 Next Action을 진행사항에 채우기"</b>를 누르면 그 Next Action 내용이 진행사항 칸에 들어가고, <b>"저장 시 이전 Next Action을 종료(수행)로 바꿈"</b> 체크박스가 켜진 채로 나타납니다. 그대로 저장하면 새 Action과 함께 이전 Next Action이 종료(수행)로 바뀝니다(종료일은 저장한 날, Deal History에 두 줄). 체크를 끄거나 저장하지 않고 닫으면 상태는 그대로입니다. 이전 Next Action이 이미 종료 상태면 체크박스가 나오지 않고, 다른 담당자의 Next Action이면(admin 제외) "다른 담당자의 Next Action이라 상태는 바꾸지 않습니다."가 보입니다. 폼을 연 뒤 다른 사람이 Action을 추가해 이전 Next Action이 바뀌었다면 "이전 Next Action이 바뀌었습니다. 창을 닫고 다시 열어 주세요."와 함께 저장되지 않습니다. 이때 이전 Update 카드가 새 Action으로 바뀌면 채운 내용과 체크가 풀리고 "이전 Update가 바뀌었습니다. 확인 후 다시 채우세요."가 보입니다(진행사항에 적은 글은 그대로). 채우기를 누른 그 Next Action만 종료되므로, 보지 않은 Next Action이 대신 종료되지는 않습니다. (2026-10-26 추가) 목록 행의 "수정"을 누르면 제목이 "Action 수정"인 팝업이 그 Action의 값이 채워진 채로 열립니다(이전 Update 카드와 Status·Forecast 칸은 없음).</p>
 <ul>
   <li>저장에 성공하면 팝업이 닫히고 탭 내용 맨 위 알림에 "Action이 등록되었습니다."(함께 바뀐 Status·Forecast 요약 포함) 또는 "Action이 수정되었습니다."가 보입니다.</li>
   <li>입력 오류나 서버 오류가 나면 팝업은 열린 채 입력값이 남고, 오류는 팝업 안에 표시됩니다.</li>
@@ -284,7 +284,7 @@
 </ul>
 <h3 id="action-effect">7.3 Action이 Deal에 주는 영향</h3>
 <ul>
-  <li><b>Next Action이 있는 가장 최근 Action</b>(기준 행)의 Next Action, Due Date, 상태가 Deal의 "다음 진행 계획"으로 목록과 상세 화면 Deal 정보 칸의 Next Action 행에 표시됩니다. 진행사항만 있는 Action은 건너뜁니다. 목록의 Next Action 상태 필터도 이 기준 행으로 판단합니다. 기한초과는 기준 행이 아니라 <b>Open인 모든 Next Action</b>으로 판단합니다(<a href="#risk">8장</a>).</li>
+  <li><b>기준 행</b>(<b>기한이 지난 Open Next Action이 있으면 그중 Due가 가장 이른 것</b>, 없으면 Next Action이 있는 가장 최근 Action. 2026-11-20 변경: 기한초과 Deal에서는 실제로 기한이 지난 Next Action이 보이며, 종결(Won·Lost) Deal도 같음)의 Next Action, Due Date, 상태가 Deal의 "다음 진행 계획"으로 목록과 상세 화면 Deal 정보 칸의 Next Action 행에 표시됩니다. 진행사항만 있는 Action은 건너뜁니다. 목록의 Next Action 상태 필터도 이 기준 행으로 판단합니다. 기한초과는 기준 행이 아니라 <b>Open인 모든 Next Action</b>으로 판단합니다(<a href="#risk">8장</a>).</li>
   <li>Deal의 <b>마지막 업데이트</b>는 진행사항만 있는 것을 포함한 <b>모든 Action 중 가장 최근 수행 시각</b>입니다. Action이 하나도 없으면 Deal 등록 시각입니다. Deal 자체의 수정(목록·상세의 바로 고치기 포함)은 마지막 업데이트를 바꾸지 않습니다. Action을 남기면 미업데이트 경고가 풀립니다.</li>
   <li>Action의 등록·수정·삭제도 모두 History에 남습니다.</li>
 </ul>
@@ -357,7 +357,7 @@
 </table>
 <ul>
   <li>미업데이트 기준 일수는 관리자가 1~365일 사이에서 정합니다(<a href="#admin">19.6</a>). 기준이 14일이면 13일째까지는 정상이고, 14일째부터 경고가 붙습니다.</li>
-  <li><b>두 경고가 함께 붙으면</b> 배지가 두 개(기한초과, 미업데이트 순) 붙고, 목록 행 배경은 <b>기한초과의 빨강</b>으로 칠해집니다(미업데이트만이면 노랑). 목록 Due 칸에 보이는 Next Action(가장 최근 Action의 것)이 Open이고 Due Date가 지났으면 Due 칸도 빨간 굵은 글씨로 강조됩니다(예전 Action의 Open Next Action 때문에 기한초과면 Due 칸은 강조되지 않고 배지만 붙습니다). 색만으로 구분하지 않도록 항상 글자 배지가 함께 보입니다.</li>
+  <li><b>두 경고가 함께 붙으면</b> 배지가 두 개(기한초과, 미업데이트 순) 붙고, 목록 행 배경은 <b>기한초과의 빨강</b>으로 칠해집니다(미업데이트만이면 노랑). 목록 Due 칸에 보이는 Next Action(기준 행)이 Open이고 Due Date가 지났으면 Due 칸도 빨간 굵은 글씨로 강조됩니다. 기한초과 Deal은 기한이 지난 Open Next Action이 기준 행으로 보이므로(2026-11-20 변경) 보통 Due 칸도 함께 강조됩니다. 색만으로 구분하지 않도록 항상 글자 배지가 함께 보입니다.</li>
   <li><b>경고가 보이는 곳</b>: Deals 목록(Deal 이름 옆 배지·행 색·Due 강조), Deal 상세 탭의 Deal 정보 'Next Action' 행 옆, Actions 탭 표에서 <b>Open이고 Due Date가 지난 모든 Action</b>의 Due Date 옆(기한초과 배지만, 종료한 Next Action에는 붙지 않음)입니다. Deals 목록 위에는 두 배지의 뜻을 알려 주는 범례("기한초과 – Open인 Next Action의 Due Date가 지났습니다", "미업데이트 – N일 이상 미업데이트")가 있습니다.</li>
   <li>Deals 목록의 <b>기한초과</b>·<b>미업데이트</b> 체크박스로 경고가 붙은 Deal만 골라 볼 수 있습니다. 배지와 같은 규칙이라 체크박스로 고른 Deal에는 해당 배지가 붙어 있습니다(<a href="#list">12.1</a>).</li>
   <li><b>Status 체류 일수</b>: 지금 Status에 들어온 날부터 며칠째인지 보여 줍니다(들어온 날은 0일). Status가 실제로 바뀔 때만 다시 0부터 셉니다. 다른 항목을 고쳐도 초기화되지 않습니다. 체류 일수는 Deal 상세 탭 Deal 정보의 Status 옆에 "N일째"(들어온 날은 "0일째")로 보이며, 마우스를 올리면 지금 Status로 바뀐 날짜가 보입니다.</li>
@@ -427,7 +427,7 @@
   <tr><td>Product</td><td>텍스트를 입력하고 검색(또는 Enter)하면 Product에 그 글자가 들어 있는 Deal을 찾습니다(부분 일치, 대소문자 무시). Vendor를 바꿔도 Product 조건은 남습니다. <s>관리자 목록에서 고르고, 고른 Vendor의 Solution만 나왔습니다</s>(2026-10-22 변경).</td></tr>
   <tr><td>Status</td><td>코드 하나 선택</td></tr>
   <tr><td>Forecast</td><td>버튼을 누르면 펼쳐지는 체크박스 목록에서 <b>여러 개</b>를 고를 수 있고, 고른 것 중 하나라도 맞는 Deal이 보입니다. 체크할 때마다 바로 조회합니다. 버튼에는 고른 내용이 요약됩니다(전체 / 코드 이름 / Lost 제외 / Open 전체 / 모두 선택 / N개 선택). 아무것도 고르지 않거나 "전체"를 누르면 전체입니다. Escape나 바깥을 누르면 닫힙니다. (2026-10-26 변경: 예전에는 하나만 골랐습니다)</td></tr>
-  <tr><td>Next Action 상태</td><td>전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체) 중 하나. <b>Next Action이 있는 가장 최근 Action</b>의 상태로 거릅니다. 상태를 고르면 Next Action을 적은 Action이 하나도 없는 Deal은 빠집니다(<a href="#next-status">7.4</a>).</td></tr>
+  <tr><td>Next Action 상태</td><td>전체 / Open / 종료(수행) / 종료(미수행) / 종료(전체) 중 하나. <b>기준 행</b>(7.3)의 상태로 거릅니다. 상태를 고르면 Next Action을 적은 Action이 하나도 없는 Deal은 빠집니다(<a href="#next-status">7.4</a>).</td></tr>
   <tr><td><s>Forecast 구분</s></td><td><s>전체 / Open / Won / Lost / Lost 제외</s> — 2026-10-26 폐지(대신 Forecast를 여러 개 고를 수 있음). 예전 주소·기억된 조건에 들어 있어도 무시됩니다.</td></tr>
   <tr><td>Close 연도·Quarter·월</td><td>Expected Close 기준. 분기(화면 이름 Quarter)는 Q1(1~3월), Q2(4~6월), Q3(7~9월), Q4(10~12월)입니다. 조건 없이 목록에 들어오거나 초기화하면 <b>Close 연도는 전체</b>, 분기·월은 '전체'입니다. 연도 선택지는 <b>Deal의 Expected Close 중 가장 이른 연도부터 내년까지</b>입니다(올해·내년은 Deal이 없어도 항상 보임, 주소에 범위 밖 연도가 들어 있으면 그 연도도 더해 보임). Deals 목록·Dashboard·Forecast가 같은 규칙입니다(2026-10-26 통일). 연도 '전체'도 고를 수 있으며, 연도가 '전체'인데 분기(또는 월)를 고르면 <b>올해</b>의 그 분기(달)로 조회합니다. 분기는 <b>여러 개를 함께</b> 고를 수 있습니다(체크박스, 2026-10-28). 아무것도 고르지 않은 것과 넷 다 고른 것은 같은 '전체'입니다(넷 다 고르면 체크는 그대로 보입니다). Q1·Q3처럼 떨어진 분기를 고르면 그 분기들만 조회합니다. 분기를 고르면 월은 <b>고른 분기들에 속한 달만</b> 고를 수 있고, 월을 골라도 분기는 그대로 남습니다(조회는 그 달). 분기를 바꿀 때 고른 월이 새 선택지에 있으면 남고, 없으면 '전체'로 돌아갑니다. 분기를 '전체'로 바꾸면 고른 월은 그대로 남아 그 달로 조회합니다. 연도가 '전체'인데 분기나 월을 고르면 그 칸 아래에 "Close 연도가 전체이면 올해(YYYY) 기준입니다."가 보입니다. (2026-10-26 변경: 예전에는 분기와 월 중 하나만 고를 수 있었습니다. 2026-10-28 변경: 예전에는 분기를 하나만 고를 수 있었습니다)</td></tr>
   <tr><td>최종 업데이트</td><td>목록의 “최종 업데이트”(마지막 Action 수행일, Action이 없으면 등록일) 기준. 전체 / 최근 2주 / 최근 1개월 / 최근 2개월 / 최근 3개월 / 최근 6개월 / 직접 지정에서 고릅니다. 기간은 서버 날짜 기준이며 오늘을 포함합니다(최근 1개월은 한 달 전 같은 날부터, 그런 날이 없으면 그 달 말일부터). 직접 지정은 시작일·종료일 중 한쪽만 넣어도 되고 양끝을 포함합니다. 시작일이 종료일보다 늦으면 오류가 표시됩니다</td></tr>
@@ -449,7 +449,7 @@
   <li>열은 Deal, 담당자(Owner), 고객사, 파트너사, Vendor, Status, Forecast, 금액, Expected Close, 최종 업데이트, Next Action, Due, Next Action 상태 순(13열)입니다. BANT 열은 2026-10-23에 없어졌습니다(BANT는 빠른 보기와 상세 화면에서 확인).</li>
   <li>Deal 열에는 Deal 이름이 보이고, 경고 배지(기한초과·미업데이트)는 이름과 같은 줄 오른쪽에 붙습니다(2026-10-26 변경, 칸이 좁으면 다음 줄로 넘어감). 목록 위 범례에서 두 배지의 뜻을 확인할 수 있습니다(<a href="#risk">8장</a>).</li>
   <li><b>최종 업데이트</b> 열은 "오늘 / 어제 / N일 전"처럼 보이고, 30일 이상 지나면 날짜(YYYY-MM-DD)로 보입니다. 마우스를 올리면 날짜(YYYY-MM-DD)가 나옵니다. 최종 업데이트가 같은 날인 Deal끼리는 Deal 코드 순입니다. 상세 화면 Deal 정보의 '최종 업데이트'도 같은 상대 표기입니다.</li>
-  <li><b>Next Action · Due · Next Action 상태</b> 세 열은 Next Action이 있는 가장 최근 Action(<a href="#action-effect">7.3</a>)의 값을 나눠 보여 줍니다. <b>Next Action</b> 열은 내용이며, <b>누르면 그 Deal 상세의 Actions 탭</b>(<code>/deals/{code}?tab=actions</code>)이 열립니다. 일반 링크라 새 탭으로도 열 수 있습니다. <b>Due</b> 열은 Due Date(날짜)이며 기한초과면 강조됩니다. <b>Next Action 상태</b> 열은 상태 라벨(Open · 종료(수행) · 종료(미수행))입니다. Next Action이 있는 Action이 없는 Deal은 세 열 모두 '—'이고 링크가 없습니다.</li>
+  <li><b>Next Action · Due · Next Action 상태</b> 세 열은 기준 행(<a href="#action-effect">7.3</a>: 기한이 지난 Open Next Action이 있으면 그것)의 값을 나눠 보여 줍니다. <b>Next Action</b> 열은 내용이며, <b>누르면 그 Deal 상세의 Actions 탭</b>(<code>/deals/{code}?tab=actions</code>)이 열립니다. 일반 링크라 새 탭으로도 열 수 있습니다. <b>Due</b> 열은 Due Date(날짜)이며 기한초과면 강조됩니다. <b>Next Action 상태</b> 열은 상태 라벨(Open · 종료(수행) · 종료(미수행))입니다. Next Action이 있는 Action이 없는 Deal은 세 열 모두 '—'이고 링크가 없습니다.</li>
   <li>Deal 이름 왼쪽의 ▸를 누르면 행 아래에 <b>빠른 보기</b>가 열립니다(▾를 누르면 닫힘). 견적, POC, 고객 담당자, 파트너 영업대표(없으면 "파트너 없음"), BANT 네 구분(Budget·Authority·Need·Timeline), Users count, 구매절차를 상세 화면에 가지 않고 확인할 수 있고, 맨 아래 "상세 보기" 링크로 상세 화면으로 갑니다.</li>
   <li>Status, Forecast, 금액, Expected Close는 목록에서 바로 고칠 수 있습니다(동기화 규칙 적용).</li>
 </ul>

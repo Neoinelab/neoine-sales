@@ -17,6 +17,7 @@ from app.domain.deal_action.value_objects import ActionContent, DealActionId
 from app.domain.user.value_objects import UserId
 from app.infra.db.base_repository import ConstraintErrors, SqlRepository
 from app.infra.db.deal_action_order import apply_order
+from app.infra.db.deal_derived import basis_order
 from app.infra.db.deal_keys import deal_id_of
 from app.infra.db.like import keyword_filter
 from app.infra.db.models import DealActionRow
@@ -26,6 +27,7 @@ from app.infra.db.models_deal import DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from datetime import date
 
     from sqlalchemy import Select
 
@@ -180,12 +182,15 @@ class SqlDealActionRepository(SqlRepository[DealActionRow]):
         row, type_name, deal_code = found
         return _to_entity(row, type_name, deal_code)
 
-    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
-        """Next Action이 있는 가장 최근 행(상태 무관). 잠금은 호출 쪽이 Deal 행에 건다."""
+    async def next_action_basis(self, deal_code: DealCode, *, today: date) -> DealAction | None:
+        """Next Action 기준 행(RK-R1, 목록과 같은 `latest_next` 정의). 잠금은 호출 쪽이 건다."""
         statement = (
             _with_type_name()
-            .where(DealRow.deal_code == deal_code.value, DealActionRow.next_action.is_not(None))
-            .order_by(DealActionRow.acted_on.desc(), DealActionRow.id.desc())
+            .where(
+                DealRow.deal_code == deal_code.value,
+                DealActionRow.next_action.is_not(None),
+            )
+            .order_by(*basis_order(today))
             .limit(1)
             .execution_options(populate_existing=True)
         )

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from app.domain.deal.entities import Deal
     from app.domain.deal.risk import RiskBasis
     from app.domain.deal_action.next_action_status import NextActionStatus
+    from app.domain.deal_action.value_objects import DealActionId
     from app.domain.user.value_objects import UserId
     from app.domain.vendor.values import VendorId
 
@@ -86,6 +87,7 @@ class DealQuery:
     order: SortOrder = SortOrder.DESC
     offset: int = 0
     limit: int = DEFAULT_PAGE_SIZE
+    today: date | None = None  # 업무 날짜. Next Action 기준 행(RK-R1)을 고를 때 쓴다
 
     def __post_init__(self) -> None:
         check_page(self.offset, self.limit)
@@ -125,6 +127,10 @@ class DealQuery:
         """
         return replace(self, risk_basis=basis) if self.wants_risk() else self
 
+    def with_today(self, today: date) -> DealQuery:
+        """업무 날짜를 채운 사본."""
+        return replace(self, today=today)
+
     def with_year_for(self, today: date) -> DealQuery:
         """분기·월만 있고 연도가 없으면 today의 연도를 채운 사본, 아니면 self."""
         if self.year is None and (self.quarters is not None or self.month is not None):
@@ -151,11 +157,12 @@ class DealQuery:
 
 @dataclass(frozen=True, slots=True)
 class NextActionSummary:
-    """Next Action이 있는 가장 최근 Action(기준 행)이 정한 다음 진행 계획과 그 상태."""
+    """Next Action 기준 행(RK-R1)이 정한 다음 진행 계획과 그 상태."""
 
     text: str
     due_date: date
     status: NextActionStatus
+    action_id: DealActionId
 
     def __post_init__(self) -> None:
         if self.due_date is None:
@@ -213,8 +220,8 @@ class DealRepository(Protocol):
 
     async def exists(self, code: DealCode) -> bool: ...
 
-    async def get_item(self, code: DealCode) -> DealListItem:
-        """상세용 파생값(next_action, last_updated_on, unread_comment_count) 포함.
+    async def get_item(self, code: DealCode, *, today: date) -> DealListItem:
+        """상세용 파생값(next_action 기준 행은 today로 고름, last_updated_on, unread_comment_count).
 
         없으면 DealNotFoundError.
         """
@@ -223,12 +230,14 @@ class DealRepository(Protocol):
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
         """조건에 맞는 행을 query.sort/order 순서로(동률은 code 오름차순) 페이지만큼.
 
+        query.today가 None이면 ValueError(기준 행 선택에 필요).
+
         get_item과 같은 질의에서 Deal Comment+Action Comment 중 read_at IS NULL 수를
         unread_comment_count로 채운다(조건·정렬에는 영향 없음)."""
         ...
 
     async def count(self, query: DealQuery) -> int:
-        """같은 조건의 전체 건수(페이지 무시)."""
+        """같은 조건의 전체 건수(페이지 무시). next_action_status 필터가 있으면 today 필수."""
         ...
 
     async def update(self, deal: Deal) -> None:

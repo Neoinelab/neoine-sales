@@ -7,6 +7,7 @@ from app.application.deal_action.type_choice import choose_action_type
 from app.application.deal_comment.attach import attach_action_comment
 from app.application.ids import new_deal_action_id
 from app.application.license_contract.won_follow_up import follow_won_change, remove_pending_folders
+from app.domain.common.business_date import business_date
 from app.domain.common.errors import InvalidStateError
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
@@ -108,7 +109,7 @@ class RegisterDealAction:
         """기준 행이면 종료(수행)로 닫고 이력 초안을 돌려준다. 이미 종료면 건너뛴다(빈 목록)."""
         if close.basis_id is None:
             return []
-        basis = await uow.deal_actions.latest_with_next_action(deal_code)
+        basis = await uow.deal_actions.next_action_basis(deal_code, today=business_date(close.now))
         if basis is None or basis.id != close.basis_id:
             raise InvalidStateError(PREVIOUS_NEXT_ACTION_CHANGED)
         basis.ensure_status_changeable_by(close.actor.user_id, close.actor.role)

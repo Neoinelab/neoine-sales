@@ -8,6 +8,7 @@ from app.application.deal.history_writer import write_history
 from app.application.deal.validation import validate_form
 from app.application.deal.views import build_views
 from app.application.license_contract.won_follow_up import follow_won_change
+from app.domain.common.business_date import business_date
 from app.domain.deal.entities import Deal
 from app.domain.deal.history import created_draft
 
@@ -64,6 +65,10 @@ class RegisterDeal:
                 actor=actor,
                 now=now,
             )
-            view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
+            view = (
+                await build_views(
+                    uow, [await uow.deals.get_item(deal.id, today=business_date(now))], now=now
+                )
+            )[0]
             await uow.commit()
         return view

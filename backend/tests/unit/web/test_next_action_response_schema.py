@@ -25,7 +25,7 @@ def test_response_with_a_date_serializes_it() -> None:
     """기한이 날짜인 응답은 ISO 문자열로 직렬화된다."""
     # given: 기한이 날짜인 Next Action 응답
     response = NextActionResponse(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.DONE
+        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.DONE, action_id=41
     )
 
     # when: JSON 모드로 직렬화한다
@@ -35,6 +35,7 @@ def test_response_with_a_date_serializes_it() -> None:
         "text": "계약서 검토",
         "due_date": "2026-02-05",
         "status": "done",
+        "action_id": 41,
     }
 
 
@@ -42,14 +43,16 @@ def test_response_rejects_a_null_due_date() -> None:
     """기한이 null인 응답은 만들 수 없다."""
     # when·then: due_date=None으로 만들면 검증 오류가 난다
     with pytest.raises(ValidationError):
-        NextActionResponse(text="계약서 검토", due_date=None, status="open")
+        NextActionResponse(text="계약서 검토", due_date=None, status="open", action_id=41)
 
 
 def test_response_rejects_a_missing_due_date() -> None:
     """기한이 없는 응답은 만들 수 없다."""
     # when·then: due_date 없이 검증하면 검증 오류가 난다
     with pytest.raises(ValidationError):
-        NextActionResponse.model_validate({"text": "계약서 검토", "status": "open"})
+        NextActionResponse.model_validate(
+            {"text": "계약서 검토", "status": "open", "action_id": 41}
+        )
 
 
 def test_openapi_marks_due_date_required_and_not_nullable() -> None:
@@ -68,10 +71,12 @@ def test_response_requires_a_status_from_the_three_values() -> None:
     """상태가 없거나 세 값 밖이면 응답을 만들 수 없다."""
     # when·then: 상태 없이 검증하면 검증 오류가 난다
     with pytest.raises(ValidationError):
-        NextActionResponse.model_validate({"text": "a", "due_date": "2026-02-05"})
+        NextActionResponse.model_validate({"text": "a", "due_date": "2026-02-05", "action_id": 41})
     # when·then: 세 값 밖의 상태로 검증하면 검증 오류가 난다
     with pytest.raises(ValidationError):
-        NextActionResponse.model_validate({"text": "a", "due_date": "2026-02-05", "status": "x"})
+        NextActionResponse.model_validate(
+            {"text": "a", "due_date": "2026-02-05", "status": "x", "action_id": 41}
+        )
 
 
 def test_openapi_marks_status_required_with_the_three_values() -> None:

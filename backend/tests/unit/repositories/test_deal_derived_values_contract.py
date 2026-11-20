@@ -49,16 +49,19 @@ async def test_the_most_recent_action_provides_both_values(deal_case: DealCase) 
     # given: Next Action이 있는 Action 하나를 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(
+    added = await deal_case.add_action(
         deal, acted_on=date_after(1), next_action="계약서 검토", due_date=date(2026, 2, 5)
     )
 
     # when: 목록 항목을 조회한다 (전제: Fake·SQL 공통)
     item = await _item(deal_case)
 
-    # then: 그 Action의 Next Action과 수행일이다
+    # then: 그 Action의 Next Action(action_id 포함)과 수행일이다
     assert item.next_action == NextActionSummary(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+        text="계약서 검토",
+        due_date=date(2026, 2, 5),
+        status=NextActionStatus.OPEN,
+        action_id=added.id,
     )
     assert item.last_updated_on == date_after(1)
 

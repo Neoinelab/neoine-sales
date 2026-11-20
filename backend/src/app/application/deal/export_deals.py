@@ -72,7 +72,7 @@ class ExportDeals:
     async def execute(self, query: DealQuery) -> DealExport:
         now = self._clock.now()
         today = business_date(now)
-        query = query.with_year_for(today)
+        query = query.with_year_for(today).with_today(today)
         async with self._uow_factory() as uow:
             thresholds = await load_thresholds(uow)
             query = query.with_risk_basis(RiskBasis(today, thresholds.stale_days))

@@ -94,16 +94,16 @@ async def test_delete_action_by_owner_logs_history_and_next_action_falls_back(
     테스트 코드: AC-060
     """
     # given: "먼저 할 일" Action 뒤에 "나중 할 일" Action
-    await action_env.act(KIM, next_action="먼저 할 일", due_date=date(2026, 3, 1))
+    earlier = await action_env.act(KIM, next_action="먼저 할 일", due_date=date(2026, 3, 1))
     latest = await action_env.act(KIM, next_action="나중 할 일", due_date=date(2026, 4, 1))
 
     # when: 나중 Action을 지운다
     await action_env.delete.execute(latest.id, KIM)
 
-    # then: Deal Next Action은 "먼저 할 일"이다
+    # then: Deal Next Action은 "먼저 할 일"(그 Action의 id)이다
     detail = await action_env.env.get.execute(action_env.code)
     assert detail.item.next_action == NextActionSummary(
-        "먼저 할 일", date(2026, 3, 1), NextActionStatus.OPEN
+        "먼저 할 일", date(2026, 3, 1), NextActionStatus.OPEN, earlier.id
     )
 
 

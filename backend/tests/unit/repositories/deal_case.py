@@ -15,7 +15,7 @@ import pytest
 from app.application.ports.deal_action_repository import DealActionQuery
 from app.domain.contact.errors import ContactNotFoundError
 from app.domain.contact.values import ContactKind
-from tests.factories import NOW, make_deal_action
+from tests.factories import NOW, date_after, make_deal_action
 from tests.factories_action_type import attach_catalog_type
 from tests.factories_catalog import make_label
 from tests.factories_contact import make_contact
@@ -47,6 +47,31 @@ PARAMS = [
     pytest.param("fake", id="fake"),
     pytest.param("sql", id="sql", marks=pytest.mark.integration),
 ]
+
+
+class DealsWithToday:
+    """Deal 저장소에 "오늘"을 기본으로 채워 주는 래퍼(계약 테스트 공용).
+
+    `search`·`get_item`·`count`는 오늘(업무 날짜)을 받는 것이 Port 계약(RK-R1)이다. 대부분의
+    계약 테스트는 기준 행 규칙과 무관해서 오늘을 일일이 적지 않도록 `date_after(0)`를 채운다.
+    오늘을 직접 정한 조회(`query.today`·`today=`)와 저장소 자체의 계약(오늘 누락은 ValueError)은
+    `raw`로 확인한다.
+    """
+
+    def __init__(self, raw: Any) -> None:  # noqa: ANN401 - DealRepository(Fake 또는 SQL)
+        self.raw = raw
+
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        return getattr(self.raw, name)
+
+    async def search(self, query: Any) -> Any:  # noqa: ANN401
+        return await self.raw.search(query if query.today else query.with_today(date_after(0)))
+
+    async def count(self, query: Any) -> int:  # noqa: ANN401
+        return int(await self.raw.count(query if query.today else query.with_today(date_after(0))))
+
+    async def get_item(self, code: Any, *, today: date | None = None) -> Any:  # noqa: ANN401
+        return await self.raw.get_item(code, today=today or date_after(0))
 
 
 @dataclass
@@ -213,7 +238,7 @@ def _fake_case() -> DealCase:
     uow = FakeUnitOfWork()
     seed_catalog(uow)
     return DealCase(
-        uow.deals,
+        DealsWithToday(uow.deals),
         uow.deal_history,
         uow.deal_actions,
         uow.contacts,
@@ -249,7 +274,7 @@ def _sql_case(session: Any) -> DealCase:  # noqa: ANN401
     from app.infra.db.vendor_repository import SqlVendorRepository  # noqa: PLC0415
 
     return DealCase(
-        SqlDealRepository(session),
+        DealsWithToday(SqlDealRepository(session)),
         SqlDealHistoryRepository(session),
         SqlDealActionRepository(session),
         SqlContactRepository(session),

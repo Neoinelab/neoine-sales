@@ -91,7 +91,9 @@ async def _given_overdue_and_stale(env: DealEnv, seed: Seed) -> None:
     """2일이 지나 경고 기준 2일로 두고, 담당자 KIM의 Deal에만 어제가 Due인 Action을 남긴다."""
     await save_threshold(env, 2)
     env.clock.advance(2 * DAY)
-    for item in await env.uow.deals.search(DealQuery(owner_user_id=seed.kim, limit=200)):
+    for item in await env.uow.deals.search(
+        DealQuery(owner_user_id=seed.kim, limit=200).with_today(date(2026, 1, 1))
+    ):
         await env.uow.deal_actions.add(
             make_deal_action(
                 deal_code=item.deal.id,

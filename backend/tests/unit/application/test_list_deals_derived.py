@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from app.application.deal.dto import DealView
+    from app.domain.deal_action.entities import DealAction
     from tests.unit.application.deal_env import DealEnv
 
 
@@ -26,18 +27,18 @@ async def _act(
     acted_on: date,
     next_action: str = "견적서 전달",
     due_date: date = date(2026, 2, 1),
-) -> None:
+) -> DealAction:
     """수행일을 정해 Action을 저장소에 직접 둔다(파생값 계산만 본다. 등록 규칙은 별도 테스트)."""
-    await env.uow.deal_actions.add(
-        make_deal_action(
-            now=env.clock.now(),
-            deal_code=view.item.deal.id,
-            acted_on=acted_on,
-            actor_user_id=ACTOR_ID,
-            next_action=next_action,
-            due_date=due_date,
-        )
+    action = make_deal_action(
+        now=env.clock.now(),
+        deal_code=view.item.deal.id,
+        acted_on=acted_on,
+        actor_user_id=ACTOR_ID,
+        next_action=next_action,
+        due_date=due_date,
     )
+    await env.uow.deal_actions.add(action)
+    return action
 
 
 def _registered_on(view: DealView) -> date:
@@ -78,14 +79,19 @@ async def test_the_latest_action_provides_the_next_action_and_the_update_date(
     # given: 등록 3일 뒤 수행한 Next Action이 있는 Deal이다
     view = await env.new_deal()
     acted_on = _registered_on(view) + timedelta(days=3)
-    await _act(env, view, acted_on=acted_on, next_action="계약서 검토", due_date=date(2026, 2, 5))
+    action = await _act(
+        env, view, acted_on=acted_on, next_action="계약서 검토", due_date=date(2026, 2, 5)
+    )
 
     # when: 목록을 조회한다
     row = await _row(env, view)
 
-    # then: next_action이 그 Action의 값이고 last_updated_on이 수행일이다
+    # then: next_action이 그 Action의 값(action_id 포함)이고 last_updated_on이 수행일이다
     assert row.item.next_action == NextActionSummary(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+        text="계약서 검토",
+        due_date=date(2026, 2, 5),
+        status=NextActionStatus.OPEN,
+        action_id=action.id,
     )
     assert row.item.last_updated_on == acted_on
 
@@ -155,14 +161,19 @@ async def test_the_detail_carries_the_same_derived_values(env: DealEnv) -> None:
     # given: 수행한 Next Action이 있는 Deal이다
     view = await env.new_deal()
     acted_on = _registered_on(view) + timedelta(days=30)
-    await _act(env, view, acted_on=acted_on, next_action="최종 협상", due_date=date(2026, 3, 1))
+    action = await _act(
+        env, view, acted_on=acted_on, next_action="최종 협상", due_date=date(2026, 3, 1)
+    )
 
     # when: 상세를 조회한다
     detail = await env.get.execute(view.item.deal.id.value)
 
     # then: next_action과 last_updated_on이 Action의 값이다
     assert detail.item.next_action == NextActionSummary(
-        text="최종 협상", due_date=date(2026, 3, 1), status=NextActionStatus.OPEN
+        text="최종 협상",
+        due_date=date(2026, 3, 1),
+        status=NextActionStatus.OPEN,
+        action_id=action.id,
     )
     assert detail.item.last_updated_on == acted_on
 

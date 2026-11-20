@@ -21,7 +21,7 @@ from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.support.database import rolled_back_session
 from tests.support.user_ids import login_of
 from tests.support.user_seed import ensure_users
-from tests.unit.repositories.deal_case import DealCase
+from tests.unit.repositories.deal_case import DealCase, DealsWithToday
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -106,7 +106,7 @@ def _fake_case() -> MeetingCase:
     uow = FakeUnitOfWork()
     seed_catalog(uow)
     deal_case = DealCase(
-        uow.deals,
+        DealsWithToday(uow.deals),
         uow.deal_history,
         uow.deal_actions,
         uow.contacts,

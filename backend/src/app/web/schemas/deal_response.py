@@ -46,6 +46,7 @@ class NextActionResponse(BaseModel):
     text: str
     due_date: date
     status: NextActionStatus
+    action_id: int
 
 
 class QuoteResponse(BaseModel):
@@ -168,7 +169,10 @@ def _row_fields(view: DealView) -> dict[str, object]:
         ),
         "next_action": (
             NextActionResponse(
-                text=next_action.text, due_date=next_action.due_date, status=next_action.status
+                text=next_action.text,
+                due_date=next_action.due_date,
+                status=next_action.status,
+                action_id=int(next_action.action_id),
             )
             if next_action
             else None

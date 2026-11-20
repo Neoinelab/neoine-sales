@@ -328,14 +328,14 @@ export function actionsStatusContract(make: MakeGateway): void {
       // given: Next Action이 있는 Action 뒤에 진행사항만 Action이 등록된 Deal
       const sales = await make('sales')
       const deal = await newDeal(sales)
-      await sales.actions.create(deal.code, action({ nextAction: '기준 계획', dueDate: '2026-12-07' }))
+      const planned = await sales.actions.create(deal.code, action({ nextAction: '기준 계획', dueDate: '2026-12-07' }))
       await sales.actions.create(deal.code, action({ progress: '전화만', ...ONLY_PROGRESS }))
 
       // when: Deal을 읽는다
       const read = await sales.deals.get(deal.code)
 
       // then: Next Action 요약이 앞선 Action의 것이다
-      expect(read.nextAction).toEqual({ text: '기준 계획', dueDate: '2026-12-07', status: 'open' })
+      expect(read.nextAction).toEqual({ text: '기준 계획', dueDate: '2026-12-07', status: 'open', actionId: planned.id })
       await sales.deals.remove(deal.code, deal.code)
     })
 

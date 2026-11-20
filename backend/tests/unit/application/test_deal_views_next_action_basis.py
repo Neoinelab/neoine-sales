@@ -70,17 +70,17 @@ async def test_closing_the_overdue_next_action_clears_overdue(
     assert (await _listed(env, code)).risk is None
 
 
-async def test_older_open_next_action_keeps_overdue_when_the_basis_row_is_closed(
+async def test_older_open_next_action_keeps_overdue_and_becomes_the_shown_next_action(
     env: DealEnv,
 ) -> None:
-    """기준 행이 종료여도 앞선 Open의 Due가 지났으면 기한초과이고 next_action은 기준 행이다.
+    """가장 최근 행이 종료여도 앞선 Open의 Due가 지났으면 기한초과이고 next_action은 그 Open 행이다.
 
     테스트 코드: RK-070
     """
     # given: 오래된 Open(Due 01-02)과 더 최근에 등록해 종료한 Next Action(Due 01-20)이 있다
     view = await env.new_deal()
     code = view.item.deal.id.value
-    await _act(env, view, next_action="오래된 것", due_date=date(2026, 1, 2))
+    older = await _act(env, view, next_action="오래된 것", due_date=date(2026, 1, 2))
     env.clock.advance(DAY)
     newer = await _act(env, view, next_action="최근 것", due_date=date(2026, 1, 20))
     newer.change_next_action_status(NextActionStatus.DONE, "", env.clock.now())
@@ -91,11 +91,14 @@ async def test_older_open_next_action_keeps_overdue_when_the_basis_row_is_closed
     detail = await env.get.execute(code)
     listed = await _listed(env, code)
 
-    # then: 기한초과이고 next_action은 기준 행(최근 것, done)이다
+    # then: 기한초과이고 next_action은 지난 Open 행(오래된 것, open)이며 action_id가 그 행이다
     for view_ in (detail, listed):
         assert view_.risk is Risk.OVERDUE
         assert view_.item.next_action == NextActionSummary(
-            text="최근 것", due_date=date(2026, 1, 20), status=NextActionStatus.DONE
+            text="오래된 것",
+            due_date=date(2026, 1, 2),
+            status=NextActionStatus.OPEN,
+            action_id=older.id,
         )
 
 
@@ -262,7 +265,7 @@ async def test_a_later_progress_only_action_does_not_replace_the_next_action(
     view = await env.new_deal()
     code = view.item.deal.id.value
     due = date(2026, 1, 31)
-    await _act(env, view, next_action="계약서 검토", due_date=due)
+    basis = await _act(env, view, next_action="계약서 검토", due_date=due)
     env.clock.advance(60)
     await _act(env, view, action="전화 통화", next_action="")
 
@@ -271,7 +274,9 @@ async def test_a_later_progress_only_action_does_not_replace_the_next_action(
     detail = await env.get.execute(code)
 
     # then: 두 응답의 next_action은 계약서 검토 / 오늘+30일 / open이다
-    expected = NextActionSummary(text="계약서 검토", due_date=due, status=NextActionStatus.OPEN)
+    expected = NextActionSummary(
+        text="계약서 검토", due_date=due, status=NextActionStatus.OPEN, action_id=basis.id
+    )
     assert listed.item.next_action == expected
     assert detail.item.next_action == expected
 

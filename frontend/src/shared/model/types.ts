@@ -237,8 +237,10 @@ export type NextActionStatus = 'open' | 'done' | 'notDone'
 /** 상태 필터. `closed`는 종료(수행)·종료(미수행) 둘 다. */
 export type NextActionStatusFilter = NextActionStatus | 'closed'
 
-/** Next Action이 있는 가장 최근 Action(수행시각 기준)의 Next Action 요약. */
+/** 기준 행(RK-R1: 지난 Open Next Action 우선, 없으면 Next Action이 있는 가장 최근 Action)의 Next Action 요약. `actionId`는 그 행의 Action id. */
 export interface NextActionSummary {
+  /** 서버가 정한 기준 Action의 id. */
+  actionId: number
   text: string
   dueDate: string
   status: NextActionStatus

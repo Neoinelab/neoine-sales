@@ -1,5 +1,6 @@
 """AC7: 퇴사자의 login_id 재등록은 항상 새 행(새 id). 퇴사 행은 복구·재사용되지 않는다."""
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
@@ -83,7 +84,7 @@ async def test_history_stays_attached_to_the_resigned_row_not_the_new_one(
 
     # then: Deal의 Owner는 예전 행이고 퇴사로 표시되며 새 행은 재직이다
     async with uow_factory() as uow:
-        (item,) = await uow.deals.search(DealQuery())
+        (item,) = await uow.deals.search(DealQuery().with_today(date(2026, 1, 1)))
         deal = item.deal
         refs = await uow.users.get_refs([deal.details.owner_user_id, new.id])
     assert deal.details.owner_user_id == old.id

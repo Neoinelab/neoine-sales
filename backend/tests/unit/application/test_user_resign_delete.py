@@ -1,5 +1,6 @@
 """사용자 삭제의 퇴사 분기: 연결이 있으면 행을 남기고 퇴사 처리 (AC3·4·5, T11·T14·T19)."""
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
@@ -151,7 +152,7 @@ async def test_resigned_user_keeps_the_references_that_pointed_to_him(
 
     # then: Deal의 Owner 참조가 퇴사 표시를 가진다
     async with uow_factory() as uow:
-        (item,) = await uow.deals.search(DealQuery())
+        (item,) = await uow.deals.search(DealQuery().with_today(date(2026, 1, 1)))
         deal = item.deal
         refs = await uow.users.get_refs([deal.details.owner_user_id])
     assert refs[target.id].resigned is True

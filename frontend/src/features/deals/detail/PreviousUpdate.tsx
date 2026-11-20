@@ -15,7 +15,7 @@ interface Props {
 }
 
 /**
- * 이전 Update 참조 카드: Next Action이 있는 가장 최근 Action을 읽기 전용으로 보여 주고 Next Action을 진행사항으로 채울 수 있다.
+ * 이전 Update 참조 카드: 서버가 알려 준 기준 행(RK-R1)을 읽기 전용으로 보여 주고 Next Action을 진행사항으로 채울 수 있다.
  * 채운 뒤에는 저장 때 이전 Next Action을 종료(수행)로 바꿀지(기본 켜짐) 고른다.
  */
 export function PreviousUpdate({ previous, filled, closable, open, closeChecked, onFill, onCloseChange }: Props) {

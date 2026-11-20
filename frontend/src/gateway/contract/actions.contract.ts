@@ -164,7 +164,7 @@ export function actionsContract(make: MakeGateway): void {
 
       // then: Deal Next Action이 새 Action의 것이다
       const read = await sales.deals.get(deal.code)
-      expect(read.nextAction).toEqual({ text: '견적 재전달', dueDate: '2026-12-01', status: 'open' })
+      expect(read.nextAction).toEqual({ text: '견적 재전달', dueDate: '2026-12-01', status: 'open', actionId: created.id })
       // then: 이력이 2건 늘고 Action 등록 줄 다음이 Comment 등록 줄이다
       const history = await sales.history.list(deal.code, {})
       expect(history).toHaveLength(baseline + 2)
@@ -379,15 +379,15 @@ export function actionsContract(make: MakeGateway): void {
       // given: sales와 Next Action이 있는 Action 두 건
       const sales = await make('sales')
       const deal = await newDeal(sales)
-      await sales.actions.create(deal.code, action({ nextAction: '첫 Next', dueDate: '2026-12-01' }))
+      const first = await sales.actions.create(deal.code, action({ nextAction: '첫 Next', dueDate: '2026-12-01' }))
       const latest = await sales.actions.create(deal.code, action({ nextAction: '둘째 Next', dueDate: '2026-12-09' }))
-      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '둘째 Next', dueDate: '2026-12-09', status: 'open' })
+      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '둘째 Next', dueDate: '2026-12-09', status: 'open', actionId: latest.id })
 
       // when: 최신 Action을 지운다
       await sales.actions.remove(latest.id)
 
       // then: Deal Next Action이 이전 Action의 것이다
-      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '첫 Next', dueDate: '2026-12-01', status: 'open' })
+      expect((await sales.deals.get(deal.code)).nextAction).toEqual({ text: '첫 Next', dueDate: '2026-12-01', status: 'open', actionId: first.id })
       await sales.deals.remove(deal.code, deal.code)
     })
 

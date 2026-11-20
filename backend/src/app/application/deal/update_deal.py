@@ -7,6 +7,7 @@ from app.application.deal.history_writer import build_name_lookup, write_history
 from app.application.deal.validation import validate_form
 from app.application.deal.views import build_views
 from app.application.license_contract.won_follow_up import follow_won_change, remove_pending_folders
+from app.domain.common.business_date import business_date
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 from app.domain.deal.history import diff_deal
@@ -72,7 +73,11 @@ class UpdateDeal:
                 actor=actor,
                 now=now,
             )
-            view = (await build_views(uow, [await uow.deals.get_item(deal.id)], now=now))[0]
+            view = (
+                await build_views(
+                    uow, [await uow.deals.get_item(deal.id, today=business_date(now))], now=now
+                )
+            )[0]
             await uow.commit()
         await remove_pending_folders(self._storage, removal)
         return view

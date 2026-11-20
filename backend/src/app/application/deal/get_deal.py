@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from app.application.deal.views import build_views
+from app.domain.common.business_date import business_date
 from app.domain.deal.code import DealCode
 from app.domain.deal.errors import DealNotFoundError
 
@@ -22,5 +23,6 @@ class GetDeal:
         if deal_code is None:
             raise DealNotFoundError(code)
         async with self._uow_factory() as uow:
-            item = await uow.deals.get_item(deal_code)
-            return (await build_views(uow, [item], now=self._clock.now()))[0]
+            now = self._clock.now()
+            item = await uow.deals.get_item(deal_code, today=business_date(now))
+            return (await build_views(uow, [item], now=now))[0]

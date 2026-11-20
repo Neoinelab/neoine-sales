@@ -191,7 +191,10 @@ async def test_the_registered_action_becomes_the_next_action_and_last_update_of_
 
     # then: Deal Next Action과 최종 업데이트가 새 Action을 가리킨다
     assert detail.item.next_action == NextActionSummary(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+        text="계약서 검토",
+        due_date=date(2026, 2, 5),
+        status=NextActionStatus.OPEN,
+        action_id=action.id,
     )
     assert detail.item.last_updated_on == action.acted_on
 
@@ -279,7 +282,7 @@ async def test_a_progress_only_action_keeps_the_previous_next_action_of_the_deal
 ) -> None:
     """진행사항만 Action을 등록해도 Deal의 Next Action은 이전 것이다."""
     # given: Next Action이 있는 Action이 먼저 있다
-    await action_env.act(KIM, next_action="계약서 검토", due_date=date(2026, 2, 5))
+    first = await action_env.act(KIM, next_action="계약서 검토", due_date=date(2026, 2, 5))
     # when: 진행사항만 Action을 이어서 등록한다
     latest = await action_env.act(KIM, next_action="", action="전화 통화")
 
@@ -288,7 +291,10 @@ async def test_a_progress_only_action_keeps_the_previous_next_action_of_the_deal
 
     # then: Deal Next Action은 이전 Action의 것이고 최종 업데이트는 새 Action이다
     assert detail.item.next_action == NextActionSummary(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+        text="계약서 검토",
+        due_date=date(2026, 2, 5),
+        status=NextActionStatus.OPEN,
+        action_id=first.id,
     )
     assert detail.item.last_updated_on == latest.acted_on
 

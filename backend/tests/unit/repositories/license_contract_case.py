@@ -23,7 +23,7 @@ from tests.fakes.unit_of_work import FakeUnitOfWork
 from tests.support.default_vendor import DEFAULT_VENDOR_ID, rolled_back_session_with_vendor
 from tests.support.user_ids import OWNER_ID, uid
 from tests.support.user_seed import ensure_users
-from tests.unit.repositories.deal_case import DealCase, _sql_case
+from tests.unit.repositories.deal_case import DealCase, DealsWithToday, _sql_case
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -164,7 +164,7 @@ def _fake_case() -> ContractCase:
     uow = FakeUnitOfWork()
     seed_catalog(uow)
     deal_case = DealCase(
-        uow.deals,
+        DealsWithToday(uow.deals),
         uow.deal_history,
         uow.deal_actions,
         uow.contacts,

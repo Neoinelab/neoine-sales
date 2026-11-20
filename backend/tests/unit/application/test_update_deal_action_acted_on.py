@@ -376,14 +376,20 @@ async def test_changing_the_acted_on_recalculates_next_action_last_updated_and_l
     테스트 코드: AC-125
     """
     # given: 11-12 수행의 "A계획"(기준 행, 최근)과 11-05 수행의 "B계획" Action
-    await _given_action(action_env, code, _at(12), action="최근", next_action="A계획")
-    older = await _given_action(action_env, code, _at(5), action="오래된", next_action="B계획")
+    # (Due는 모두 오늘 이후라 지난 Open 우선 규칙(RK-R1 ①)에 들지 않는다)
+    due = date(2026, 12, 1)
+    await _given_action(action_env, code, _at(12), action="최근", next_action="A계획", due_date=due)
+    older = await _given_action(
+        action_env, code, _at(5), action="오래된", next_action="B계획", due_date=due
+    )
     item = await _deal_row(action_env, code)
     assert item.next_action is not None
     assert (item.next_action.text, item.last_updated_on) == ("A계획", date(2026, 11, 12))
 
     # when: 오래된 Action의 수행일을 오늘(11-13)로 고친다
-    await action_env.update_as(older.id, KIM, acted_on=TODAY, action="오래된", next_action="B계획")
+    await action_env.update_as(
+        older.id, KIM, acted_on=TODAY, action="오래된", next_action="B계획", due_date=due
+    )
 
     # then: Next Action은 "B계획", 최종 업데이트일은 11-13이다
     item = await _deal_row(action_env, code)
@@ -394,7 +400,12 @@ async def test_changing_the_acted_on_recalculates_next_action_last_updated_and_l
 
     # when: 같은 Action의 수행일을 다시 11-02로 낮춘다
     await action_env.update_as(
-        older.id, KIM, acted_on=date(2026, 11, 2), action="오래된", next_action="B계획"
+        older.id,
+        KIM,
+        acted_on=date(2026, 11, 2),
+        action="오래된",
+        next_action="B계획",
+        due_date=due,
     )
 
     # then: 기준 행·최종 업데이트일·목록 순서가 다시 "A계획"/11-12/최근 먼저가 된다

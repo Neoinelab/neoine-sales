@@ -111,10 +111,11 @@ class DealActionRepository(Protocol):
         """
         ...
 
-    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
-        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일시, 같으면 id 내림차순, 상태 무관).
+    async def next_action_basis(self, deal_code: DealCode, *, today: date) -> DealAction | None:
+        """그 Deal의 Next Action 기준 행(RK-R1, `pick_next_action_basis`와 같은 정의).
 
-        없으면 None. Deal 목록·상세의 next_action 기준 행과 같은 정의다.
+        지난 Open 행 중 Due가 가장 이른 행(같으면 id가 큰 행), 없으면 수행일이 가장 늦은
+        Next Action 행(같으면 id가 큰 행). 없으면 None. 전체 Action을 돌려준다.
         """
         ...
 

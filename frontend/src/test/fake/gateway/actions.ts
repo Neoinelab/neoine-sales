@@ -25,7 +25,7 @@ import {
   checkStatusComment,
   statusesOf,
 } from './nextActionStatus'
-import { actionView, findDeal, userRef } from './views'
+import { actionView, findDeal, nextActionBasisOf, userRef } from './views'
 import { storeComment, trimmedBody } from './commentRules'
 
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -133,10 +133,9 @@ function validateRanges(q: ActionQuery): void {
   if (q.keyword?.includes(NUL)) throw validation('검색어에는 NUL 문자를 쓸 수 없습니다')
 }
 
-/** 서버 기준 행: 그 Deal에서 Next Action이 있는 가장 최근 Action(수행일 내림차순, 같으면 id 내림차순). */
+/** 서버 기준 행(RK-R1): 지난 Open Next Action 우선, 없으면 Next Action이 있는 가장 최근 행. 오늘은 Fake 시계의 업무 날짜. */
 function basisOf(ctx: MockContext, dealCode: string): ActionRecord | null {
-  const rows = ctx.store.data.actions.filter((a) => a.dealCode === dealCode && a.nextAction !== null)
-  return rows.reduce<ActionRecord | null>((best, a) => (best === null || a.actedOn > best.actedOn || (a.actedOn === best.actedOn && a.id > best.id) ? a : best), null)
+  return nextActionBasisOf(ctx.store.data, dealCode, ctx.clock.today())
 }
 
 /** 새 Action 저장과 함께 닫을 이전 Next Action을 확인한다(기준 행이 아니면 409, 권한 없으면 403). 이미 종료면 null(건너뜀). */

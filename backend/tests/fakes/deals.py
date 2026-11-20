@@ -174,16 +174,16 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         found = [a for a in self._actions._items.values() if a.deal_code == code]
         return max(found, key=lambda a: (a.acted_on, a.id), default=None)
 
-    def _latest_next_action(self, code: DealCode) -> Any:  # noqa: ANN401
-        """Next Action이 있는 가장 최근 Action(acted_on·id 내림차순 첫 행). 없으면 None."""
+    def _basis_action(self, code: DealCode, today: date) -> Any:  # noqa: ANN401
+        """Next Action 기준 행(RK-R1). domain `pick_next_action_basis`가 정본이다. 없으면 None."""
+        from app.domain.deal_action.next_action_basis import (  # noqa: PLC0415 - 지연 import
+            pick_next_action_basis,
+        )
+
         if self._actions is None:
             return None
-        found = [
-            a
-            for a in self._actions._items.values()
-            if a.deal_code == code and a.content.next_action is not None
-        ]
-        return max(found, key=lambda a: (a.acted_on, a.id), default=None)
+        found = [a for a in self._actions._items.values() if a.deal_code == code]
+        return pick_next_action_basis(found, today)
 
     def _earliest_open_due(self, code: DealCode) -> date | None:
         """Open인 Next Action 행 중 가장 이른 Due(RK-R4). 없으면 None. 기준 행과 무관하다."""
@@ -199,7 +199,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         ]
         return min(dues, default=None)
 
-    def _item(self, deal: Deal) -> DealListItem:
+    def _item(self, deal: Deal, today: date | None) -> DealListItem:
         from app.application.ports.deal_repository import (  # noqa: PLC0415 - 지연 import
             DealListItem,
             NextActionSummary,
@@ -211,13 +211,15 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         last_updated = (
             latest.acted_on if latest is not None else deal.created_at.astimezone().date()
         )
-        basis = self._latest_next_action(deal.id)  # 표시·risk·상태 필터의 기준 행
+        # 표시·상태 필터의 기준 행. today가 없으면(count 전용 경로) 요약은 만들지 않는다.
+        basis = None if today is None else self._basis_action(deal.id, today)
         summary = None
         if basis is not None:
             summary = NextActionSummary(
                 text=basis.content.next_action,
                 due_date=basis.content.due_date,
                 status=basis.next_action_state.status,
+                action_id=basis.id,
             )
         contracts = self._license_contracts._items.values() if self._license_contracts else ()
         return DealListItem(
@@ -240,8 +242,8 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
             1 for c in self._comments._items.values() if c.deal_code == code and c.read_at is None
         )
 
-    async def get_item(self, code: DealCode) -> DealListItem:
-        return self._item(self._items[code]) if code in self._items else self._missing(code)
+    async def get_item(self, code: DealCode, *, today: date) -> DealListItem:
+        return self._item(self._items[code], today) if code in self._items else self._missing(code)
 
     def _missing(self, code: DealCode) -> Any:  # noqa: ANN401
         raise DealNotFoundError(code.value)
@@ -275,23 +277,28 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         contacts = self._contact_map()
         found = [d for d in self._items.values() if matches(d, query, contacts, self._outcome_of)]
         if has_updated_period(query):
-            found = [d for d in found if updated_in_range(self._item(d).last_updated_on, query)]
+            found = [
+                d for d in found if updated_in_range(self._item(d, None).last_updated_on, query)
+            ]
         if query.wants_risk():
             check_risk_basis(query)  # 대상이 없어도 기준 누락은 오류
             found = [d for d in found if self._risk_matches(d, query)]
         wanted = query.next_action_status
         if wanted is None:
             return found
+        if query.today is None:
+            msg = "next_action_status 필터에는 today가 필요하다"
+            raise ValueError(msg)
         statuses = wanted.statuses()
         return [
             d
             for d in found
-            if (basis := self._latest_next_action(d.id)) is not None
+            if (basis := self._basis_action(d.id, query.today)) is not None
             and basis.next_action_state.status in statuses
         ]
 
     def _risk_matches(self, deal: Deal, query: DealQuery) -> bool:
-        item = self._item(deal)
+        item = self._item(deal, None)
         return risk_matches(
             query,
             forecast_key=deal.sync.forecast_key,
@@ -301,7 +308,10 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
 
     async def search(self, query: DealQuery) -> Sequence[DealListItem]:
         self.queries += 1
-        items = [self._item(d) for d in self._found(query)]
+        if query.today is None:
+            msg = "search에는 today가 필요하다(DealQuery.with_today)"
+            raise ValueError(msg)
+        items = [self._item(d, query.today) for d in self._found(query)]
         items.sort(key=lambda i: i.deal.id.value)  # 동률은 code 오름차순(안정 정렬)
         key = sort_key(str(query.sort), self._lookups())
         keyed = [(key(i.deal, i.last_updated_on), i) for i in items]

@@ -141,7 +141,7 @@ export interface DealListQuery {
   stale?: boolean
   /** true면 현재 로그인 사용자가 Owner인 Deal만. */
   mine?: boolean
-  /** Next Action이 있는 가장 최근 Action의 상태. */
+  /** 기준 행(RK-R1)의 Next Action 상태. */
   nextActionStatus?: NextActionStatusFilter
   sort?: DealSortKey
   order?: SortOrder

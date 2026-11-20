@@ -15,7 +15,7 @@ describe('toDealRow', () => {
         quote: { submitted: 'YES', submitted_date: '2026-10-05' },
         poc: { state: 'ING', completed_date: null },
         bant: { budget: 1, authority: null, need: 3, timeline: null },
-        next_action: { text: '견적 재송부', due_date: '2026-10-20', status: 'open' },
+        next_action: { text: '견적 재송부', due_date: '2026-10-20', status: 'open', action_id: 77 },
         procurement: '입찰',
         license_contract_count: 3,
         has_issued_license_contract: true,
@@ -55,7 +55,7 @@ describe('toDealRow', () => {
       hasIssuedLicenseContract: true,
       unreadCommentCount: 0,
       bant: { budget: 1, authority: null, need: 3, timeline: null },
-      nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open' },
+      nextAction: { text: '견적 재송부', dueDate: '2026-10-20', status: 'open', actionId: 77 },
       lastUpdatedOn: '2026-10-15',
       risk: null,
       statusChangedOn: '2026-10-10',
@@ -102,15 +102,30 @@ describe('toDealRow', () => {
   // Next Action 기한은 서버가 준 날짜 그대로 둔다.
   it('keeps the next-action due date exactly as the server sent it (never null any more)', () => {
     // when: Next Action이 있는 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: 'open' } }))
+    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: 'open', action_id: 5 } }))
     // then: text·dueDate·status가 서버 값 그대로다
-    expect(row.nextAction).toEqual({ text: '전화', dueDate: '2026-10-20', status: 'open' })
+    expect(row.nextAction).toMatchObject({ text: '전화', dueDate: '2026-10-20', status: 'open' })
+  })
+
+  // 서버 next_action.action_id를 nextAction.actionId(정수)로 그대로 옮긴다. 상세 변환도 같다.
+  // 테스트 코드: RK-090
+  it('maps next_action.action_id to nextAction.actionId as it is, in rows and in details', () => {
+    // given: next_action.action_id가 든 서버 목록 행과 상세
+    const nextAction = { text: '전화', due_date: '2026-10-20', status: 'open' as const, action_id: 9_007_199 }
+
+    // when: 행과 상세를 바꾼다
+    const row = toDealRow(serverDealRow({ next_action: nextAction }))
+    const detail = toDealDetail(serverDealDetail({ next_action: nextAction }))
+
+    // then: actionId가 서버 값 그대로이고 다른 키를 만들지 않는다
+    expect(row.nextAction).toEqual({ text: '전화', dueDate: '2026-10-20', status: 'open', actionId: 9_007_199 })
+    expect(detail.nextAction).toEqual({ text: '전화', dueDate: '2026-10-20', status: 'open', actionId: 9_007_199 })
   })
 
   // 긴 Next Action 문구는 자르지 않는다.
   it('keeps a very long next-action text without cutting it', () => {
     // when: 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ next_action: { text: '가'.repeat(5000), due_date: '2026-10-20', status: 'open' } }))
+    const row = toDealRow(serverDealRow({ next_action: { text: '가'.repeat(5000), due_date: '2026-10-20', status: 'open', action_id: 5 } }))
     // then: 문구 길이가 5000자 그대로다
     expect(row.nextAction?.text).toHaveLength(5000)
   })
@@ -132,7 +147,7 @@ describe('toDealRow', () => {
       serverDealRow({
         risk: null,
         last_updated_on: '2020-01-01',
-        next_action: { text: '전화', due_date: '2020-01-02', status: 'open' },
+        next_action: { text: '전화', due_date: '2020-01-02', status: 'open', action_id: 5 },
       }),
     )
 
@@ -281,7 +296,7 @@ describe('toDealRow Next Action status', () => {
     ['not_done', 'notDone'],
   ] as const)('maps the basis row status %s to %s', (wire, status) => {
     // when: 해당 상태의 Next Action이 든 서버 행을 바꾼다
-    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: wire } }))
+    const row = toDealRow(serverDealRow({ next_action: { text: '전화', due_date: '2026-10-20', status: wire, action_id: 5 } }))
 
     // then: 화면 모델의 상태 이름으로 바뀐다
     expect(row.nextAction?.status).toBe(status)

@@ -22,6 +22,7 @@ from app.domain.deal.errors import (
     DuplicateDealCodeError,
 )
 from app.domain.deal_action.next_action_status import NextActionStatus
+from app.domain.deal_action.value_objects import DealActionId
 from app.infra.db import deal_aggregates, deal_children, deal_mapping, deal_search
 from app.infra.db.base_repository import ConstraintErrors, SavepointWriter
 from app.infra.db.contact_usage import deal_counts_by_contacts
@@ -30,7 +31,7 @@ from app.infra.db.models_deal import DealPartnerRow, DealRow
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
-    from datetime import datetime
+    from datetime import date, datetime
 
     from app.application.ports.deal_repository import DealDeletionImpact, DealQuery
     from app.domain.bant.values import BantLabelId
@@ -135,7 +136,10 @@ class SqlDealRepository(SavepointWriter):
                     None
                     if row.next_action is None
                     else NextActionSummary(
-                        row.next_action, row.due_date, NextActionStatus(row.basis_status)
+                        row.next_action,
+                        row.due_date,
+                        NextActionStatus(row.basis_status),
+                        DealActionId(row.basis_action_id),
                     )
                 ),
                 last_updated_on=row.last_updated_on,
@@ -147,8 +151,10 @@ class SqlDealRepository(SavepointWriter):
             for row, deal in zip(rows, deals, strict=True)
         ]
 
-    async def get_item(self, code: DealCode) -> DealListItem:
-        items = await self._items(deal_search.item_select().where(DealRow.deal_code == code.value))
+    async def get_item(self, code: DealCode, *, today: date) -> DealListItem:
+        items = await self._items(
+            deal_search.item_select(today).where(DealRow.deal_code == code.value)
+        )
         if not items:
             raise DealNotFoundError(code.value)
         return items[0]

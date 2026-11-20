@@ -23,7 +23,7 @@ import './detail.css'
 
 interface ActionFormProps {
   deal: DealDetail
-  /** Next Action이 있는 가장 최근 Action(이전 Update 참조 카드). */
+  /** 서버가 알려 준 기준 행(RK-R1: 지난 Open Next Action이 있으면 Due가 가장 이른 것, 없으면 Next Action이 있는 가장 최근 Action, 서버 `next_action.action_id`)(이전 Update 참조 카드). */
   previous: DealAction | null
   onDone: (message: string) => void
   onCancel: () => void

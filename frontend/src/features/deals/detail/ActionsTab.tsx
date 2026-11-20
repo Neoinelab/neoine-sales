@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useActions, useChangeNextActionStatus, useRemoveAction } from '../../../data/actions'
 import { useCommentCounts, useComments } from '../../../data/comments'
-import { latestWithNextAction } from '../../../shared/model/nextActionBasis'
 import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
@@ -53,6 +52,8 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   // 삭제 확인 문구의 건수. 팝업이 이미 읽은 그 Action의 Comment 목록을 같은 키로 쓴다.
   const targetComments = useComments(target ? deal.code : undefined, target?.id ?? null)
   const items = useLatest(list.data) ?? []
+  // 기준 행은 서버가 정한 `deal.nextAction.actionId`의 행이다(화면에서 다시 계산하지 않는다).
+  const basis = deal.nextAction === null ? null : (all.data?.find((a) => a.id === deal.nextAction?.actionId) ?? null)
   const filtered = Object.keys(query).length > 0
   const shown = opened === null ? null : (all.data?.find((a) => a.id === opened.id) ?? opened)
 
@@ -119,7 +120,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
         </div>
       )}
       {creating && (
-        <ActionForm deal={deal} previous={all.data ? latestWithNextAction(all.data) : null} onDone={done} onCancel={() => setCreating(false)} />
+        <ActionForm deal={deal} previous={basis} onDone={done} onCancel={() => setCreating(false)} />
       )}
       <ActionSearchBar onSearch={setQuery} />
       {shown === null && <ErrorBanner error={error} format={messageOf} />}

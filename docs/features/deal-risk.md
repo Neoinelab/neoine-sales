@@ -1,4 +1,4 @@
-# 경고·파생 값·경고 기준   (feature 코드: RK, 상태: 확정(2026-11-18 사용자 확인))
+# 경고·파생 값·경고 기준   (feature 코드: RK, 상태: 확정(2026-11-20 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드입니다.
 > - backend: `domain/deal/{risk.py,status_entry.py,entities.py}`, `domain/alert/{thresholds.py,settings.py}`, `application/alert/*`, `application/deal/{views.py,list_deals.py,update_deal.py,history_writer.py}`, `infra/db/{deal_derived.py,deal_risk.py,deal_search.py,alert_settings_repository.py,models_alert.py}`, `web/routers/alert_settings.py`, `web/schemas/{alert_settings.py,deal_response.py}`
@@ -39,8 +39,9 @@
 
 | 용어 | 뜻 |
 | --- | --- |
-| Next Action 기준 행 | 한 Deal의 Action 가운데 Next Action이 있는 행 중 가장 최근 행. Deal의 `next_action` 표시와 Next Action 상태 필터(DL·NA)가 이 행을 쓴다. 기한초과 판정은 이 행이 아니라 Open Next Action 행을 쓴다(RK-R4) |
+| Next Action 기준 행 | 한 Deal의 Action 가운데 Next Action이 있는 행 중에서 Deal을 대표해 보이는 행이다(RK-R1, 2026-11-20 변경). 지난 Open Next Action 행이 있으면 그중 Due가 가장 이른 행이고, 없으면 Next Action이 있는 가장 최근 행이다. 이 행을 쓰는 곳은 Deal의 `next_action` 표시(행 id `next_action.action_id` 포함), Next Action 상태 필터(DL-R11), CSV(DL-R35), Action 등록 때 이전 Next Action 종료 대상(AC-R7)이다. 기한초과 판정 자체는 이 행 하나로 하지 않고 Open Next Action 행 전부로 한다(RK-R4) |
 | Open Next Action 행 | Next Action이 있고 상태가 `open`인 Action. 기준 행인지와 무관하다. 기한초과 판정의 대상이다 |
+| 지난 Open Next Action 행 | Open Next Action 행 가운데 Due Date가 오늘보다 앞인 행. Due가 오늘인 행은 들지 않는다. 기준 행을 고를 때(RK-R1 ①) 먼저 보는 후보다 |
 | 가장 이른 Open Due(`earliest_open_due`) | 그 Deal의 Open Next Action 행들의 Due Date 중 가장 이른 날짜. 그런 행이 없으면 null. 저장하지 않는 파생 값이다 |
 | 진행사항만 Action | Next Action이 없는(`next_action` null) Action. 기준 행이 될 수 없다 |
 | 최종 업데이트일(`last_updated_on`) | 그 Deal의 모든 Action 수행일(`acted_on`) 중 가장 늦은 날짜. Action이 없으면 Deal 등록일(`created_at`의 업무 날짜) |
@@ -55,8 +56,8 @@
 
 - `alert_settings`(단일 행, 시드 없음): `id SMALLINT PK`(CHECK `id = 1`, 이름 `single_row`), `stale_days SMALLINT`(CHECK `BETWEEN 1 AND 365`, 이름 `stale_days_range`), `updated_at TIMESTAMPTZ`, `updated_by_user_id BIGINT` FK `users.id` ON DELETE RESTRICT, 인덱스 `ix_alert_settings_updated_by_user_id`. 행이 없으면 기본값 14다. 저장은 `id = 1` upsert다.
 - `deals.status_changed_on DATE NOT NULL`. 도메인은 `StatusEntry(status_key, changed_on: date)`로 들고 `Deal.status_changed_on`으로 노출한다.
-- 저장하지 않는 파생 값: `next_action`, `last_updated_on`, `earliest_open_due`, `risk`, `status_days`. 조회할 때마다 계산한다(SQL `infra/db/deal_derived.py`의 `LATEST_ACTED`·`LATEST_NEXT`·가장 이른 Open Due 상관 서브쿼리, 도메인 `compute_risk`·`status_days`). `earliest_open_due`는 응답에 나가지 않고 Port `DealListItem.earliest_open_due: date | None`으로만 전달된다(2026-11-18).
-- 스키마·데이터 변경 없음(2026-11-18 기한초과 규칙 변경은 판정 로직만 바꾼다). 새 인덱스도 없다(기존 `ix_deal_actions_deal_id_acted_on`으로 Deal별 Action을 찾는다).
+- 저장하지 않는 파생 값: `next_action`, `last_updated_on`, `earliest_open_due`, `risk`, `status_days`. 조회할 때마다 계산한다(SQL `infra/db/deal_derived.py`의 `LATEST_ACTED`, 요청의 업무 날짜를 받는 기준 행 부분 질의 `latest_next(today)`(순서 식 `basis_order(today)`), 가장 이른 Open Due 상관 서브쿼리이고, 도메인은 `pick_next_action_basis`·`compute_risk`·`status_days`다). `earliest_open_due`는 응답에 나가지 않고 Port `DealListItem.earliest_open_due: date | None`으로만 전달된다(2026-11-18).
+- 스키마·데이터 변경은 없다. 2026-11-18 기한초과 규칙 변경은 판정 로직만, 2026-11-20 기준 행 규칙 변경은 조회 순서와 응답의 `next_action.action_id`만 바꾼다. 새 인덱스도 없다(기존 `ix_deal_actions_deal_id_acted_on`으로 Deal별 Action을 찾는다).
 - 도메인 객체
   - `AlertThresholds(stale_days)`: 1~365 정수만(bool 거절), `default()` = 14.
   - `StoredAlertSettings(thresholds, updated_at, updated_by)`.
@@ -67,11 +68,18 @@
 ### 2.3 비즈니스 규칙
 
 Next Action 기준 행과 최종 업데이트
-- **RK-R1** Next Action 기준 행은 그 Deal의 Action 중 `next_action`이 있는 행을 `acted_on` 내림차순, 같으면 `id` 내림차순(같은 날은 나중에 등록한 행, AC-R43)으로 놓았을 때 첫 행이다.
+- **RK-R1** Next Action 기준 행(2026-11-20 변경)은 그 Deal의 Action 중 `next_action`이 있는 행에서 아래 순서로 고른 첫 행이다. 오늘은 그 요청의 업무 날짜(TM-R4)다.
+  1. 지난 Open Next Action 행(상태 `open`이고 `due_date` < 오늘)이 하나라도 있으면, 그 행들 가운데 `due_date`가 가장 이른 행이다. `due_date`가 같으면 `id`가 큰 행(나중에 등록한 행)이다. 이 단계에서는 수행일을 보지 않는다.
+  2. 지난 Open Next Action 행이 없으면, `acted_on` 내림차순으로 놓고 같으면 `id` 내림차순(같은 날은 나중에 등록한 행, AC-R43)으로 놓았을 때 첫 행(Next Action이 있는 가장 최근 행)이다. 이 단계에서는 상태(`open`·`done`·`not_done`)가 선택에 영향이 없으므로 종료된 행도 기준 행이 된다.
+  - ①은 Forecast(종결 여부)와 경고 기준을 보지 않는다. 그래서 종결(Won·Lost) Deal도 지난 Open Next Action이 있으면 그 행을 보이고, 이때 `risk`는 RK-R3대로 null이다(2026-11-20 사용자 결정 Q1).
+  - 기한초과(RK-R4)인 Deal의 `next_action`은 항상 상태가 `open`이고 Due가 오늘보다 앞이며, 그 Due는 가장 이른 Open Due(`earliest_open_due`)와 같다. 기한초과가 아니면 `next_action`은 예전과 같은 가장 최근 행이다.
+  - Due가 오늘인 Open 행은 ①에 들지 않는다(RK-R4의 경계와 같음). 날짜가 바뀌어 Due가 어제가 되면, 저장된 값이 그대로여도 다음 요청부터 기준 행이 바뀐다.
+  - 지난 Open 행을 종료(NA)·Due 수정·삭제하면 남은 행으로 다시 고른다. 종료한 행을 Open으로 되돌리면 그 행은 다시 ①의 후보가 된다.
   - 진행사항만 Action은 더 최근이어도 기준 행을 바꾸지 않는다.
-  - 기준 행의 Next Action 상태(`open`·`done`·`not_done`)는 기준 행 선택에 영향이 없다. 기준 행이 종료여도 `next_action`은 그 행을 보인다. 그래서 `next_action`이 종료 상태인데 다른 Open Next Action 때문에 기한초과일 수 있다(RK-R4).
-  - Deal 응답 `next_action`은 기준 행의 `{text, due_date, status}`이고, 기준 행이 없으면 `null`이다.
-  - 지난 날짜로 등록한 Action도 같은 순서로 비교한다(등록 순서가 아님, AC-R38).
+  - Deal 응답 `next_action`은 기준 행의 `{text, due_date, status, action_id}`이고, 기준 행이 없으면 `null`이다. `action_id`는 기준 행 Action의 id(JSON 정수)다(2026-11-20 추가, Q3).
+  - 같은 요청 안에서는 다음이 모두 같은 기준 행을 쓴다: 목록 행·상세·쓰기 응답의 `next_action`, Next Action 상태 필터(DL-R11), CSV(DL-R35), Action 등록의 이전 Next Action 종료 대상(AC-R7, Q2).
+  - 정의는 한 곳에 둔다: domain `pick_next_action_basis`(Fake와 계약 기준)와 SQL `basis_order`(목록 질의와 종료 대상 조회가 함께 씀). 화면은 기준 행을 계산하지 않고 서버가 준 `action_id`를 쓴다(AC-R26).
+  - 지난 날짜로 등록한 Action도 ②에서 같은 순서로 비교한다(등록 순서가 아님, AC-R38).
 - **RK-R2** `last_updated_on`(날짜)은 그 Deal의 모든 Action(진행사항만 Action 포함) `acted_on`의 최댓값이고, Action이 없으면 Deal 등록일(`created_at`의 업무 날짜, TM-R4)이다.
   - Deal 수정은 값을 바꾸지 않는다: 폼 저장·변경 적용·인라인 수정·연락처 변경 반영·첨부 업로드/삭제 모두 해당하며, 이것들은 `updated_at`만 바꾼다.
   - `acted_on`은 Action 등록·수정에서 정해지므로(AC-R34, AC-R45) Next Action 상태 변경과 수행일을 바꾸지 않는 Action 수정은 값을 바꾸지 않고, 수정으로 수행일을 바꾸면 다시 계산된다(AC-R46). 지난 날짜 Action은 더 늦은 Action이 있으면 이 값을 바꾸지 않는다(AC-R38). 수행일은 Deal 등록일 이상이라(AC-R35) 이 값은 Deal 등록 시각보다 앞선 날짜가 되지 않는다.
@@ -81,7 +89,7 @@ Next Action 기준 행과 최종 업데이트
 경고 판정
 - **RK-R3** Forecast key가 `won`·`lost`인 Deal은 `risk`가 항상 `null`이다. 기한·갱신과 무관하고 경고 기준과도 무관하다. 다른 Forecast key(`pipeline`·`upside`·`best`·`commit` 등 직접 만든 key 포함)는 판정한다.
 - **RK-R4** 기한초과(`overdue`)는 그 Deal의 Open Next Action 행(`next_action_status = 'open'`) 가운데 `due_date`가 오늘보다 앞인 행이 하나라도 있을 때다. 같은 말로, 가장 이른 Open Due(`earliest_open_due`)가 오늘보다 앞일 때다(2026-11-18 변경).
-  - 기준 행(RK-R1)만 보지 않는다. 기준 행이 종료여도 그보다 앞선 Open Next Action의 Due가 지났으면 기한초과다.
+  - 기준 행 하나가 아니라 모든 Open Next Action 행으로 판정한다. 기한초과인 Deal에서는 기준 행(RK-R1 ①)이 곧 Due가 가장 이른 지난 Open 행이다. 그래서 화면에 보이는 `next_action`과 기한초과 배지가 같은 행을 가리킨다(2026-11-20).
   - 종료(수행 `done`)·종료(미수행 `not_done`)한 Next Action은 Due가 지났어도 기한초과를 만들지 않는다.
   - 종료한 Next Action을 Open으로 되돌리면(NA-R2) 다시 판정 대상이 된다.
   - Due Date가 오늘이거나 미래면 아니다. Open Next Action 행이 없으면(Action 없음·진행사항만 Action·모두 종료) 아니다.
@@ -139,12 +147,12 @@ Status 진입일과 체류 일수
     - "기한초과" 배지 + "Open인 Next Action의 Due Date가 지났습니다"
     - "미업데이트" 배지 + "{N}일 이상 미업데이트"(N = 저장된 경고 기준). 기준을 읽는 중이거나 읽지 못하면 "기준일 이상 미업데이트".
   - 각 행은 이름 옆에 경고 배지를 두고 행 클래스를 붙인다.
-  - 서버 `risk`가 기한초과(`overdue`·`overdue_stale`)이고, 그 행 `next_action`(기준 행)의 상태가 `open`이며 그 Due가 앱 시계(서버 동기 시계, TM)의 오늘보다 앞일 때만 Due 칸에 `overdue` 클래스를 붙인다. 기준 행이 종료이거나 Due가 오늘 이후면(다른 Open Next Action 때문에 기한초과인 경우) Due 칸은 강조하지 않고 이름 옆 배지·행 색만 보인다. Next Action 칸에는 붙이지 않는다.
+  - Due 칸에 `overdue` 클래스를 붙이는 조건은 셋이다: 서버 `risk`가 기한초과(`overdue`·`overdue_stale`)이고, 그 행 `next_action`(기준 행)의 상태가 `open`이고, 그 Due가 앱 시계(서버 동기 시계, TM)의 오늘보다 앞이다. RK-R1 ①에 따라 기한초과 Deal의 `next_action`은 지난 Open 행이므로 Due 칸이 강조된다. 앱 시계와 서버 업무 날짜가 자정 경계에서 다를 때만 강조가 빠질 수 있다. 종결 Deal은 `risk`가 null이라 지난 Open 행을 보여도 강조하지 않는다. Next Action 칸에는 붙이지 않는다.
   - 최종 업데이트 칸은 앱 시계의 오늘을 기준으로 한 상대 일수("오늘"·"어제"·"N일 전", 30일 이상이면 날짜, TM-R15의 일 단위 표기)이고 `title`은 `YYYY-MM-DD`다.
   - 목록에는 체류 일수 열·문구가 없다.
 - **RK-R17** Deal 상세 요약 바
   - Status 옆에 "{status_days}일째"를 보이고 `title`은 진입일 `YYYY-MM-DD`(서버 값 그대로)다.
-  - Next Action 줄은 기준 행의 텍스트·"Due {날짜}"·상태 라벨을 보인다. 없으면 "없음"이다. 줄 끝에 경고 배지(Deal 단위 서버 `risk`)를 둔다(Action이 없어도 미업데이트면 보임). 기준 행이 종료여도 다른 Open Next Action 때문에 "기한초과" 배지가 보일 수 있다.
+  - Next Action 줄은 기준 행의 텍스트·"Due {날짜}"·상태 라벨을 보인다. 없으면 "없음"이다. 줄 끝에 경고 배지(Deal 단위 서버 `risk`)를 둔다(Action이 없어도 미업데이트면 보임). "기한초과" 배지가 보이면 Next Action 줄은 기한이 지난 Open Next Action 가운데 Due가 가장 이른 것(RK-R1 ①)이다(2026-11-20).
   - 최종 업데이트는 상대 일수(RK-R16과 같음)이고 `title`은 `YYYY-MM-DD`다.
 - **RK-R18** Actions 탭 표의 기한초과 배지
   - 서버 `risk`가 `overdue`·`overdue_stale`일 때, 상태가 `open`이고 Due Date가 앱 시계(서버 동기 시계, TM)의 오늘보다 앞인 **모든** 행의 Due 칸에 "기한초과" 배지를 단다(2026-11-18 변경, 기준 행만이 아님).
@@ -164,6 +172,7 @@ Status 진입일과 체류 일수
   - 422 문장은 메시지 그대로 넘기고, 403·401은 그 상태의 `ApiError`다.
   - HTTP Deal 매퍼는 서버 `risk`·`statusChangedOn`·`statusDays`를 그대로 옮기고 다시 계산하지 않는다.
   - Fake 게이트웨이는 `shared/model/risk.ts`의 `computeRisk`·`statusDays`로 서버와 같은 규칙을 흉내 낸다. `computeRisk`의 기한 입력은 `earliestOpenDue`(그 Deal의 Open Next Action Due 중 가장 이른 날짜, 없으면 null)다(RK-R4).
+  - HTTP Deal 매퍼는 `next_action.action_id`를 `nextAction.actionId`(number)로 옮긴다. Fake의 `nextAction`(`actionId` 포함)·Next Action 상태 필터·이전 Next Action 종료 대상은 Fake 전용 `test/fake/gateway/nextActionBasis.ts`가 RK-R1과 같은 순서로 고른다(오늘 = Fake 시계의 업무 날짜). 앱 코드(`shared/model`)에는 기준 행 계산이 없다(2026-11-20).
 - **RK-R22** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `status_changed_on`은 저장된 `status_changed_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다(예: `2026-11-12T15:30:00Z`는 Asia/Seoul에서 2026-11-13). 채운 뒤 NOT NULL로 바꾼다. 행 수는 그대로이고 시각만 버린다. downgrade는 `status_changed_at`을 그 날짜의 업무 시간대 00:00으로 되살린다(NOT NULL). 체류 일수는 변환 전과 같다.
 
 ### 2.4 상태와 전이
@@ -197,13 +206,14 @@ Status 진입일과 체류 일수
 - `AlertSettingsRequest`: `stale_days: StrictInt`(필수), 알 수 없는 필드 거절(`RequestModel`).
 - 라우터: `APIRouter(prefix="/api/v1/alert-settings", tags=["settings"])`, PUT에 `require_admin`. 유스케이스: `GetAlertSettings(uow_factory)`, `UpdateAlertSettings(uow_factory, clock)`. Port: `AlertSettingsRepository.get() -> StoredAlertSettings | None`, `save(thresholds, *, updated_by, now) -> StoredAlertSettings`.
 - Deal 응답(`DealRowResponse`·`DealDetailResponse`, 경로는 DE·DD·DL 소유)의 이 feature 필드(모두 required):
-  - `next_action: {text: string, due_date: date, status: "open"|"done"|"not_done"} | null`
+  - `next_action: {text: string, due_date: date, status: "open"|"done"|"not_done", action_id: integer} | null` — `action_id`는 기준 행 Action id다. 객체 안에서 required이고 null이 아니다(2026-11-20, 하위 호환 추가)
   - `last_updated_on: date`
   - `risk: "overdue"|"stale"|"overdue_stale"|null`
   - `status_changed_on: date`
   - `status_days: integer`
   - 두 날짜 필드는 `YYYY-MM-DD`다.
 - API 모양 변경 없음(2026-11-18): `risk` 값의 판정만 RK-R4로 바뀌고 `next_action`은 계속 기준 행이다.
+- 2026-11-20: `next_action`이 가리키는 행이 RK-R1로 바뀌고 `next_action`에 `action_id`가 추가된다. 키 추가뿐이므로 하위 호환 추가다(openapi `NextActionResponse`에 required integer 하나). 요청·오류 type은 바뀌지 않는다.
 - 새 오류 type 없음.
 
 ### 2.7 화면 동작
@@ -324,16 +334,27 @@ RK-R15~R21.
 | RK-067 | Action이 없으면 최종 업데이트일은 업무 시간대 기준 Deal 등록일이다(UTC 날짜가 아님) | RK-R2 | backend | `application/test_list_deals_derived.py`, `repositories/test_deal_derived_values_contract.py` |
 | RK-068 | Deal 응답은 last_updated_on·status_changed_on 날짜를 주고 last_updated_at·status_changed_at 키가 없다 | RK-R2, RK-R9, RK-R7 | backend | `web/test_deal_response_risk.py` |
 | RK-069 | 마이그레이션은 Status 진입 시각을 업무 날짜로 채워 NOT NULL로 바꾸고 downgrade는 00:00으로 되살린다 | RK-R22 | backend | `infra/schema/test_business_dates_migration.py`, `infra/schema/test_deal_status_changed_on_schema.py` |
-| RK-070 | 기준 행은 종료됐지만 그보다 앞선 Open Next Action의 Due가 지났으면 기한초과이고 next_action은 기준 행 그대로다 | RK-R4, RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py` |
+| RK-070 | 가장 최근 Next Action은 종료됐지만 그보다 앞선 Open Next Action의 Due가 지났으면 기한초과이고 next_action은 그 지난 Open Next Action이다 | RK-R4, RK-R1, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py` |
 | RK-071 | 종료한 Next Action을 Open으로 되돌리면 Due가 지났을 때 다시 기한초과다 | RK-R4, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py` |
 | RK-072 | Open Next Action이 여럿이면 하나라도 Due가 지나면 기한초과이고 모두 오늘 이후면 아니다 | RK-R4, RK-UC1 | backend | `domain/test_deal_risk.py`<br>`application/test_deal_views_next_action_basis.py` |
 | RK-073 | 기한 지난 Open Next Action의 Due를 오늘 이후로 고치거나 그 Action을 지우면 기한초과가 풀린다 | RK-R4, RK-UC1 | backend | `application/test_deal_views_next_action_basis.py` |
 | RK-074 | overdue 필터와 Dashboard 기한초과 수는 종료한 기한 지난 Deal을 빼고 예전 Open Next Action이 기한 지난 Deal을 넣는다 | RK-R8, RK-R4, RK-UC2 | backend | `application/test_list_deals_risk_filter.py`<br>`application/test_get_dashboard_summary.py` |
 | RK-075 | 실제 DB에서 목록 행 risk·overdue 필터·Reports deal.risk가 Open Next Action 기준 판정과 같다 | RK-R8, RK-R4, RK-UC2 | backend | `repositories/test_deal_risk_filter_contract.py`<br>`repositories/test_report_query_derived_contract.py` |
 | RK-076 | 화면: Actions 표는 서버 risk가 기한초과일 때 Open이고 Due가 지난 모든 행에 배지를 달고 종료 행에는 달지 않는다 | RK-R18, RK-UC5 | frontend | `features/deals/detail/ActionTable.risk.test.tsx` |
-| RK-077 | 화면: 목록 Due 칸은 기준 행이 Open이고 Due가 지났을 때만 강조한다 | RK-R16, RK-UC5 | frontend | `features/deals/list/DealsPage.columns.test.tsx` |
+| RK-077 | 화면: 기한초과 Deal의 목록 Next Action·Due 칸은 지난 Open Next Action이고 Due 칸을 강조하며, 종결 Deal은 지난 Open을 보여도 강조하지 않는다 | RK-R16, RK-R1, RK-UC5 | frontend | `features/deals/list/DealsPage.columns.test.tsx` |
 | RK-078 | 화면: 목록 범례의 기한초과 설명은 "Open인 Next Action의 Due Date가 지났습니다"다 | RK-R16, RK-UC5 | frontend | `features/deals/list/DealsPage.test.tsx` |
 | RK-079 | computeRisk와 Fake 게이트웨이는 Open Next Action 중 가장 이른 Due로 기한초과를 판정한다 | RK-R21, RK-R4 | frontend | `shared/model/risk.test.ts`<br>`test/fake/gateway/deals.read.test.ts` |
+| RK-080 | 기한초과 Deal의 next_action은 지난 Open Next Action 중 Due가 가장 이른 행이고 목록·상세가 같다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_overdue_basis.py` |
+| RK-081 | 지난 Open Next Action의 Due가 같으면 id가 큰 행이고 수행일은 보지 않는다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_overdue_basis.py` |
+| RK-082 | 지난 Open Next Action을 모두 종료하면 next_action은 다시 가장 최근 Next Action 행이고, 하나를 Open으로 되돌리면 그 행이 된다 | RK-R1, RK-UC1 | backend | `application/test_deal_views_overdue_basis.py` |
+| RK-083 | Due가 오늘인 Open 행은 지난 행이 아니고 다음 날 요청부터 기준 행이 된다 | RK-R1, RK-R4, RK-UC1 | backend | `application/test_deal_views_overdue_basis.py` |
+| RK-084 | 종결(Won·Lost) Deal도 지난 Open Next Action이 있으면 그 행을 보이고 risk는 null이다 | RK-R1, RK-R3, RK-UC1 | backend | `application/test_deal_views_overdue_basis.py` |
+| RK-085 | 실제 DB에서 목록 행·상세의 next_action(action_id 포함)과 이전 Next Action 종료 대상 조회가 Fake와 같은 기준 행을 고른다 | RK-R1, RK-UC1 | backend | `repositories/test_deal_next_action_basis_contract.py`, `repositories/test_deal_action_next_action_basis_contract.py` |
+| RK-086 | 기준 행 선택 함수(backend domain·frontend Fake)는 지난 Open 우선·Due 오름차순·id 내림차순, 없으면 수행일·id 내림차순이다 | RK-R1, RK-R21 | both | `domain/test_next_action_basis.py`(backend), `test/fake/gateway/nextActionBasis.test.ts` |
+| RK-087 | 화면: 상세 요약 바 Next Action 줄은 기한초과 배지와 같은 지난 Open Next Action을 보인다 | RK-R17, RK-R1, RK-UC5 | frontend | `features/deals/detail/SummaryBar.basis.test.tsx` |
+| RK-088 | Fake 게이트웨이의 Deal 목록·상세 nextAction(actionId 포함)은 서버와 같은 기준 행을 고른다 | RK-R21, RK-R1 | frontend | `test/fake/gateway/nextActionBasis.test.ts`<br>`features/deals/detail/ActionForm.basisFromServer.test.tsx` |
+| RK-089 | Deal 응답 next_action.action_id는 기준 행 Action id이고 openapi에 required integer로 있으며 기준 행이 없으면 next_action이 null이다 | RK-R1, 2.6, RK-UC1 | backend | `web/test_deal_response_next_action_id.py` |
+| RK-090 | HTTP Deal 매퍼는 next_action.action_id를 nextAction.actionId로 그대로 옮긴다 | RK-R21 | frontend | `gateway/http/mappers/deal.test.ts` |
 
 ### RK-001 Next Action 기준 행은 Next Action이 있는 가장 최근 Action이고 더 최근의 진행사항만 Action은 대신하지 않는다
 - Given Deal에 Next Action "계약서 검토"(Due 오늘+30일) Action이 있고, 그 뒤에 진행사항만 Action "전화 통화"가 등록되었다
@@ -677,10 +698,10 @@ RK-R15~R21.
 - When `upgrade head`를 실행한 뒤 다시 `downgrade -1`을 실행한다
 - Then upgrade 뒤에는 Deal이 2건 그대로이고, `status_changed_on`은 2026-11-13, 2026-11-12(NOT NULL)이며, `status_changed_at` 컬럼이 없다. downgrade 뒤에는 `status_changed_at`이 `2026-11-13T00:00:00+09:00`, `2026-11-12T00:00:00+09:00`(NOT NULL)이고 `status_changed_on` 컬럼이 없다
 
-### RK-070 기준 행은 종료됐지만 그보다 앞선 Open Next Action의 Due가 지났으면 기한초과이고 next_action은 기준 행 그대로다
-- Given 오늘이 2026-01-10이다. 최근 갱신한 Deal에 01-01 수행 Action A(Next Action "견적 발송", Due 01-05, Open)와 01-09 수행 Action B(Next Action "데모", Due 01-20)가 있고 B만 `done`으로 종료했다
+### RK-070 가장 최근 Next Action은 종료됐지만 그보다 앞선 Open Next Action의 Due가 지났으면 기한초과이고 next_action은 그 지난 Open Next Action이다
+- Given 오늘이 2026-01-10이다. 최근 갱신한 Deal에 01-01 수행 Action A(Next Action "견적 발송", Due 01-05, Open)와 01-09 수행 Action B(Next Action "데모", Due 01-20)가 있고, B만 `done`으로 종료했다
 - When 목록과 상세를 조회한다
-- Then `risk`는 `"overdue"`이고 `next_action`은 B의 `{text: "데모", due_date: 2026-01-20, status: "done"}`이다
+- Then `risk`는 `"overdue"`다. 두 응답의 `next_action`은 A의 `{text: "견적 발송", due_date: 2026-01-05, status: "open", action_id: A.id}`이다
 
 ### RK-071 종료한 Next Action을 Open으로 되돌리면 Due가 지났을 때 다시 기한초과다
 - Given 최근 갱신한 Deal의 유일한 Next Action(Due 어제)을 `done`으로 종료해 `risk`가 `null`이다
@@ -712,10 +733,10 @@ RK-R15~R21.
 - When Actions 탭을 연다
 - Then A·B 행 Due 칸에만 "기한초과" 배지가 있고 C·D·E·F 행에는 없다
 
-### RK-077 화면: 목록 Due 칸은 기준 행이 Open이고 Due가 지났을 때만 강조한다
-- Given 앱 시계 오늘이 2026-11-18이다. 서버 `risk`가 `"overdue"`인 Deal X(`next_action` Open, Due 11-10)와 Deal Y(`next_action` `done`, Due 11-30 — 예전 Open 행 때문에 기한초과)가 있다
+### RK-077 화면: 기한초과 Deal의 목록 Next Action·Due 칸은 지난 Open Next Action이고 Due 칸을 강조하며, 종결 Deal은 지난 Open을 보여도 강조하지 않는다
+- Given Fake 시계의 오늘이 2026-11-18이다. Deal Y에는 Action A(Next Action "견적 발송", Due 11-10, Open)와 그 뒤 Action B(Next Action "데모", Due 11-30, `done`)가 있다. Forecast Won인 Deal W에는 Action C(Next Action "후속 연락", Due 11-12, Open)만 있다
 - When Deals 목록을 연다
-- Then X 행 Due 칸에는 `overdue` 표시가 있고 Y 행 Due 칸에는 없으며, 두 행 모두 이름 옆 "기한초과" 배지와 `risk-overdue` 행 클래스가 있다
+- Then Y 행은 Next Action "견적 발송", Due 2026-11-10(`overdue` 표시), 상태 Open을 보이고, 이름 옆에 "기한초과" 배지와 `risk-overdue` 행 클래스가 있다. W 행은 "후속 연락"·2026-11-12·Open을 보이지만 Due 칸 표시·경고 배지·행 클래스가 없다
 
 ### RK-078 화면: 목록 범례의 기한초과 설명은 "Open인 Next Action의 Due Date가 지났습니다"다
 - When Deals 목록을 연다
@@ -726,6 +747,61 @@ RK-R15~R21.
 - When `computeRisk`에 `earliestOpenDue`(어제·오늘·null)를 넣어 판정하고, Fake 게이트웨이로 Deal 목록(`overdue` 필터 포함)과 상세를 읽고, P의 Next Action을 Open으로 되돌린 뒤 다시 읽는다
 - Then `computeRisk`는 어제만 기한초과이고, Fake 목록·상세는 Q만 `"overdue"`이며, 되돌린 뒤에는 P도 `"overdue"`다
 
+### RK-080 기한초과 Deal의 next_action은 지난 Open Next Action 중 Due가 가장 이른 행이고 목록·상세가 같다
+- Given 오늘이 2026-01-10이다. 최근 갱신한 Deal에 다음 Action이 있다: A(01-01 수행, Next Action "견적 발송", Due 01-06, Open), B(01-03 수행, "제안서", Due 01-04, Open), C(01-09 수행, "데모", Due 01-20, Open)
+- When 목록과 상세를 조회한다
+- Then 두 응답 모두 `risk`가 `"overdue"`다. `next_action`은 B의 `{text: "제안서", due_date: 2026-01-04, status: "open", action_id: B.id}`이다
+
+### RK-081 지난 Open Next Action의 Due가 같으면 id가 큰 행이고 수행일은 보지 않는다
+- Given 오늘이 2026-01-10이다. Deal에 다음 Action이 있다: 먼저 등록한 A(01-08 수행, "가", Due 01-05, Open), 나중에 등록해 id가 큰 B(01-02 수행, "나", Due 01-05, Open), C(01-09 수행, "다", Due 01-30, Open)
+- When 상세를 조회한다
+- Then `next_action.text`는 "나"이고 `action_id`는 B.id다(수행일이 더 늦은 A가 아니다)
+
+### RK-082 지난 Open Next Action을 모두 종료하면 next_action은 다시 가장 최근 Next Action 행이고, 하나를 Open으로 되돌리면 그 행이 된다
+- Given RK-080과 같은 Deal이다(오늘 2026-01-10)
+- When B를 `done`, A를 `not_done`으로 종료한 뒤 상세를 조회한다. 이어서 A를 `open`으로 되돌린 뒤 다시 조회한다
+- Then 첫 조회의 `next_action`은 C(`text: "데모"`, `status: "open"`, `action_id: C.id`)이고 `risk`는 `null`이다. 둘째 조회의 `next_action`은 A(`text: "견적 발송"`, `due_date: 2026-01-06`, `action_id: A.id`)이고 `risk`는 `"overdue"`다
+
+### RK-083 Due가 오늘인 Open 행은 지난 행이 아니고 다음 날 요청부터 기준 행이 된다
+- Given Deal에 Action A(01-02 수행, "견적", Due 2026-01-10, Open)와 그 뒤 Action B(01-09 수행, "데모", Due 01-30, `done`)가 있다
+- When 업무 날짜 2026-01-10에 상세를 조회하고, 데이터를 바꾸지 않은 채 2026-01-11에 다시 조회한다
+- Then 01-10 조회의 `next_action`은 B(`status: "done"`)이고 `risk`는 기한초과가 아니다. 01-11 조회의 `next_action`은 A(`due_date: 2026-01-10`, `status: "open"`, `action_id: A.id`)이고 `risk`에 기한초과가 있다
+
+### RK-084 종결(Won·Lost) Deal도 지난 Open Next Action이 있으면 그 행을 보이고 risk는 null이다
+- Given 오늘이 2026-01-10이다. Forecast `won`(계약완료)인 Deal과 `lost`인 Deal에 각각 Action A(01-01 수행, "후속 연락", Due 01-05, Open)와 그 뒤 Action B(01-09 수행, "감사 메일", Due 01-20, `done`)가 있다
+- When 목록과 상세를 조회한다
+- Then 두 Deal 모두 `next_action`은 A(`text: "후속 연락"`, `status: "open"`, `action_id: A.id`)이고 `risk`는 `null`이다
+
+### RK-085 실제 DB에서 목록 행·상세의 next_action과 이전 Next Action 종료 대상 조회가 Fake와 같은 기준 행을 고른다
+- Given 실제 DB와 Fake 저장소에 같은 Deal들이 있다: RK-080, RK-081, RK-083(Due 오늘인 행), RK-084(Won)과 같은 Deal과, 지난 Open이 없는 Deal(가장 최근 행 `done`)
+- When 같은 오늘로 `DealRepository.search`·`get_item`과 `DealActionRepository.next_action_basis`를 부른다. 또 `next_action_status`를 `open`·`closed`로 걸어 검색한다
+- Then Deal마다 목록·상세의 `next_action.action_id`와 종료 대상 Action id가 같다. 상태 필터 결과는 그 행의 상태로 갈린다. 실제 DB와 Fake의 결과가 같다
+
+### RK-086 기준 행 선택 함수는 지난 Open 우선·Due 오름차순·id 내림차순, 없으면 수행일·id 내림차순이다
+- Given 오늘이 2026-01-10이다. 행 목록에 다음 행이 있다: 지난 Open 두 행(Due 01-05, id 3·7), 지난 Open 한 행(Due 01-08), Due가 오늘인 Open 행, Due가 지난 `done` 행, 진행사항만 있는 행
+- When backend domain `pick_next_action_basis`와 frontend Fake `nextActionBasisOf`에 같은 오늘로 이 목록을 넣는다. 지난 Open 세 행을 뺀 목록과 Next Action 행이 없는 목록도 넣는다
+- Then 처음 목록은 id 7 행이다. 지난 Open을 뺀 목록은 수행일 내림차순(같으면 id 내림차순) 첫 행이다. Next Action 행이 없으면 없음(None·undefined)이다. 입력 목록은 바뀌지 않는다
+
+### RK-087 화면: 상세 요약 바 Next Action 줄은 기한초과 배지와 같은 지난 Open Next Action을 보인다
+- Given Fake 시계의 오늘이 2026-11-18이다. 최근 갱신한 Deal에 Action A(11-01 수행, "견적 발송", Due 11-10, Open)와 그 뒤 Action B(11-15 수행, "데모", Due 11-30, `done`)가 있다
+- When Deal 상세를 연다
+- Then 요약 바 Next Action 줄은 "견적 발송", "Due 2026-11-10", "Open"과 "기한초과" 배지를 보인다
+
+### RK-088 Fake 게이트웨이의 Deal 목록·상세 nextAction은 서버와 같은 기준 행을 고른다
+- Given Fake 시계의 오늘이 2026-01-10이고, Fake 데이터에 RK-080·RK-084와 같은 Deal이 있다
+- When Fake 게이트웨이로 목록과 상세를 읽는다. 이어서 RK-080 Deal의 B·A를 종료한 뒤 다시 읽는다
+- Then 처음 읽은 `nextAction`은 RK-080 Deal이 B(Open, `actionId` B.id), Won Deal이 A(Open, `risk` null)다. 종료 뒤에는 C(`actionId` C.id)다
+
+### RK-089 Deal 응답 next_action.action_id는 기준 행 Action id이고 openapi에 required integer로 있다
+- Given 기준 행이 있는 Deal과 Next Action이 하나도 없는 Deal이 있다
+- When 목록 행·상세·등록·수정·변경 적용 응답과 OpenAPI 문서를 만든다
+- Then 첫 Deal의 `next_action`은 키가 정확히 `text`·`due_date`·`status`·`action_id`이고, `action_id`는 기준 행 id(JSON 정수)다. 둘째 Deal은 `next_action`이 `null`이다. OpenAPI의 next_action 객체 스키마에서 `action_id`는 required `integer`다
+
+### RK-090 HTTP Deal 매퍼는 next_action.action_id를 nextAction.actionId로 그대로 옮긴다
+- Given 서버 Deal 응답의 `next_action`이 `{text: "견적 발송", due_date: "2026-01-05", status: "open", action_id: 41}`이고, 다른 응답은 `next_action: null`이다
+- When Deal 응답을 화면 모델로 바꾼다
+- Then `nextAction`은 `{text: "견적 발송", dueDate: "2026-01-05", status: "open", actionId: 41}`이고, 다른 응답은 `null`이다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -735,3 +811,4 @@ RK-R15~R21.
 | 2026-11-13 | 확정(2026-11-13 사용자 확인): 업무 날짜를 date로 저장. 최종 업데이트는 `last_updated_on`, Status 진입일은 `status_changed_on`(용어, 2.2, RK-R1·R2·R5·R8·R9·R10·R16·R17·R21, 2.4, 2.6, UC3), RK-R22 신설(데이터 변환). 응답 필드 이름·타입 변경(호환 깨짐, 사용자 승인). 경고·체류 일수 결과는 같다 | 신규 RK-067~RK-069. 변경 RK-002, RK-004~RK-006, RK-026, RK-031~RK-040, RK-056, 본문에 last_updated_at·statusChangedAt이 있던 케이스 |
 | 2026-11-13 | AC 변경(Action 수정 때 수행일 변경, AC-R45·R46)에 맞춰 1장 범위·RK-R2 하위 항목 문구 갱신, RK-007 제목을 '내용 수정'으로. RK 규칙 정의·케이스 동작 불변 | 변경: RK-007(제목만) |
 | 2026-11-18 | 확정(2026-11-18 사용자 확인: 행 배지는 앱 시계, 배포 영향 수용): 기한초과는 Open Next Action만, 기준 행이 아니라 Open인 것 중 하나라도 Due가 지나면 기한초과(RK-R4 재정의, Q1·Q2 답). 용어(Open Next Action 행·가장 이른 Open Due), 2.2(파생 값 `earliest_open_due`, 스키마·데이터 변경 없음), RK-R1(종료 기준 행 표시 설명), RK-R8(SQL 기한초과 조건), RK-R16(범례 문구·Due 칸 강조는 기준 행이 Open이고 지났을 때만), RK-R17, RK-R18(Open이고 Due 지난 모든 행에 배지, 앱 시계 사용), RK-R21(Fake 입력 `earliestOpenDue`), 2.6(API 모양 불변). 마이그레이션 없음 | 신규 RK-070~RK-079. 변경 RK-009, RK-011, RK-012(제목·Given), RK-013(결과 반대: 종료하면 풀림), RK-058(기준 행 조건 제거), RK-066(Then 문구). 회귀 확인 RK-010, RK-017, RK-018, RK-027~RK-029, RK-051, RK-055 |
+| 2026-11-20 | 확정(2026-11-20 사용자 확인): 사용자 요청 "기한초과 Deal 상세에 실제로 기한이 지난 Next Action이 나오도록". 사용자 결정은 다섯 가지다: 여러 개면 Due가 가장 이른 것, 같은 Due면 큰 id, 목록·CSV·Next Action 상태 필터도 같은 규칙, Q1 종결 Deal도 같은 규칙, Q3 서버가 기준 행 id를 응답에 표시. 바뀐 곳: RK-R1 재정의(지난 Open Next Action 우선, 없으면 가장 최근 행, 응답 `next_action.action_id`), 용어(기준 행·지난 Open Next Action 행), 2.2, RK-R4 하위 항목, RK-R16·R17·R21, 2.6(`action_id` 하위 호환 추가). 마이그레이션 없음 | 신규 RK-080~RK-090. 변경 RK-070(Then: next_action이 지난 Open 행), RK-077(Given·Then). 영향: `next_action` 키 집합을 보는 RK-026·web 응답 테스트와 `nextAction` 객체를 만드는 frontend 도우미(`actionId` 필수). 회귀 확인 RK-001~RK-003, RK-008, RK-012, RK-013, RK-074, RK-076, RK-079 |

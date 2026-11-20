@@ -95,10 +95,18 @@ async def test_a_later_date_beats_a_larger_id(action_env: ActionEnv, code: str) 
     테스트 코드: AC-111
     """
     # given: 수행일 11-12 Action을 먼저, 수행일 11-10 Action을 나중에(더 큰 id로) 등록한다
+    # (Due는 모두 오늘 이후라 지난 Open 우선 규칙(RK-R1 ①)에 들지 않는다)
     await action_env.act(
-        KIM, code=code, advance=0, acted_on=date(2026, 11, 12), next_action="늦은 날"
+        KIM,
+        code=code,
+        advance=0,
+        acted_on=date(2026, 11, 12),
+        next_action="늦은 날",
+        due_date=date(2026, 12, 1),
     )
-    await action_env.act(KIM, code=code, advance=0, acted_on=DAY, next_action="이른 날")
+    await action_env.act(
+        KIM, code=code, advance=0, acted_on=DAY, next_action="이른 날", due_date=date(2026, 12, 1)
+    )
 
     # when: Deal 목록의 Next Action과 내림차순 목록을 읽는다
     (row,) = (await action_env.env.list.execute(DealQuery(keyword=code))).items

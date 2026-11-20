@@ -106,7 +106,7 @@ async def add_verbal_code(env: DealEnv) -> None:
 
 async def ledger(env: DealEnv, query: DealQuery) -> tuple[int, int]:
     """같은 조건 Deal 목록 원장의 (건수, revenue_amount 합). 한 페이지(200건) 안에서만 쓴다."""
-    items = await env.uow.deals.search(query)
+    items = await env.uow.deals.search(query.with_today(date(2026, 1, 1)))
     assert len(items) < 200, "원장 도우미는 한 페이지 분량만 센다"
     total = await env.uow.deals.count(query)
     assert total == len(items)

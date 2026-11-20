@@ -23,6 +23,7 @@ from tests.fakes.in_memory import InMemoryStore
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
+    from datetime import date
 
     from app.application.ports.deal_action_repository import DealActionQuery
     from app.domain.action_type.values import ActionTypeId
@@ -191,18 +192,19 @@ class FakeDealActionRepository(InMemoryStore[DealAction]):
         stored.updated_at = action.updated_at
         self._replace(stored)
 
-    async def latest_with_next_action(self, deal_code: DealCode) -> DealAction | None:
-        """그 Deal에서 Next Action이 있는 가장 최근 Action(수행일·id 내림차순 첫 행). 없으면 None.
+    async def next_action_basis(self, deal_code: DealCode, *, today: date) -> DealAction | None:
+        """그 Deal의 Next Action 기준 행(RK-R1). 없으면 None.
 
-        Deal 목록·상세의 Next Action 기준 행과 같은 정의다(`FakeDealRepository`와 같은 정렬).
+        정의는 domain `pick_next_action_basis`(지난 Open 중 Due가 가장 이른 행 우선, 없으면 가장
+        최근 행)이고 Deal 목록·상세의 `next_action`과 같은 행이다.
         """
-        found = [
-            a
-            for a in self._items.values()
-            if a.deal_code == deal_code and a.content.next_action is not None
-        ]
-        latest = max(found, key=lambda a: (a.acted_on, a.id), default=None)
-        return None if latest is None else self._named(latest)
+        from app.domain.deal_action.next_action_basis import (  # noqa: PLC0415 - 지연 import
+            pick_next_action_basis,
+        )
+
+        found = [a for a in self._items.values() if a.deal_code == deal_code]
+        basis = pick_next_action_basis(found, today)
+        return None if basis is None else self._named(basis)
 
     async def delete(self, action_id: DealActionId) -> None:
         """물리 삭제. 없으면 DealActionNotFoundError."""

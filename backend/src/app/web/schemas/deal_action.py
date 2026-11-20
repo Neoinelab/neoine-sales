@@ -120,8 +120,10 @@ class DealActionCreateRequest(ActionContentRequest):
         BodyId | None,
         Field(
             description=(
-                "저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 "
-                "'Next Action이 있는 가장 최근 Action'과 다르면 409(invalid-state), "
+                "저장하며 종료(수행)로 바꿀 이전 Next Action의 Action id. 그 Deal의 기준 행"
+                "(지난 Open Next Action이 있으면 그중 Due가 가장 이른 것, 같으면 id가 큰 것, "
+                "없으면 Next Action이 있는 가장 최근 Action = Deal 응답 "
+                "next_action.action_id의 행)과 다르면 409(invalid-state), "
                 "담당자 본인·admin이 아니면 403. 이미 종료된 행이면 상태를 바꾸지 않는다. "
                 "생략하거나 null이면 이전 행을 바꾸지 않는다."
             )

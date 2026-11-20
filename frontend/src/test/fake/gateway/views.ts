@@ -21,6 +21,7 @@ import type {
 import { notFound } from '../errors'
 import type { ActionRecord, AttachmentRecord, CommentRecord, HistoryRecord, SeedData, UserRecord } from '../store'
 import { hasIssuedContract } from './contractWon'
+import { pickNextActionBasis } from './nextActionBasis'
 import { clone, type MockContext } from './context'
 
 const UNKNOWN_USER: UserRef = { id: 0, name: '알 수 없음', role: 'user', status: 'resigned' }
@@ -106,14 +107,12 @@ export function latestAction(data: SeedData, dealCode: string): ActionRecord | u
   return best
 }
 
-/** Next Action이 있는 가장 최근 Action. 목록·상세의 Next Action, 상태 필터, 기한초과의 기준 행이다. */
-export function latestNextAction(data: SeedData, dealCode: string): ActionRecord | undefined {
-  let best: ActionRecord | undefined
-  for (const a of data.actions) {
-    if (a.dealCode !== dealCode || a.nextAction === null) continue
-    if (!best || a.actedOn > best.actedOn || (a.actedOn === best.actedOn && a.id > best.id)) best = a
-  }
-  return best
+/** RK-R1 기준 행(지난 Open Next Action 우선). 목록·상세의 Next Action, 상태 필터의 기준이다. `today`는 Fake 시계의 업무 날짜. */
+export function nextActionBasisOf(data: SeedData, dealCode: string, today: string): ActionRecord | null {
+  return pickNextActionBasis(
+    data.actions.filter((a) => a.dealCode === dealCode),
+    today,
+  )
 }
 
 function contactOf(data: SeedData, id: number): Contact {
@@ -139,10 +138,10 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
   const now = ctx.clock.now()
   // E4: 모든 Action의 최근 수행일, 없으면 업무 시간대 기준 Deal 등록일(RK-067). Deal 수정(updatedAt)은 반영하지 않는다.
   const lastUpdatedOn = latest ? latest.actedOn : businessDate(deal.createdAt, offsetMinutes(now))
-  const basis = latestNextAction(data, deal.code)
+  const basis = nextActionBasisOf(data, deal.code, ctx.clock.today())
   const nextAction =
     basis && basis.nextAction !== null && basis.dueDate !== null && basis.nextActionStatus !== null
-      ? { text: basis.nextAction, dueDate: basis.dueDate, status: basis.nextActionStatus }
+      ? { text: basis.nextAction, dueDate: basis.dueDate, status: basis.nextActionStatus, actionId: basis.id }
       : null
   const { vendorId, ...rest } = clone(deal)
   const vendor = data.vendors.find((v) => v.id === vendorId)

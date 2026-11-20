@@ -229,8 +229,10 @@ async def test_the_latest_past_action_becomes_the_next_action_and_last_updated(
 
     테스트 코드: AC-098
     """
-    # given: 11-05 10:00에 등록한 Next Action "견적 발송" Action뿐이다
-    await _given_action(action_env, code, _at(5), next_action="견적 발송")
+    # given: 11-05 10:00에 등록한 Next Action "견적 발송"(Due 11-20, 아직 지나지 않음) Action뿐이다
+    await _given_action(
+        action_env, code, _at(5), next_action="견적 발송", due_date=date(2026, 11, 20)
+    )
 
     # when: 수행일 11-10으로 Next Action "자료 전달"(Due 11-15)을 등록한다
     await action_env.act(

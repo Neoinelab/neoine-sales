@@ -15,8 +15,8 @@ from sqlalchemy import ColumnElement, and_, exists, extract, func, or_, select
 from app.infra.db.deal_derived import (
     LAST_UPDATED,
     LATEST_ACTED,
-    LATEST_NEXT,
     last_updated_scalar,
+    latest_next,
 )
 from app.infra.db.deal_list_order import order_clause
 from app.infra.db.deal_risk import (
@@ -96,12 +96,13 @@ def _outcome_condition(outcome: ForecastOutcomeFilter) -> ColumnElement[bool]:
     )
 
 
-def _next_action_condition(statuses: NextActionStatusFilter) -> ColumnElement[bool]:
+def _next_action_condition(statuses: NextActionStatusFilter, today: date) -> ColumnElement[bool]:
     """기준 Next Action 행의 상태가 필터에 속하는 Deal."""
     wanted = [status.value for status in statuses.statuses()]
+    basis = latest_next(today)
     return (
-        select(LATEST_NEXT.c.deal_id)
-        .where(LATEST_NEXT.c.deal_id == DealRow.id, LATEST_NEXT.c.next_action_status.in_(wanted))
+        select(basis.c.deal_id)
+        .where(basis.c.deal_id == DealRow.id, basis.c.next_action_status.in_(wanted))
         .correlate(DealRow)
         .exists()
     )
@@ -140,7 +141,9 @@ def conditions(query: DealQuery) -> list[ColumnElement[bool]]:
     if query.forecast_outcome is not None:
         found.append(_outcome_condition(query.forecast_outcome))
     if query.next_action_status is not None:
-        found.append(_next_action_condition(query.next_action_status))
+        if query.today is None:
+            raise ValueError("next_action_status 필터에는 query.today가 필요하다")
+        found.append(_next_action_condition(query.next_action_status, query.today))
     if query.product is not None:
         found.append(DealRow.product.ilike(like_pattern(query.product), escape=LIKE_ESCAPE))
     found.extend(column == wanted for column, wanted in equals if wanted is not None)
@@ -183,33 +186,37 @@ def _has_issued_contract() -> ColumnElement[bool]:
     )
 
 
-def item_select() -> ItemSelect:
+def item_select(today: date) -> ItemSelect:
     """Deal 행과 파생값.
 
     최종 업데이트일, 기준 행의 Next Action·Due·상태, 가장 이른 Open Due,
     계약 수·읽지 않은 Comment 수, 발급 계약 여부.
     """
+    basis = latest_next(today)
     return (
         select(
             DealRow,
             LAST_UPDATED.label("last_updated_on"),
-            LATEST_NEXT.c.next_action,
-            LATEST_NEXT.c.due_date,
-            LATEST_NEXT.c.next_action_status.label("basis_status"),
+            basis.c.action_id.label("basis_action_id"),
+            basis.c.next_action,
+            basis.c.due_date,
+            basis.c.next_action_status.label("basis_status"),
             earliest_open_due_scalar().label("earliest_open_due"),
             _contract_count().label("license_contract_count"),
             _unread_comment_count().label("unread_comment_count"),
             _has_issued_contract().label("has_issued_license_contract"),
         )
         .outerjoin_from(DealRow, LATEST_ACTED, LATEST_ACTED.c.deal_id == DealRow.id)
-        .outerjoin_from(DealRow, LATEST_NEXT, LATEST_NEXT.c.deal_id == DealRow.id)
+        .outerjoin_from(DealRow, basis, basis.c.deal_id == DealRow.id)
     )
 
 
 def search_select(query: DealQuery) -> ItemSelect:
     """조건·정렬·페이지를 적용한 목록 질의. 정렬의 동률은 항상 Deal code 오름차순이다."""
+    if query.today is None:
+        raise ValueError("목록 조회에는 query.today가 필요하다")
     return (
-        item_select()
+        item_select(query.today)
         .where(*conditions(query))
         .order_by(*order_clause(query.sort, query.order))
         .offset(query.offset)

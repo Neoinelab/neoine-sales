@@ -47,7 +47,7 @@ export function toDealRow(row: Schemas['DealRowResponse']): DealRow {
     bant: { ...row.bant },
     licenseContractCount: row.license_contract_count,
     hasIssuedLicenseContract: row.has_issued_license_contract,
-    nextAction: row.next_action === null ? null : { text: row.next_action.text, dueDate: row.next_action.due_date, status: toNextActionStatus(row.next_action.status) },
+    nextAction: row.next_action === null ? null : { actionId: row.next_action.action_id, text: row.next_action.text, dueDate: row.next_action.due_date, status: toNextActionStatus(row.next_action.status) },
     lastUpdatedOn: row.last_updated_on,
     statusChangedOn: row.status_changed_on,
     statusDays: row.status_days,

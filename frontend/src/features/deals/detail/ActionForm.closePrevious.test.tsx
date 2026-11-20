@@ -485,7 +485,7 @@ describe('카드가 바뀐 뒤의 채움·체크', () => {
 })
 
 describe('이전 Update 카드의 기준 행 (서버 정의와 같다)', () => {
-  // 이전 Update 카드는 가장 최근 Next Action 행이고 같은 시각이면 id가 큰 행이다.
+  // 이전 Update 카드는 서버 기준 행(지난 Open이 없으면 가장 최근 Next Action 행, 같은 시각이면 id가 큰 행)이다.
   // 테스트 코드: AC-081
   it('shows the latest next action row, ties of the same acted time broken by the higher id', async () => {
     // given: 같은 Fake 시각에 Next Action 행 두 건이 등록된 Deal 1
@@ -495,7 +495,7 @@ describe('이전 Update 카드의 기준 행 (서버 정의와 같다)', () => {
     const base = { type: { name: '미팅' }, progress: '같은 시각', dueDate: '2026-11-01', comment: '' }
     await gateway.actions.create(code, { ...base, nextAction: '먼저 저장한 것' })
     const later = await gateway.actions.create(code, { ...base, nextAction: '나중에 저장한 것' }) // 같은 Fake 시각, 더 큰 id
-    await client.invalidateQueries({ queryKey: keys.actions(code) })
+    await client.invalidateQueries() // 카드는 상세의 nextAction.actionId를 따르므로 Deal 캐시도 다시 읽는다
     await screen.findByRole('table', { name: 'Action 목록' })
 
     // when: 추가 팝업을 열고 카드를 채워 등록한다

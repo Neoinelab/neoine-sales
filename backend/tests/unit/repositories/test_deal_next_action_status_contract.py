@@ -29,7 +29,7 @@ async def test_deal_list_next_action_skips_progress_only_rows(deal_case: DealCas
     # given: Next Action이 있는 Action과, 더 최근의 진행사항만 있는 Action을 가진 Deal
     deal = make_deal(later(5), code=CODE)
     await deal_case.add(deal)
-    await deal_case.add_action(
+    basis = await deal_case.add_action(
         deal, acted_on=date_after(1), next_action="계약서 검토", due_date=date(2026, 2, 5)
     )
     await deal_case.add_action(deal, acted_on=date_after(2), action="통화만", next_action="")
@@ -38,9 +38,12 @@ async def test_deal_list_next_action_skips_progress_only_rows(deal_case: DealCas
     (listed,) = await deal_case.deals.search(DealQuery())
     detail = await deal_case.deals.get_item(deal.id)
 
-    # then: 둘 다 Next Action이 있는 Action의 요약을 보여 준다
+    # then: 둘 다 Next Action이 있는 Action의 요약(action_id 포함)을 보여 준다
     expected = NextActionSummary(
-        text="계약서 검토", due_date=date(2026, 2, 5), status=NextActionStatus.OPEN
+        text="계약서 검토",
+        due_date=date(2026, 2, 5),
+        status=NextActionStatus.OPEN,
+        action_id=basis.id,
     )
     assert listed.next_action == expected
     assert detail.next_action == expected
