@@ -78,11 +78,12 @@ describe('상세 팝업에서 수행일을 보내는 방식', () => {
     const update = vi.spyOn(gateway.actions, 'update')
     const { view, dialog } = await openTarget()
 
-    // when: 진행사항만 고쳐 Enter를 누른다
+    // when: 진행사항만 고쳐 "진행사항 저장"을 누른다
     await view.user.click(within(dialog).getByRole('button', { name: '진행사항 수정' }))
     const progress = within(dialog).getByLabelText('진행사항')
     await view.user.clear(progress)
-    await view.user.type(progress, '수행일 그대로{Enter}')
+    await view.user.type(progress, '수행일 그대로')
+    await view.user.click(within(dialog).getByRole('button', { name: '진행사항 저장' }))
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
     // then: 요청에 actedOn이 없다
     expect(update.mock.calls[0]?.[1]).not.toHaveProperty('actedOn')

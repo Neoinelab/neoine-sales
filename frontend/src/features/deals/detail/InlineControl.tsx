@@ -13,6 +13,8 @@ export interface InlineControlContext {
   inputLabel: string
   /** 여는 순간 값 버튼의 높이(px, 못 쟀으면 0). */
   startHeight: number
+  /** 저장 중(입력기를 끈다). */
+  busy: boolean
 }
 
 export type InlineKind = 'text' | 'number' | 'amount' | 'date' | 'select' | 'combo' | 'custom'
@@ -37,7 +39,7 @@ interface InlineControlProps {
 /** InlineEdit이 쓰는 입력기: 텍스트·숫자·날짜 input, select, 자동완성 ComboBox, 사용자 지정. */
 export function InlineControl(props: InlineControlProps) {
   const { kind, name, inputLabel, value, onChange, busy, options, sanitize, onPick, commit, control, startHeight = 0 } = props
-  if (kind === 'custom' && control) return <>{control({ value, onChange, commit, inputLabel, startHeight })}</>
+  if (kind === 'custom' && control) return <>{control({ value, onChange, commit, inputLabel, startHeight, busy })}</>
   if (kind === 'select') {
     return (
       <select aria-label={inputLabel} value={value} onChange={(e) => onChange(e.target.value)} disabled={busy}>

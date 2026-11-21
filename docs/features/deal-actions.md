@@ -7,6 +7,8 @@
 > 2026-11-16 변경(확정, 2026-11-16 사용자 확인): Actions 탭 개편(사용자 요청 "Actions 탭에서 보여주는 항목중에 등록시점의 담당자/Status/Forecast/Memo/삭제 항목은 제거해주고, 진행사항과 Next Action의 폭을 더 넓혀주도록 한다. 특정 action을 클릭하였을때 팝업으로 전체내용(앞에서 제거된 항목 포함)을 보여주고, Deal 상세처럼 inline으로 수정되도록 한다. 삭제 버튼은 해당 팝업으로 이동하며, 삭제시 삭제 컨펌을 받도록 한다."). 표에서 담당자·등록 시점 Status·Forecast·Memo·관리(수정·삭제) 열을 빼고 진행사항·Next Action 칸을 넓힌다(AC-R21·R22·R53). 행을 누르면 Action 상세 팝업이 모든 항목을 보이고(AC-R48·R49) 칸별 인라인 수정(AC-R50·R51)과 확인 뒤 삭제(AC-R52, AC-R31)를 한다. "Action 수정" 팝업은 폐지한다(AC-R30). 백엔드·API·마이그레이션 변경은 없다. 확인 질문 Q1~Q8은 2026-11-16 사용자가 확정했습니다(Q1~Q3·Q5·Q6·Q8 권고안대로, Q4·Q7은 사용자 변경: 상세 팝업에서도 Next Action 상태를 바꾼다 AC-R54, 진행사항·Next Action 칸은 한글 약 40자 폭 `min-width: 40em` AC-R53). 기록은 `artifacts/10-analysis/01-plan.md`.
 >
 > 2026-11-21 변경(확정 2026-11-21 사용자 확인): Action 상세 팝업 크기(사용자 요청 "Action 상세 팝업창의 폭을 전체 영역에 80% 정도까지 확장해주고, 진행사항이나 Next Action 수정시 text 영역이 현재 마우스 over를 하였을때의 text 영역과 동일한 크기를 갖도록 한다."). 신설 AC-R55(팝업 폭 = 화면 폭의 80%, 진행사항·Next Action 편집 칸 = 읽기 상자와 같은 폭·높이), 변경 AC-R49·AC-R51(Next Action 입력을 여러 줄 칸으로), 공통 `Modal`에 `className` 추가(UI-R25). 프런트만 바뀌고 백엔드·API·마이그레이션 변경은 없다. 실제 크기·모양은 jsdom이 계산하지 못하므로 AC-R55의 사람 확인 항목으로 브라우저에서 본다. 확인 질문은 `artifacts/10-analysis/01-plan.md`.
+>
+> 2026-11-21 변경 2(확정 2026-11-21 사용자 확인): 진행사항·Next Action 편집의 명시적 저장·취소(사용자 요청 "아, action의 진행사항과 next action은 text area이다. 즉, enter도 저장되어야 한다. enter를 쳤다고 중간에 저장되는 방식이 아니라 명시적으로 저장/취소 버튼을 두어서 저장 또는 저장하지 않도록 한다."). 첫 문장의 "enter도 저장되어야 한다"는 둘째 문장에 따라 "Enter도 (줄바꿈으로) 입력되어야 한다"로 해석했다(). 신설 AC-R56(Enter·Shift+Enter는 줄바꿈, "저장"·"취소" 버튼으로만 저장·취소, 포커스 이동은 저장 아님), 변경 AC-R50·AC-R51·AC-UC2. 수행일·유형 편집, Deal 상세 인라인 편집(DD-R31), Action 추가 팝업, Comment 입력은 바뀌지 않는다. 프런트만 바뀌고 백엔드·API·마이그레이션 변경은 없다. 확인 질문은 `artifacts/10-analysis/01-plan.md`.
 
 ## 1. 개요
 
@@ -156,20 +158,29 @@ Deal History
 - **AC-R47** 상세 팝업 수행일 인라인 편집의 검증·보내기(2026-11-13 추가, 2026-11-16 수정 팝업 → 상세 팝업 인라인으로 변경): 검증은 AC-R41에서 이전 Next Action 비교를 뺀 단계만 위에서부터 한다 — 빈 값 "수행일을 입력하세요." → 덜 쳤거나 틀린 날짜는 `DateInput` 문구(UI-R7)이고 저장하지 않음(DD-R31) → 저장 때 오늘(`useToday`)보다 뒤 "수행일은 오늘 이후로 지정할 수 없습니다." → Deal 등록일(Deal `createdAt` 앞 10자, TM-R14)보다 앞 "수행일은 Deal 등록일(<YYYY-MM-DD>) 이전으로 지정할 수 없습니다.". 기준 행·다른 Action·종료일과의 비교는 하지 않는다(AC-R46). 문구는 그 칸 아래에 보이고 편집이 열린 채이며 요청을 보내지 않는다. 그 Action의 원래 수행일과 같으면 요청 없이 편집을 닫고(DD-R31), 다르면 `acted_on`(ISO 날짜)을 실어 보낸다(AC-R50). 성공하면 알림 "Action이 수정되었습니다."(AC-R28), 팝업 수행일이 새 날짜이고, 목록·요약 바 Next Action을 다시 읽어 그 행이 바뀐 수행일 자리(서버 순서)에 보인다. 서버 422(AC-R45)는 그 칸 아래 오류 배너다.
 - **AC-R48** 행 열기(2026-11-16): 표의 각 행은 누를 수 있다(포인터 모양). 행을 누르거나, Tab으로 행에 포커스를 둔 채(행마다 한 번 멈춤) Enter·Space를 누르면 그 Action의 상세 팝업(AC-R49)이 열린다(Space로 화면이 스크롤되지 않는다). 행 안의 상태 칸 버튼("종료(수행)"·"종료(미수행)"·"Open으로", NA-R21)을 누르거나 그 버튼에서 Enter·Space를 누르면 상태 변경만 하고 상세 팝업은 열리지 않는다. 모든 역할(user 포함)이 연다. 상세 팝업이 닫히면 포커스는 그 행으로 돌아간다(UI-R26, 삭제로 행이 사라진 경우는 제외). 행 마지막 칸의 Comment 아이콘 버튼(CM-R40)은 상태 버튼처럼 행 열기와 따로 처리된다. 같은 상세 팝업을 열되 포커스를 Comment 입력 칸(user는 Comment 영역)으로 보낸다. 주소 `?tab=actions&action=<id>`로 들어오면 그 Action 팝업을 연다(CM-R37).
 - **AC-R49** 상세 팝업(2026-11-16, 모달 `wide` + 전용 폭 클래스 AC-R55(2026-11-21), 제목 "Action 상세"): 키·값 줄로 위에서부터 수행일(`YYYY-MM-DD`), 담당자(사용자 표기, 퇴사자 "<이름>(퇴사)"), 등록 시점 Status·Forecast(스냅숏 배지 둘, 현재 Deal 값과 다를 수 있음), 유형(현재 이름), 진행사항(줄바꿈 그대로), Next Action, Due Date(표와 같은 판정으로 기한초과면 RK-R18 배지), Next Action 상태(라벨 Open·종료(수행)·종료(미수행), 종료면 뒤에 " · 종료일 <YYYY-MM-DD>", Next Action이 없으면 "—")를 보이고, 맨 아래에 Comment 영역(CM-R41)이 있다. 빈 값은 "—". 담당자·등록 시점 Status·Forecast는 누구에게나 읽기 전용이다. Next Action 상태는 라벨 옆에 표의 상태 칸과 같은 상태 버튼이 있어 팝업에서도 바꿀 수 있다(AC-R54, 확정 Q4). 아래 버튼: 수정 권한(AC-R50)이 있으면 위험 스타일 "삭제"(AC-R52)와 "닫기". `canWrite`이지만 그 Action을 바꿀 수 없는 사람(다른 sales)에게는 "삭제"가 꺼진 채 title "본인 Action 또는 admin만 삭제할 수 있습니다."이고 팝업 위쪽에 안내 "본인 Action 또는 admin만 수정·삭제할 수 있습니다."가 보인다(확정 Q6). user에게는 "삭제"와 안내가 없고 "닫기"만 있다. 열면 포커스는 UI-R26대로 간다. "닫기"·Esc는 팝업을 닫는다(편집 중인 칸이 있으면 Esc는 그 칸만 닫음, AC-R50). 팝업이 보이는 값은 연 Action의 최신 서버 값(인라인 저장 응답 또는 목록 재조회)이고, 저장 뒤 그 Action이 검색 조건에서 빠져도 팝업은 닫히지 않는다. (2026-11-17 Memo 줄 → Comment 영역)
-- **AC-R50** 상세 팝업 인라인 수정 공통(2026-11-16): 수정 권한 = `canWrite`이고 `canEditAction`(AC-R17: admin은 모든 Action, sales는 본인 Action)이다. 권한이 있으면 수행일·유형·진행사항·Next Action·Due Date 값이 Deal 상세 인라인 편집(DD-R31)처럼 누를 수 있는 값 버튼(접근 이름 "<칸 이름> 수정", Next Action과 Due Date는 한 버튼 "Next Action · Due Date 수정")이고, 권한이 없으면 값만 보인다. 편집 열기(누름·Enter·Space)·입력기 포커스·Enter와 포커스 이동 저장·값이 그대로면 요청 없음·실패 시 칸 아래 오류 배너와 편집 유지는 DD-R31을 따른다. 칸 하나를 저장하면 `PUT /deal-actions/{id}`(AC-R13)를 한 번 보낸다: 바꾼 칸만 새 값이고 나머지 내용 칸(`action`·`next_action`·`due_date`)은 팝업이 보이는 현재 값 그대로, `action_type`은 유형 칸을 저장할 때가 아니면 그 Action의 원래 유형 `{id}`다(팝업을 연 뒤 admin이 유형 이름을 바꿔도 원래 id라 새 유형이 생기지 않음 — 예전 AC-R30에서 옮김). `acted_on`은 수행일 칸을 다른 날짜로 저장할 때만 싣는다(AC-R47). 내용이 바뀐 저장마다 Deal History "수정" 이력이 1건씩 남는다(AC-R11). 성공하면 그 칸 편집을 닫고 팝업에 서버 응답 값을 보이며, 탭 알림 "Action이 수정되었습니다."(AC-R28)와 함께 목록·요약 바 Next Action·Deal History를 다시 읽는다. 팝업은 열린 채다. 저장 중(요청 진행 중)에는 "닫기"·"삭제"가 꺼지고 Esc를 무시한다. 편집 중인 칸이 있을 때 Esc는 그 칸 입력을 버리고 편집만 닫으며 팝업은 열려 있다(다음 Esc가 팝업을 닫음). 서버 거절(403 남의 Action, 404 "Action을 찾을 수 없습니다.", 422)은 그 칸 아래 오류 배너(서버 문구)이고 입력을 유지한다. (2026-11-17 Memo 칸 삭제)
+- **AC-R50** 상세 팝업 인라인 수정 공통(2026-11-16): 수정 권한 = `canWrite`이고 `canEditAction`(AC-R17: admin은 모든 Action, sales는 본인 Action)이다. 권한이 있으면 수행일·유형·진행사항·Next Action·Due Date 값이 Deal 상세 인라인 편집(DD-R31)처럼 누를 수 있는 값 버튼(접근 이름 "<칸 이름> 수정", Next Action과 Due Date는 한 버튼 "Next Action · Due Date 수정")이고, 권한이 없으면 값만 보인다. 편집 열기(누름·Enter·Space)·입력기 포커스·값이 그대로면 요청 없음·실패 시 칸 아래 오류 배너와 편집 유지는 DD-R31을 따른다. 저장 방식은 수행일·유형이 DD-R31(Enter와 포커스 이동 저장)이고, 진행사항과 Next Action·Due Date 묶음은 "저장"·"취소" 버튼으로만 저장·취소한다(AC-R56, 2026-11-21). 칸 하나를 저장하면 `PUT /deal-actions/{id}`(AC-R13)를 한 번 보낸다: 바꾼 칸만 새 값이고 나머지 내용 칸(`action`·`next_action`·`due_date`)은 팝업이 보이는 현재 값 그대로, `action_type`은 유형 칸을 저장할 때가 아니면 그 Action의 원래 유형 `{id}`다(팝업을 연 뒤 admin이 유형 이름을 바꿔도 원래 id라 새 유형이 생기지 않음 — 예전 AC-R30에서 옮김). `acted_on`은 수행일 칸을 다른 날짜로 저장할 때만 싣는다(AC-R47). 내용이 바뀐 저장마다 Deal History "수정" 이력이 1건씩 남는다(AC-R11). 성공하면 그 칸 편집을 닫고 팝업에 서버 응답 값을 보이며, 탭 알림 "Action이 수정되었습니다."(AC-R28)와 함께 목록·요약 바 Next Action·Deal History를 다시 읽는다. 팝업은 열린 채다. 저장 중(요청 진행 중)에는 "닫기"·"삭제"가 꺼지고 Esc를 무시한다. 편집 중인 칸이 있을 때 Esc는 그 칸 입력을 버리고 편집만 닫으며 팝업은 열려 있다(다음 Esc가 팝업을 닫음). 서버 거절(403 남의 Action, 404 "Action을 찾을 수 없습니다.", 422)은 그 칸 아래 오류 배너(서버 문구)이고 입력을 유지한다. (2026-11-17 Memo 칸 삭제)
 - **AC-R51** 칸별 편집기와 화면 검증(2026-11-16, 걸리면 그 칸 아래 문구, 편집 유지, 요청 없음): (2026-11-17 Memo 칸 삭제)
   - 수행일: `DateInput`(UI-R1~R11, 처음 값 그 Action의 수행일). 검증·보내기는 AC-R47.
   - 유형: 콤보박스(UI-R18~R21, 서버 순서 CL-R3의 유형 후보, 부분 일치·대소문자 무시, 처음 값 현재 이름). 후보를 고르면 즉시, 직접 입력은 Enter·포커스 이동으로 저장한다. 공백뿐이면 "유형을 입력하세요.", 51자 이상(코드 포인트)이면 "유형은 50자 이내로 입력하세요.". 목록을 읽었고 입력이 어떤 유형과도(대소문자 무시) 같지 않으면 편집 중 안내 "목록에 없는 유형입니다. 저장하면 새 유형으로 추가됩니다."(AC-R25). 보낼 때 CL-R16(같은 이름이 있으면 `{id}`, 없으면 `{name}`). 현재 이름과 같으면 요청 없음.
-  - 진행사항: 여러 줄 칸(처음 값 현재 값, 폭·높이 AC-R55). Enter(Shift 없이, 한글 조합 중이 아님)는 저장, Shift+Enter는 줄바꿈, 포커스 이동은 저장(확정 Q3). 진행사항을 비웠고 Next Action도 비어 있으면 "진행사항 또는 Next Action을 입력하세요.".
-  - Next Action·Due Date(한 묶음, 확정 Q2): 편집을 열면 Next Action 여러 줄 칸(접근 이름 "Next Action", 폭·높이 AC-R55, 2026-11-21 한 줄 입력에서 변경)과 그 아래 줄의 Due Date `DateInput`(접근 이름 "Due Date")이 함께 열리고 Next Action 칸에 포커스가 간다. 묶음 밖으로 포커스가 나가거나 어느 칸에서든 Enter(Shift 없이, 한글 조합 중이 아님)를 누르면 두 값을 한 요청으로 저장한다(묶음 안 두 칸 사이 이동·달력 버튼 이동은 저장이 아님). Next Action 칸의 Shift+Enter는 진행사항처럼 줄바꿈이다(2026-11-21, 확인 필요 Q1 권고안). Next Action을 모두 지우면 Due Date도 비운다. 검증(위에서부터): Next Action과 진행사항이 모두 비면 "진행사항 또는 Next Action을 입력하세요." → Next Action이 있는데 Due Date가 비면 "Due Date를 입력하세요.", 덜 쳤거나 틀린 Due Date는 `DateInput` 문구(UI-R7) → Next Action 없이 Due Date가 있으면 "Next Action 없이 Due Date를 입력할 수 없습니다.". 두 값이 그대로면 요청 없음. yyyymmdd로 친 Due Date는 ISO 날짜로 보낸다. 저장 결과의 Next Action 상태는 AC-R14(비우면 상태 없음, 없던 Next Action을 채우면 Open, 고치면 그대로)다.
+  - 진행사항: 여러 줄 칸(처음 값 현재 값, 폭·높이 AC-R55). Enter와 Shift+Enter는 모두 줄바꿈이고 저장하지 않으며, 포커스 이동도 저장하지 않는다. 저장·취소는 칸 아래 "저장"·"취소" 버튼으로만 한다(AC-R56, 2026-11-21 — 예전 "Enter 저장, 포커스 이동 저장(확정 Q3)"과 "한글 조합 중 Enter는 저장하지 않음"은 Enter가 저장하지 않게 되어 없앰). 진행사항을 비웠고 Next Action도 비어 있으면 "저장"을 눌렀을 때 "진행사항 또는 Next Action을 입력하세요.".
+  - Next Action·Due Date(한 묶음, 확정 Q2): 편집을 열면 Next Action 여러 줄 칸(접근 이름 "Next Action", 폭·높이 AC-R55, 2026-11-21 한 줄 입력에서 변경)과 그 아래 줄의 Due Date `DateInput`(접근 이름 "Due Date")이 함께 열리고 Next Action 칸에 포커스가 간다. Due Date 칸 아래 줄의 "저장" 버튼을 누르면 두 값을 한 요청으로 저장하고 "취소"는 두 칸 입력을 모두 버린다(AC-R56, 2026-11-21). Next Action 칸의 Enter와 Shift+Enter는 모두 줄바꿈이다. Due Date 칸의 Enter는 날짜 글자만 확정하고(월·일 0 채우기, UI-R4) 저장하지 않으며, 달력에서 고른 날짜도 칸 값만 바꾼다. 묶음 밖으로 포커스가 나가는 것·묶음 안 칸 사이 이동·달력 버튼 이동은 저장이 아니다(예전 "포커스 이동·Enter로 저장"은 폐지). Next Action을 모두 지우면 Due Date도 비운다. 검증(위에서부터): Next Action과 진행사항이 모두 비면 "진행사항 또는 Next Action을 입력하세요." → Next Action이 있는데 Due Date가 비면 "Due Date를 입력하세요.", 덜 쳤거나 틀린 Due Date는 `DateInput` 문구(UI-R7) → Next Action 없이 Due Date가 있으면 "Next Action 없이 Due Date를 입력할 수 없습니다.". 두 값이 그대로면 요청 없음. yyyymmdd로 친 Due Date는 ISO 날짜로 보낸다. 저장 결과의 Next Action 상태는 AC-R14(비우면 상태 없음, 없던 Next Action을 채우면 Open, 고치면 그대로)다.
 - **AC-R52** 상세 팝업 삭제(2026-11-16): "삭제" 버튼은 상세 팝업 아래쪽에만 있다(표에는 없음). 수정 권한(AC-R50)이 있을 때만 켜지고 다른 sales에게는 꺼진 채 보이며 user에게는 없다(AC-R49). 누르면 삭제 확인(AC-R31)이 상세 팝업 위에 열리고, 확인해야 `DELETE /deal-actions/{id}`(AC-R16)를 보낸다.
 - **AC-R53** 표 칸 폭(2026-11-16): Action 목록 표의 진행사항·Next Action 칸은 최소 폭 `40em`(한글 약 40자가 한 줄에 들어가는 폭)이고 최대 폭 제한이 없으며(공통 `.dd-table td.wrap`의 280px 제한을 받지 않음) 긴 글은 칸 안에서 줄을 바꾼다. 수행일·유형·Due Date·상태 칸은 줄바꿈하지 않는다(`white-space: nowrap`). 화면이 좁으면 표 전체가 가로로 스크롤된다(`dd-scroll`). 다른 표(Deal History 등)의 칸 폭은 바뀌지 않는다. (확정 Q7: 40em, 사용자 변경)
 - **AC-R54** 상세 팝업의 Next Action 상태 변경(2026-11-16, 확정 Q4): 상세 팝업의 Next Action 상태 줄은 라벨(AC-R49)과 함께 표의 상태 칸과 같은 상태 버튼(NA-R21: 지금 상태를 뺀 나머지 — "종료(수행)"·"종료(미수행)"·"Open으로")을 보인다. 버튼은 표의 상태 칸과 같은 사람(쓰기 권한이 있고 admin이거나 본인 Action의 sales)에게만 보이고 다른 sales와 `user`는 라벨만 본다. 동작·요청·오류·캐시 무효화는 표와 같다(NA-R22~R24): "종료(수행)"·"종료(미수행)"은 `NextActionCloseDialog` 종료 대화상자(팝업 위에 겹침, UI-R27·R28)를 거쳐 입력한 Comment(빈 값 가능, NA-R22·CM-R43)로 `PUT /deal-actions/{id}/next-action-status`를 보내고, "Open으로"는 대화상자 없이 Comment `""`로 바로 보낸다. 성공하면 대화상자만 닫고 상세 팝업은 열린 채 새 상태·종료일과 Comment 영역의 새 Comment를 보이며 표의 상태 칸도 같은 값이다. 실패하면 종료 대화상자는 서버 문구를 안에 보이며 입력한 Comment를 유지하고, "Open으로" 실패는 상세 팝업 안 오류 배너에 서버 문구를 보인다. 요청이 진행 중이면 표·팝업의 모든 상태 버튼과 "닫기"·"삭제"가 꺼진다. Next Action이 없는 Action은 상태 줄이 "—"이고 버튼이 없다. 종료 대화상자의 "취소"·Esc는 그 대화상자만 닫는다.
 - **AC-R55** 상세 팝업 폭과 긴 글 편집 칸 크기(2026-11-21):
-  - 팝업 폭: "Action 상세" 대화상자 요소의 클래스는 `modal wide dd-action-detail-modal`이다(공통 `Modal`의 `className`, UI-R25). `detail.css`의 `.modal.wide.dd-action-detail-modal` 규칙이 `width: min(max(640px, 80vw), 100%)`를 선언하고 `max-width`는 없다 — 화면(뷰포트) 폭이 800px 이상이면 화면 폭의 80%, 그보다 좁으면 기존 `wide` 폭 640px, 그것도 들어가지 않으면 배경 안쪽 폭 전체(100%)다. 최대 폭 상한은 없다(확인 필요 Q2 권고안). 높이 규칙(`max-height: calc(100vh - 32px)`, 넘치면 팝업 안 스크롤)은 그대로다. 공통 `.modal`(480px)·`.modal.wide`(640px) 규칙과 다른 대화상자(Action 추가 팝업, 상세 팝업 위에 겹치는 Next Action 종료 대화상자·삭제 확인 등)의 폭은 바뀌지 않는다.
+  - 팝업 폭: "Action 상세" 대화상자 요소의 클래스는 `modal wide dd-action-detail-modal`이다(공통 `Modal`의 `className`, UI-R25). `detail.css`의 `.modal.wide.dd-action-detail-modal` 규칙이 `width: min(max(640px, 80vw), 100%)`를 선언하고 `max-width`는 없다 — 화면(뷰포트) 폭이 800px 이상이면 화면 폭의 80%, 그보다 좁으면 기존 `wide` 폭 640px, 그것도 들어가지 않으면 배경 안쪽 폭 전체(100%)다. 최대 폭 상한은 없다(사용자 결정 2026-11-21). 높이 규칙(`max-height: calc(100vh - 32px)`, 넘치면 팝업 안 스크롤)은 그대로다. 공통 `.modal`(480px)·`.modal.wide`(640px) 규칙과 다른 대화상자(Action 추가 팝업, 상세 팝업 위에 겹치는 Next Action 종료 대화상자·삭제 확인 등)의 폭은 바뀌지 않는다.
   - 읽기 상자: 수정 권한(AC-R50)이 있을 때 진행사항·Next Action의 값 버튼(`button.dd-click`)은 클래스 `dd-click-fill`을 더 가져 값 칸 폭 전체를 차지한다(`display: block`, `width: 100%`). 따라서 마우스를 올렸을 때(hover) 강조되는 상자는 값 칸 폭 × 글이 차지하는 높이다. 수행일·유형 값 버튼과 Deal 상세의 다른 인라인 편집(DD-R31)은 바뀌지 않는다. 권한이 없으면 값만 보이는 것은 그대로다.
   - 편집 칸: 그 값 버튼을 눌러 편집을 열면 여러 줄 칸(textarea, 클래스 `dd-fill-text`)이 같은 자리에 같은 상자로 열린다 — 폭은 값 칸 폭 전체(`width: 100%`), 테두리·안쪽 여백·글꼴·줄 높이는 값 버튼과 같다(기존 `.deal-detail .dd-inline-edit textarea` 규칙). 시작 높이는 편집을 연 순간 값 버튼의 테두리 포함 높이(`offsetHeight`, px)다. 입력으로 내용 높이(`scrollHeight`에 위아래 테두리 2px를 더한 값)가 시작 높이보다 커지면 칸이 내용 높이로 늘어나고(스크롤바 없이), 글을 지워도 시작 높이 아래로는 줄지 않는다. 사용자는 세로로 크기를 조절할 수 있다(`resize: vertical`). 값 버튼 높이를 잴 수 없으면(0) 높이를 지정하지 않고 3줄(`rows=3`)로 연다. 이 규칙은 상세 팝업의 진행사항 칸과 Next Action·Due Date 묶음의 Next Action 칸에만 적용한다(Action 추가 팝업의 입력 칸은 그대로).
   - 사람 확인(브라우저, jsdom은 레이아웃을 계산하지 못함): 화면 폭 1920·1280·760·375px에서 팝업 폭, 긴 진행사항(여러 줄)·짧은 값·"—"에서 hover 상자와 편집 칸의 위치·폭·높이가 같아 글자가 움직이지 않음, 입력하며 칸이 늘어남, 겹친 종료 대화상자·삭제 확인의 폭이 예전과 같음, 다크 모드, 720px 이하 1열 배치.
+- **AC-R56** 진행사항·Next Action 편집의 명시적 저장·취소(2026-11-21): 상세 팝업의 진행사항 편집과 Next Action·Due Date 묶음 편집(AC-R51)은 DD-R31의 "Enter·포커스 이동으로 저장"을 쓰지 않는다. 수행일·유형 편집, Deal 상세의 인라인 편집(DD-R31), Action 추가 팝업(AC-R23, "등록"·"취소" 그대로), Comment 입력(CM, Enter 저장 그대로)은 바뀌지 않는다.
+  - 버튼: 편집기 바로 아래 줄(묶음은 Due Date 칸 아래)에 왼쪽부터 "저장"(주 버튼, `primary`)·"취소" 두 버튼이 있다. 보이는 글자는 "저장"·"취소"이고 접근 이름은 "<칸 이름> 저장"·"<칸 이름> 취소" — "진행사항 저장"·"진행사항 취소", "Next Action · Due Date 저장"·"Next Action · Due Date 취소"다. 두 버튼은 편집 그룹("<칸 이름> 편집") 안에 있고, 검증·서버 오류 배너는 버튼 줄 아래에 보인다. 수행일·유형 편집에는 이 버튼이 없다.
+  - 키보드: 여러 줄 칸의 Enter와 Shift+Enter는 줄바꿈(브라우저 기본 동작, 한글 조합 중 Enter도 기본 동작)이고 저장하지 않는다. 저장 단축키(Ctrl·Cmd+Enter 등)는 없다. 버튼에 포커스를 두고 Enter·Space를 누르면 그 버튼을 누른 것이다. Tab 순서는 진행사항 칸 → "저장" → "취소", 묶음은 Next Action 칸 → Due Date 칸 → 달력 버튼 → "저장" → "취소"다. 편집 그룹 안 어디서든(버튼 포함) Esc는 "취소"와 같고 팝업은 닫지 않는다(AC-R50).
+  - 포커스 이동: 편집 그룹 밖으로 포커스가 나가도(Tab, 팝업 안 다른 곳 클릭, 다른 칸 값 버튼 클릭) 저장하지도 닫지도 않고 입력한 값과 편집 상태를 그대로 둔다. 여러 칸의 편집이 동시에 열려 있을 수 있고 각 칸은 자기 버튼으로만 저장·취소한다.
+  - "저장": AC-R51 검증 → AC-R50 요청 순서는 예전 Enter 저장과 같다. 값이 연 때와 같으면 요청 없이 편집을 닫는다(버튼은 값이 같아도 켜져 있다). 화면 검증·서버 거절이면 버튼 줄 아래 문구를 보이고 편집·입력을 유지하며 포커스는 첫 입력 칸(진행사항 칸·Next Action 칸)으로 간다. 성공하면 편집을 닫고 알림 "Action이 수정되었습니다."(AC-R28)를 보이며 포커스는 그 칸의 값 버튼("<칸 이름> 수정")으로 돌아간다.
+  - "취소": 입력을 버리고 요청 없이 편집을 닫으며 포커스는 값 버튼으로 돌아간다. 상세 팝업은 열린 채다.
+  - 저장 중(요청 진행 중, 2026-11-21 리뷰 반영): 두 편집(진행사항, Next Action·Due Date)이 동시에 열려 있어도 한 요청이 끝나기 전에는 **다른 칸의 "저장"도 꺼진다**(요청은 항상 Action 전체 값을 보내므로 동시에 두 저장을 보내면 앞 수정을 덮어쓴다). 응답이 오면 다시 켜지고 그때 다른 칸의 저장은 갱신된 Action 값 위에서 이루어진다. 여러 줄 칸, Due Date 칸과 달력 버튼, "저장"·"취소"가 꺼지고 Esc를 무시하며, 팝업의 "닫기"·"삭제"도 꺼진다(AC-R50). 응답이 오면 다시 켜진다(성공이면 편집이 닫힌다).
+  - 저장하지 않고 팝업을 닫을 때: 편집이 열린 채 팝업 "닫기"를 누르거나 포커스가 편집 그룹 밖에 있을 때 Esc로 팝업을 닫으면, 입력은 저장되지 않고 버려지며 확인 창은 없다(사용자 결정 2026-11-21). 다시 열면 서버 값이 보인다.
+  - 사람 확인(브라우저): 버튼 줄 위치·간격(1920·760·375px, 다크 모드), 한글 입력 중 Enter 줄바꿈, 긴 글에서 칸이 늘어날 때 버튼이 칸 아래로 따라 내려감.
 
 ### 2.4 상태와 전이
 
@@ -213,7 +224,7 @@ Action의 Next Action 상태(이 문서가 정하는 전이만, 상태 변경 AP
 
 ### 2.7 화면 동작
 
-AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
+AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R56(AC-R30 폐지).
 
 ### 2.8 오류와 메시지
 
@@ -241,7 +252,7 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
 | 발급 계약 있는 Deal의 Won 이탈 | 409 `invalid-state` | LC-R8 문구 |
 | 상세 팝업: 바꿀 수 없는 Action(화면, 다른 sales) | — | 본인 Action 또는 admin만 수정·삭제할 수 있습니다. |
 
-화면 문구: AC-R21~AC-R29, AC-R31, AC-R41, AC-R47, AC-R49~AC-R52. 서버 문구 표시는 PL-R37.
+화면 문구: AC-R21~AC-R29, AC-R31, AC-R41, AC-R47, AC-R49~AC-R52, AC-R56. 서버 문구 표시는 PL-R37.
 
 ## 3. Business use case
 
@@ -256,8 +267,8 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
 ### AC-UC2 Action 수정
 - 행위자: Action 담당자 sales, admin
 - 사전 조건: 그 Action의 상세 팝업이 열려 있고 수정 권한이 있음(AC-R48~R50)
-- 기본 흐름: 고칠 값(수행일·유형·진행사항·Next Action · Due Date)을 누름 → 그 자리 입력기에서 고침 → Enter 또는 포커스 이동 → `PUT /deal-actions/{id}`(그 칸만 바뀐 내용) → 200, 팝업에 새 값, 알림 "Action이 수정되었습니다."(AC-R13~R15, AC-R50·R51)
-- 대안: 값이 그대로면 요청 없음(DD-R31), 공백만 다른 값은 서버가 변경 없음으로 처리(AC-R14). Esc로 그 칸 편집만 취소. 수행일을 고침(AC-UC6)
+- 기본 흐름: 고칠 값(수행일·유형·진행사항·Next Action · Due Date)을 누름 → 그 자리 입력기에서 고침 → 수행일·유형은 Enter 또는 포커스 이동, 진행사항·Next Action · Due Date는 "저장" 버튼(AC-R56) → `PUT /deal-actions/{id}`(그 칸만 바뀐 내용) → 200, 팝업에 새 값, 알림 "Action이 수정되었습니다."(AC-R13~R15, AC-R50·R51)
+- 대안: 값이 그대로면 요청 없음(DD-R31), 공백만 다른 값은 서버가 변경 없음으로 처리(AC-R14). Esc(진행사항·Next Action은 "취소" 버튼도)로 그 칸 편집만 취소. 진행사항·Next Action은 포커스가 나가도 저장되지 않고 편집이 유지됨(AC-R56). 수행일을 고침(AC-UC6)
 - 예외: 화면 검증(AC-R51), 남의 Action 403, 없는 Action 404, 입력 422, 수행일 범위 422(AC-R45), user 403 — 칸 아래 오류, 편집 유지
 - 결과: 그 칸(묶음이면 Next Action·Due Date)만 바뀌고 담당자·스냅숏 그대로, 이력 1건, 팝업은 열린 채
 
@@ -441,10 +452,10 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
 | AC-135 | 화면: 상세 팝업의 편집·삭제는 본인 Action과 admin에게만 켜지고 다른 sales는 보기만 한다 | AC-R49, AC-R50, AC-R52, AC-R17 | frontend | `features/deals/detail/ActionDetailDialog.test.tsx` |
 | AC-136 | 화면: 진행사항을 인라인으로 고치면 그 칸만 바꾼 수정 요청을 보내고 팝업은 열린 채 새 값을 보인다 | AC-R50, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
 | AC-137 | 화면: 유형 인라인 편집은 후보면 id로, 없는 이름이면 안내 후 이름으로 보내고 빈 값·51자는 막는다 | AC-R51, AC-R25, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
-| AC-138 | 화면: 진행사항은 Shift+Enter로 줄을 바꾸고 Enter로 저장하며, 진행사항과 Next Action이 모두 비면 막는다 | AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
-| AC-139 | 화면: Next Action과 Due Date는 한 묶음으로 고치고 함께 검증한다 | AC-R51, AC-R14, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
-| AC-140 | 화면: 편집 중 Esc는 그 칸만 닫고, 값이 그대로면 요청하지 않는다 | AC-R50, AC-R49 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
-| AC-141 | 화면: 인라인 저장 실패는 그 칸 아래 서버 문구이고 저장 중에는 닫기·삭제가 꺼진다 | AC-R50, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx`, `features/deals/detail/ActionDetailDialog.actedOn.test.tsx` |
+| AC-138 | 화면: 진행사항의 Enter·Shift+Enter는 줄바꿈이고 "저장" 버튼으로 저장하며, 진행사항과 Next Action이 모두 비면 막는다 | AC-R51, AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
+| AC-139 | 화면: Next Action과 Due Date는 한 묶음으로 고치고 함께 검증하며 "저장" 버튼으로만 한 요청에 저장한다 | AC-R51, AC-R56, AC-R14, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
+| AC-140 | 화면: 편집 중 Esc·"취소"는 그 칸만 닫고, 값이 그대로면 "저장"해도 요청하지 않는다 | AC-R50, AC-R56, AC-R49 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
+| AC-141 | 화면: 인라인 저장 실패는 그 칸 아래 서버 문구이고 저장 중에는 편집 칸·저장·취소·닫기·삭제가 꺼진다 | AC-R50, AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx`, `features/deals/detail/ActionDetailDialog.actedOn.test.tsx` |
 | AC-142 | 화면: 진행사항·Next Action 칸은 넓고 짧은 칸은 줄바꿈하지 않는다(정적 점검) | AC-R53 | frontend | `features/deals/detail/ActionTable.style.test.tsx` |
 | AC-143 | 화면: 저장 뒤 검색 조건에서 빠져도 상세 팝업은 열린 채 새 값을 보인다 | AC-R49, AC-R50 | frontend | `features/deals/detail/ActionDetailDialog.inline.test.tsx` |
 | AC-144 | 화면: 상세 팝업의 상태 버튼으로 Next Action 상태를 바꾸면 종료 대화상자를 거쳐 팝업이 열린 채 새 상태·새 Comment를 보이고 표 상태 칸도 같다 | AC-R54, NA-R21, NA-R22, AC-UC2b | frontend | `features/deals/detail/ActionDetailDialog.status.test.tsx` |
@@ -459,7 +470,13 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
 | AC-153 | 화면: Action 상세 팝업만 전용 폭 클래스를 갖고 그 폭은 화면 폭 80%다(정적 점검) | AC-R55, AC-R49 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
 | AC-154 | 화면: 진행사항 편집 칸은 값 칸 폭 전체이고 값 버튼 높이로 시작한다 | AC-R55, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
 | AC-155 | 화면: 편집 칸은 글이 길어지면 내용 높이로 늘고 지워도 시작 높이 아래로 줄지 않는다 | AC-R55, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
-| AC-156 | 화면: Next Action 편집 칸도 같은 크기의 여러 줄 칸이고 Shift+Enter는 줄바꿈, Enter는 Due Date와 함께 저장한다 | AC-R55, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
+| AC-156 | 화면: Next Action 편집 칸도 같은 크기의 여러 줄 칸이고 Enter·Shift+Enter는 줄바꿈이며 "저장"이 Due Date와 함께 저장한다 | AC-R55, AC-R51, AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
+| AC-157 | 화면: 진행사항 편집 밖으로 포커스가 나가도 저장하지 않고 편집과 입력이 유지된다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-158 | 화면: 묶음 편집에서 Due Date를 달력으로 골라도 저장하지 않는다 | AC-R56, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-159 | 화면: 진행사항·묶음 편집에만 "저장"·"취소" 버튼이 있고 접근 이름과 Tab 순서가 정해져 있다 | AC-R56 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-160 | 화면: "저장" 성공과 "취소" 뒤 포커스는 그 칸의 값 버튼으로 돌아온다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-161 | 화면: 저장하지 않은 편집이 있는 채 팝업을 닫으면 요청 없이 입력이 버려진다 | AC-R56, AC-R49 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-162 | 화면: 한 편집을 저장하는 동안 다른 칸 편집의 "저장"도 꺼져 앞 수정을 덮어쓰지 않는다 | AC-R56, AC-R50 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 
 ### AC-001 sales가 Action을 등록하면 201과 Location이고 수행일·담당자·스냅숏을 서버가 정한다
 - Given KIM이 Status 제품소개(introduction)·Forecast Best인 Deal을 연 상태이고 서버 시계가 T다
@@ -835,7 +852,7 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R55(AC-R30 폐지).
 
 ### AC-087 화면: 상세 팝업에서 유형이 아닌 칸을 저장하면 유형 이름이 바뀌었어도 원래 id로 보낸다
 - Given KIM의 Action A(유형 미팅) 상세 팝업을 연 뒤 admin이 "미팅" 이름을 "고객 미팅"으로 바꿔 유형 목록이 다시 읽혔다
-- When KIM이 진행사항을 고쳐 Enter를 누른다
+- When KIM이 진행사항을 고쳐 "진행사항 저장"을 누른다
 - Then 요청의 유형은 `{id: <미팅 id>}`이고 새 유형이 생기지 않으며, 저장 뒤 팝업 유형 값은 "고객 미팅"이다
 
 ### AC-088 화면: 상세 팝업의 삭제는 확인 뒤 지우고 두 팝업을 닫으며, 취소·실패면 상세 팝업이 남는다
@@ -1037,7 +1054,7 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 
 ### AC-129 화면: 상세 팝업에서 수행일을 바꾸면 acted_on을 보내고 행이 바뀐 날짜 자리에 보이며, 다른 칸 저장에는 acted_on이 없다
 - Given 수행일이 2026-11-12와 2026-11-05인 KIM의 Next Action Action 두 건이 있다(11-12 행이 위)
-- When KIM이 11-12 행의 상세 팝업에서 진행사항만 고쳐 Enter를 누르고, 이어서 "수행일 수정"에 `20261103`을 쳐 Enter를 누른다
+- When KIM이 11-12 행의 상세 팝업에서 진행사항만 고쳐 "진행사항 저장"을 누르고, 이어서 "수행일 수정"에 `20261103`을 쳐 Enter를 누른다
 - Then 첫 요청에는 `acted_on`이 없고 두 번째는 `acted_on: "2026-11-03"`이다. 두 번 다 알림 "Action이 수정되었습니다."가 보이고 팝업 수행일은 "2026-11-03"이다. 팝업을 닫으면 그 행은 수행일 "2026-11-03"으로 11-05 행 아래에 있고 요약 바 Next Action은 11-05 행의 값이다
 
 ### AC-130 화면: 상세 팝업 수행일의 빈·틀린·미래·등록일 이전 값은 막고 기준 행보다 앞선 날짜는 막지 않는다
@@ -1072,7 +1089,7 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 
 ### AC-136 화면: 진행사항을 인라인으로 고치면 그 칸만 바꾼 수정 요청을 보내고 팝업은 열린 채 새 값을 보인다
 - Given KIM의 Action A 상세 팝업이 열려 있다
-- When "진행사항 수정"을 눌러 진행사항을 "킥오프 미팅 완료"로 바꾸고 Enter를 누른다
+- When "진행사항 수정"을 눌러 진행사항을 "킥오프 미팅 완료"로 바꾸고 "진행사항 저장"을 누른다
 - Then 수정 요청은 한 번이고 본문은 유형 `{id: <미팅 id>}`, 진행사항 "킥오프 미팅 완료", Next Action "요구사항 문서 전달", Due 2027-01-15이며(`memo` 키 없음) `acted_on`이 없다. 팝업은 열린 채 진행사항 "킥오프 미팅 완료"를 보이고 알림 "Action이 수정되었습니다."가 보이며, 팝업을 닫으면 표의 그 행 진행사항도 새 값이다. 담당자·등록 시점 배지는 그대로다
 
 ### AC-137 화면: 유형 인라인 편집은 후보면 id로, 없는 이름이면 안내 후 이름으로 보내고 빈 값·51자는 막는다
@@ -1080,25 +1097,25 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 - When "유형 수정"을 눌러 후보 "이메일"을 고르고, 다시 열어 "현장 데모"를 쳐 Enter를 누르고, 다시 열어 공백만 두고 Enter를, 51자를 쳐 Enter를 누른다
 - Then 첫 저장은 고르는 순간 `{id: <이메일 id>}`로 보낸다. "현장 데모"는 편집 중 "목록에 없는 유형입니다. 저장하면 새 유형으로 추가됩니다."가 보이고 `{name: "현장 데모"}`로 보내 팝업 유형이 "현장 데모"가 된다. 공백만은 "유형을 입력하세요.", 51자는 "유형은 50자 이내로 입력하세요."가 칸 아래 보이고 요청이 없으며 편집이 열린 채다
 
-### AC-138 화면: 진행사항은 Shift+Enter로 줄을 바꾸고 Enter로 저장하며, 진행사항과 Next Action이 모두 비면 막는다
+### AC-138 화면: 진행사항의 Enter·Shift+Enter는 줄바꿈이고 "저장" 버튼으로 저장하며, 진행사항과 Next Action이 모두 비면 막는다
 - Given KIM의 Action A와 진행사항만 Action C(진행사항 "자료 송부", Next Action 없음)가 있다
-- When A의 상세 팝업에서 진행사항을 "1줄", Shift+Enter, "2줄"로 고쳐 Enter를 누르고, C의 상세 팝업에서 진행사항을 모두 지우고 Enter를 누른다
-- Then 첫 요청의 진행사항은 "1줄\n2줄"이고 팝업 진행사항이 두 줄로 보인다. C는 "진행사항 또는 Next Action을 입력하세요."가 칸 아래 보이고 요청이 없다
+- When A의 상세 팝업에서 진행사항을 지우고 "1줄", Enter, "2줄", Shift+Enter, "3줄"을 친 뒤 "진행사항 저장"을 누르고, C의 상세 팝업에서 진행사항을 모두 지우고 "진행사항 저장"을 누른다
+- Then "진행사항 저장"을 누르기 전까지 수정 요청이 없고 편집 칸 값은 "1줄\n2줄\n3줄"이다. 요청은 한 번이고 진행사항은 "1줄\n2줄\n3줄"이며 팝업 진행사항이 세 줄로 보인다. C는 "진행사항 또는 Next Action을 입력하세요."가 칸 아래 보이고 요청이 없으며 편집이 열린 채다
 
 ### AC-139 화면: Next Action과 Due Date는 한 묶음으로 고치고 함께 검증한다
 - Given KIM의 진행사항만 Action C 상세 팝업이 열려 있다
-- When "Next Action · Due Date 수정"을 눌러 Next Action에 "견적 발송"만 쓰고 Enter를 누르고, Tab으로 Due Date 칸에 가서 `20270110`을 쓰고 Enter를 누르고, 다시 열어 Next Action을 모두 지우고 Enter를 누른다
-- Then 첫 Enter는 "Due Date를 입력하세요."로 막히고 요청이 없다. Due Date 칸으로 Tab 이동한 것으로는 요청이 없다. 두 번째 Enter는 한 요청으로 Next Action "견적 발송"·Due `2027-01-10`을 보내 팝업에 두 값과 상태 "Open"이 보인다. 마지막은 Next Action을 지우자 Due Date 칸도 비고, 요청은 Next Action ""·Due null이며 팝업의 Next Action·Due Date·상태가 "—"가 된다
+- When "Next Action · Due Date 수정"을 눌러 Next Action에 "견적 발송"만 쓰고 "Next Action · Due Date 저장"을 누르고, Due Date 칸에 `20270110`을 쓰고 Enter를 누른 뒤 "Next Action · Due Date 저장"을 누르고, 다시 열어 Next Action을 모두 지우고 "Next Action · Due Date 저장"을 누른다
+- Then 첫 저장은 "Due Date를 입력하세요."로 막히고 요청이 없다. Due Date 칸의 Enter로는 요청이 없고 편집이 열린 채다. 두 번째 저장은 한 요청으로 Next Action "견적 발송"·Due `2027-01-10`을 보내 팝업에 두 값과 상태 "Open"이 보인다. 마지막은 Next Action을 지우자 Due Date 칸도 비고, 요청은 Next Action ""·Due null이며 팝업의 Next Action·Due Date·상태가 "—"가 된다
 
-### AC-140 화면: 편집 중 Esc는 그 칸만 닫고, 값이 그대로면 요청하지 않는다
+### AC-140 화면: 편집 중 Esc·"취소"는 그 칸만 닫고, 값이 그대로면 "저장"해도 요청하지 않는다
 - Given KIM의 Action A 상세 팝업이 열려 있다
-- When "진행사항 수정"을 열어 "버릴 내용"을 쓰고 Esc를 누르고, 다시 Esc를 누르고, 팝업을 다시 열어 "진행사항 수정"을 열고 아무것도 바꾸지 않고 Enter를 누른다
-- Then 첫 Esc 뒤 진행사항은 "킥오프 미팅" 그대로이고 팝업은 열려 있으며 두 번째 Esc가 팝업을 닫는다. 바꾸지 않은 Enter는 요청 없이 편집만 닫는다
+- When "진행사항 수정"을 열어 "버릴 내용"을 쓰고 Esc를 누르고, 다시 Esc를 누르고, 팝업을 다시 열어 "진행사항 수정"에 "버릴 내용"을 쓰고 "진행사항 취소"를 누르고, 다시 "진행사항 수정"을 열어 아무것도 바꾸지 않고 "진행사항 저장"을 누른다
+- Then 첫 Esc 뒤 진행사항은 "킥오프 미팅" 그대로이고 팝업은 열려 있으며 두 번째 Esc가 팝업을 닫는다. "진행사항 취소" 뒤 편집이 닫히고 진행사항은 "킥오프 미팅" 그대로이며 팝업은 열려 있다. 바꾸지 않은 "진행사항 저장"은 요청 없이 편집만 닫는다. 어느 경우에도 수정 요청이 없다
 
 ### AC-141 화면: 인라인 저장 실패는 그 칸 아래 서버 문구이고 저장 중에는 닫기·삭제가 꺼진다
 - Given KIM의 Action A 상세 팝업이 열려 있고 그 사이 A가 다른 곳에서 삭제됐다
-- When 진행사항을 고쳐 Enter를 누르고, 응답 전에 Esc를 누른다
-- Then 응답 전에는 "닫기"·"삭제"가 꺼져 있고 Esc로 팝업이 닫히지 않는다. 응답 뒤 진행사항 칸 아래 "Action을 찾을 수 없습니다."가 보이고 편집과 입력한 글이 그대로다
+- When 진행사항을 고쳐 "진행사항 저장"을 누르고, 응답 전에 Esc를 누른다
+- Then 응답 전에는 진행사항 칸·"진행사항 저장"·"진행사항 취소"·"닫기"·"삭제"가 꺼져 있고 Esc로 편집도 팝업도 닫히지 않는다. 응답 뒤 진행사항 칸 아래 "Action을 찾을 수 없습니다."가 보이고 편집과 입력한 글이 그대로이며 진행사항 칸과 두 버튼이 다시 켜진다
 
 ### AC-142 화면: 진행사항·Next Action 칸은 넓고 짧은 칸은 줄바꿈하지 않는다(정적 점검)
 - When Action 목록 표의 CSS 규칙을 읽는다
@@ -1106,7 +1123,7 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 
 ### AC-143 화면: 저장 뒤 검색 조건에서 빠져도 상세 팝업은 열린 채 새 값을 보인다
 - Given 키워드 "킥오프"로 검색해 Action A 한 행만 보이고 그 상세 팝업이 열려 있다
-- When 진행사항을 "착수 회의"로 고쳐 Enter를 누른다
+- When 진행사항을 "착수 회의"로 고쳐 "진행사항 저장"을 누른다
 - Then 팝업은 열린 채 진행사항 "착수 회의"를 보이고, 팝업을 닫으면 표는 "조건에 맞는 Action이 없습니다."다
 
 ### AC-144 화면: 상세 팝업에서 Next Action 상태를 바꾼다
@@ -1167,12 +1184,42 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 ### AC-155 화면: 편집 칸은 글이 길어지면 내용 높이로 늘고 지워도 시작 높이 아래로 줄지 않는다
 - Given KIM의 Action A 상세 팝업에서 진행사항 편집이 시작 높이 48px로 열려 있다
 - When 내용 높이(`scrollHeight`)가 120px이 되도록 글을 더 치고, 이어서 내용 높이가 30px이 되도록 글을 지운다
-- Then 첫 입력 뒤 칸의 인라인 높이는 `122px`(내용 120 + 위아래 테두리 2)이고, 지운 뒤에는 `48px`이다. 저장 요청은 없다(Enter 전)
+- Then 첫 입력 뒤 칸의 인라인 높이는 `122px`(내용 120 + 위아래 테두리 2)이고, 지운 뒤에는 `48px`이다. 저장 요청은 없다("진행사항 저장"을 누르기 전)
 
-### AC-156 화면: Next Action 편집 칸도 같은 크기의 여러 줄 칸이고 Shift+Enter는 줄바꿈, Enter는 Due Date와 함께 저장한다
+### AC-156 화면: Next Action 편집 칸도 같은 크기의 여러 줄 칸이고 Enter·Shift+Enter는 줄바꿈이며 "저장"이 Due Date와 함께 저장한다
 - Given KIM의 Action A(Next Action "요구사항 문서 전달", Due 2027-01-15) 상세 팝업이 열려 있고, Next Action 값 버튼의 잰 높이가 48px이다
-- When "Next Action · Due Date 수정"을 눌러 Next Action 칸 끝에 Shift+Enter, "추가 자료"를 치고 Enter를 누른다
-- Then 열린 "Next Action" 칸은 여러 줄 칸(textarea)이고 클래스 `dd-fill-text`, 인라인 높이 `48px`로 열려 포커스가 있으며 "Due Date" 칸이 함께 있다. 값 버튼은 클래스 `dd-click-fill`을 가진다. 수정 요청은 한 번이고 본문은 Next Action "요구사항 문서 전달\n추가 자료"·Due `2027-01-15`이며 팝업의 Next Action이 두 줄로 보인다
+- When "Next Action · Due Date 수정"을 눌러 Next Action 칸 끝에 Enter, "추가 자료", Shift+Enter, "참고"를 치고 "Next Action · Due Date 저장"을 누른다
+- Then 열린 "Next Action" 칸은 여러 줄 칸(textarea)이고 클래스 `dd-fill-text`, 인라인 높이 `48px`로 열려 포커스가 있으며 "Due Date" 칸이 함께 있다. 값 버튼은 클래스 `dd-click-fill`을 가진다. 저장을 누르기 전에는 요청이 없고 칸 값은 "요구사항 문서 전달\n추가 자료\n참고"다. 수정 요청은 한 번이고 본문은 Next Action "요구사항 문서 전달\n추가 자료\n참고"·Due `2027-01-15`이며 팝업의 Next Action이 세 줄로 보인다
+
+### AC-157 화면: 진행사항 편집 밖으로 포커스가 나가도 저장하지 않고 편집과 입력이 유지된다
+- Given KIM의 Action A(진행사항 "킥오프 미팅") 상세 팝업에서 "진행사항 수정"을 열어 끝에 " 후속"을 쳤다
+- When Tab을 세 번 눌러 진행사항 칸 → "진행사항 저장" → "진행사항 취소"를 지나 편집 그룹 밖으로 포커스를 옮기고, 이어서 "유형 수정"을 누른다
+- Then 수정 요청이 없다. 진행사항 편집은 열린 채 칸 값이 "킥오프 미팅 후속"이고 "진행사항 저장"·"진행사항 취소"가 보이며, 유형 편집도 함께 열려 있다
+
+### AC-158 화면: 묶음 편집에서 Due Date를 달력으로 골라도 저장하지 않는다
+- Given KIM의 Action A(Next Action "요구사항 문서 전달", Due 2027-01-15) 상세 팝업에서 "Next Action · Due Date 수정"을 열었다
+- When Due Date 달력(숨은 날짜 칸)에서 2027-02-01을 고른다
+- Then 수정 요청이 없고 편집은 열린 채 Due Date 칸이 `2027.02.01`이다. 이어서 "Next Action · Due Date 저장"을 누르면 요청 한 번에 Due `2027-02-01`이 실린다
+
+### AC-159 화면: 진행사항·묶음 편집에만 "저장"·"취소" 버튼이 있고 접근 이름과 Tab 순서가 정해져 있다
+- Given KIM의 Action A 상세 팝업이 열려 있다
+- When "진행사항 수정"·"Next Action · Due Date 수정"·"수행일 수정"·"유형 수정"을 차례로 열어 각 편집 그룹 안에서 Tab을 누른다
+- Then 진행사항 편집 그룹("진행사항 편집") 안에 보이는 글자 "저장"(이름 "진행사항 저장", 클래스 `primary`)·"취소"(이름 "진행사항 취소") 버튼이 이 순서로 있고 Tab 순서는 진행사항 칸 → "진행사항 저장" → "진행사항 취소"다. 묶음 편집 그룹 안에는 "Next Action · Due Date 저장"·"Next Action · Due Date 취소"가 있고 Tab 순서는 Next Action 칸 → Due Date 칸 → 달력 버튼 → 저장 → 취소다. 수행일·유형 편집 그룹에는 "저장"·"취소" 버튼이 없다
+
+### AC-160 화면: "저장" 성공과 "취소" 뒤 포커스는 그 칸의 값 버튼으로 돌아온다
+- Given KIM의 Action A 상세 팝업이 열려 있다
+- When 진행사항을 고쳐 "진행사항 저장"을 누르고, 이어서 "Next Action · Due Date 수정"을 열어 Next Action을 고친 뒤 "Next Action · Due Date 취소"를 누른다
+- Then 저장 성공 뒤 포커스는 "진행사항 수정" 버튼에 있다. 취소 뒤 포커스는 "Next Action · Due Date 수정" 버튼에 있고 Next Action은 "요구사항 문서 전달" 그대로이며 요청은 진행사항 저장 한 번뿐이다
+
+### AC-161 화면: 저장하지 않은 편집이 있는 채 팝업을 닫으면 요청 없이 입력이 버려진다
+- Given KIM의 Action A 상세 팝업에서 "진행사항 수정"을 열어 "닫으면 버려질 글"로 바꿨다
+- When 팝업의 "닫기"를 누르고 A 행을 다시 눌러 팝업을 연다
+- Then 확인 창 없이 팝업이 닫히고 수정 요청이 없다. 다시 연 팝업의 진행사항은 "킥오프 미팅"이고 편집은 닫혀 있다
+
+### AC-162 화면: 한 편집을 저장하는 동안 다른 칸 편집의 "저장"도 꺼져 앞 수정을 덮어쓰지 않는다
+- Given 상세 팝업에서 진행사항 편집과 Next Action·Due Date 편집이 동시에 열려 있고, 진행사항을 고친 상태이며 서버 응답을 늦춘다
+- When 진행사항 "저장"을 누르고, 응답 전에 Next Action·Due Date "저장"을 누르려 한다
+- Then 응답 전에는 두 "저장"이 모두 꺼져 있고 두 번째 요청은 가지 않는다. 응답이 오면 진행사항 편집이 닫히고 Next Action·Due Date "저장"이 다시 켜지며, 그 저장 요청의 진행사항 값은 방금 저장한 값이다
 
 ## 5. 변경 이력
 
@@ -1189,3 +1236,4 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 | 2026-11-17 | 확정(2026-11-17 사용자 확인): Comment 화면 반영 — 표 7열(AC-R21·R48, 주소 action 파라미터), 추가 팝업 Comment 칸(AC-R23), 삭제 확인 Comment 건수(AC-R31), 게이트웨이 comment(AC-R32), Memo 줄 → Comment 영역(AC-R49~R51), 종료 Comment(AC-R54). 이전 행의 "프런트 후속" 해소 | 변경 AC-071, AC-074, AC-089, AC-090, AC-132, AC-135, AC-136, AC-138, AC-140, AC-144 |
 | 2026-11-20 | 확정(2026-11-20 사용자 확인): RK-R1 기준 행 변경(지난 Open Next Action 우선)에 따라 이전 Next Action 종료 대상도 같은 기준 행으로 바꾼다(사용자 결정 Q2). 화면 카드는 서버 `nextAction.actionId`를 따른다(사용자 결정 Q3, 화면 계산 `latestWithNextAction` 폐지). 바뀐 곳: 용어 기준 행, AC-R7 ①(409 경우 추가), AC-R12, AC-R26, AC-R38, AC-R43. 요청 API·마이그레이션 변경 없음 | 신규 AC-146~AC-152. 회귀 확인: 이전 Next Action 종료 기존 케이스(기준 행 불일치 409·403·이미 종료·AC-R36)와 ActionForm 이전 Update 카드 화면 테스트(카드 행을 상세 `nextAction.actionId`로 주도록 fixture 갱신) |
 | 2026-11-21 | 확정(2026-11-21 사용자 확인 — Next Action Shift+Enter 줄바꿈 허용, 폭 상한 없음): Action 상세 팝업 크기(사용자 요청 2026-11-21). 신설 AC-R55(팝업 폭 `min(max(640px, 80vw), 100%)`, 진행사항·Next Action 값 버튼 칸 폭 전체, 편집 칸 = 같은 폭·값 버튼 높이로 시작·내용 따라 늘어남). 변경 AC-R49(전용 폭 클래스), AC-R51(진행사항 크기 연결, Next Action 한 줄 입력 → 여러 줄 칸, Shift+Enter 줄바꿈), 2.7. UI-R25(`Modal` `className`)와 함께 바뀜. 백엔드·API·마이그레이션 변경 없음 | 신규 AC-153~AC-156. 회귀 확인: AC-136~AC-141(Next Action 칸이 textarea가 되어도 접근 이름 "Next Action"·Enter 저장·Esc 동작 같음), AC-142(표 칸 폭 그대로), AC-144·AC-145(겹친 종료 대화상자) |
+| 2026-11-21 | 확정(2026-11-21 사용자 확인 — Enter 줄바꿈 해석, 닫을 때 확인 없이 버림): 진행사항·Next Action 편집의 명시적 저장·취소(사용자 요청 2026-11-21, "enter도 저장되어야 한다"는 줄바꿈 입력으로 해석). 신설 AC-R56(Enter·Shift+Enter 줄바꿈, "저장"·"취소" 버튼, 포커스 이동·Due Date Enter·달력 선택은 저장 아님, 저장 중 편집 칸·버튼 꺼짐, 저장하지 않은 편집은 팝업을 닫으면 버림 — Q2). 변경 AC-R50(저장 방식 예외), AC-R51(진행사항·묶음 줄, 한글 조합 중 Enter 문장 삭제), AC-UC2, 2.7·2.8. 수행일·유형·Deal 상세 인라인 편집(DD-R31)·Action 추가 팝업·Comment 입력은 그대로. 백엔드·API·마이그레이션 변경 없음 | 신규 AC-157~AC-161. 변경 AC-087, AC-129, AC-136, AC-138~AC-141, AC-143, AC-155, AC-156(Enter 저장 → "저장" 버튼). 회귀 확인: AC-137(유형 Enter 저장 그대로), AC-130(수행일), AC-153·AC-154, DD-075~DD-078·DD-083·DD-085(공통 `InlineEdit` 기본 동작 그대로) |

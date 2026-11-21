@@ -74,6 +74,7 @@ export function ActionDetailDialog({ deal, action, canWrite, me, pending, error,
         registeredOn={deal.createdAt.slice(0, 10)}
         types={types}
         statusBusy={busy}
+        saving={update.isPending}
         onChangeStatus={onChangeStatus}
         onSave={save}
       />

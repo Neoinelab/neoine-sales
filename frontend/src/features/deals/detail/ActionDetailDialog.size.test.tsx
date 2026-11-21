@@ -133,9 +133,9 @@ describe('편집 칸 자동 늘림', () => {
 })
 
 describe('Next Action 편집 칸', () => {
-  // Next Action도 같은 크기의 여러 줄 칸이고 Shift+Enter는 줄바꿈, Enter는 Due Date와 함께 한 번 저장한다.
+  // Next Action도 같은 크기의 여러 줄 칸이고 Enter·Shift+Enter는 줄바꿈, "저장"이 Due Date와 함께 한 번 저장한다.
   // 테스트 코드: AC-156
-  it('is a multi-line field of the same size where Shift+Enter breaks the line and Enter saves with the due date', async () => {
+  it('is a multi-line field of the same size where Enter and Shift+Enter break lines and the save button saves with the due date', async () => {
     // given: Next Action 값 버튼 높이 48px인 Action A 상세 팝업(수정 요청 감시)
     fixMeasures(() => 48, () => 0)
     const update = vi.spyOn(gateway.actions, 'update')
@@ -143,7 +143,7 @@ describe('Next Action 편집 칸', () => {
     const opener = within(dialog).getByRole('button', { name: 'Next Action · Due Date 수정' })
     expect(opener).toHaveClass('dd-click-fill')
 
-    // when: 수정을 열어 Next Action 칸 끝에 Shift+Enter, "추가 자료"를 치고 Enter를 누른다
+    // when: 수정을 열어 Next Action 칸 끝에 Enter, "추가 자료", Shift+Enter, "참고"를 치고 저장을 누른다
     await view.user.click(opener)
     const next = within(dialog).getByLabelText('Next Action')
     // then: 여러 줄 칸(textarea)이 dd-fill-text, 높이 48px, 포커스로 열리고 Due Date 칸이 함께 있다
@@ -153,15 +153,16 @@ describe('Next Action 편집 칸', () => {
     expect(next).toHaveFocus()
     expect(within(dialog).getByLabelText('Due Date')).toBeVisible()
 
-    await view.user.type(next, '{Shift>}{Enter}{/Shift}추가 자료')
-    // then: Enter 전에 칸 값에 줄바꿈이 실제로 들어 있다(공백으로 바뀌지 않았다)
-    expect((next as HTMLTextAreaElement).value).toBe('요구사항 문서 전달\n추가 자료')
-    await view.user.keyboard('{Enter}')
+    await view.user.type(next, '{Enter}추가 자료{Shift>}{Enter}{/Shift}참고')
+    // then: 저장 전에는 요청이 없고 칸 값에 줄바꿈이 실제로 들어 있다(공백으로 바뀌지 않았다)
+    expect(update).not.toHaveBeenCalled()
+    expect((next as HTMLTextAreaElement).value).toBe('요구사항 문서 전달\n추가 자료\n참고')
+    await view.user.click(within(dialog).getByRole('button', { name: 'Next Action · Due Date 저장' }))
 
     // then: 수정 요청은 한 번이고 줄바꿈이 든 Next Action과 Due를 보내며 팝업이 두 줄로 보인다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
-    expect(update.mock.calls[0]?.[1]).toMatchObject({ nextAction: '요구사항 문서 전달\n추가 자료', dueDate: '2027-01-15' })
-    await waitFor(() => expect(fieldValue(detail(), 'Next Action').textContent).toContain('요구사항 문서 전달\n추가 자료'))
+    expect(update.mock.calls[0]?.[1]).toMatchObject({ nextAction: '요구사항 문서 전달\n추가 자료\n참고', dueDate: '2027-01-15' })
+    await waitFor(() => expect(fieldValue(detail(), 'Next Action').textContent).toContain('요구사항 문서 전달\n추가 자료\n참고'))
     expect(within(detail()).queryByLabelText('Next Action')).not.toBeInTheDocument()
   })
 })

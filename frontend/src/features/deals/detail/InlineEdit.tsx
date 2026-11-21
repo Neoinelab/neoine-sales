@@ -32,19 +32,24 @@ interface InlineEditProps {
   inputLabel?: string
   /** true면 값 버튼이 칸 폭 전체를 쓰고, 여는 순간 값 버튼 높이를 `startHeight`로 입력기에 전한다(여러 줄 칸용). */
   fill?: boolean
+  /** true면 저장·취소 버튼으로만 저장한다(Enter·Shift+Enter는 줄바꿈, 포커스 이탈·날짜 Enter·달력 선택은 저장하지 않고 편집 유지). */
+  saveButtons?: boolean
+  /** 같은 팝업의 다른 칸이 저장 중이다(saveButtons 칸의 "저장"을 끈다. 옛 값으로 앞 수정을 덮어쓰지 않게 한다). */
+  otherSaving?: boolean
   /** 저장. 화면 검증 문구는 throw new Error(message)로, 서버 오류는 그대로 reject하면 된다. 성공하면 편집이 닫힌다. */
   onSave: (text: string, option?: ComboOption) => Promise<void>
 }
 
 /**
- * 값을 클릭하면 그 자리에서 입력기로 바뀌는 인라인 편집(저장·취소 버튼 없음, 즉시 저장). 값은 button이라 Enter/Space로도 열린다.
+ * 값을 클릭하면 그 자리에서 입력기로 바뀌는 인라인 편집. 값은 button이라 Enter/Space로도 열린다.
+ * `saveButtons`가 켜진 칸은 저장·취소 버튼으로만 저장하고(Enter·Shift+Enter는 줄바꿈, 포커스 이동은 저장 아님), 아래 규칙은 켜지지 않은 칸의 동작이다.
  * - 선택형(select, 자동완성 후보 선택)은 고르는 순간 저장한다.
- * - 입력형(텍스트·숫자·날짜, 자동완성 직접 입력)은 Enter 또는 포커스 이동(blur)으로 저장한다. 값이 그대로면 저장 없이 닫는다.
+ * - 입력형(텍스트·숫자·날짜, 자동완성 직접 입력)은 Enter 또는 포커스 이동(blur)으로 저장한다(saveButtons 제외). 값이 그대로면 저장 없이 닫는다.
  * - Esc는 입력 중이던 값을 버리고 닫는다.
  * 검증·서버 오류는 입력란 옆에 보이고 편집 상태를 유지한다(다시 고쳐 재시도).
  */
 export function InlineEdit(props: InlineEditProps) {
-  const { label, canEdit, display, initial, kind = 'text', options = [], control, noSpace = false, hint, asHeading = false, fill = false, onSave } = props
+  const { label, canEdit, display, initial, kind = 'text', options = [], control, noSpace = false, hint, asHeading = false, fill = false, saveButtons = false, otherSaving = false, onSave } = props
   const inputLabel = props.inputLabel ?? label
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(initial)
@@ -86,7 +91,7 @@ export function InlineEdit(props: InlineEditProps) {
   }
 
   async function commit(override?: string, option?: ComboOption) {
-    if (busy) return
+    if (busy || (saveButtons && otherSaving)) return
     // 날짜 칸은 DateInput이 글자를 확정한 값(blur 직전 상태 포함)을 쓰고, 틀린 날짜는 저장하지 않는다(문구는 칸이 보인다).
     const value = override ?? (kind === 'date' ? dateTextToValue(finalizeDateText(text)) : text)
     if (kind === 'date' && dateValueError(value) !== null) return
@@ -109,6 +114,8 @@ export function InlineEdit(props: InlineEditProps) {
     if (event.key === 'Escape') {
       event.stopPropagation()
       close()
+    } else if (saveButtons) {
+      return
     } else if (event.key === 'Enter' && !(event.target instanceof HTMLElement && (event.target.tagName === 'SELECT' || event.target.closest('.date-input-button')))) {
       event.preventDefault()
       void commit()
@@ -116,7 +123,7 @@ export function InlineEdit(props: InlineEditProps) {
   }
 
   function onBlur(event: FocusEvent<HTMLElement>) {
-    if (skipBlur.current || busy) return
+    if (skipBlur.current || busy || saveButtons) return
     if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
     if (kind === 'select') close()
     else void commit()
@@ -162,10 +169,20 @@ export function InlineEdit(props: InlineEditProps) {
           options={options}
           sanitize={noSpace ? (raw) => guard(label, raw) : undefined}
           onPick={(option) => void commit(option.value, option)}
-          commit={(v) => void commit(v)}
+          commit={saveButtons ? (v) => v !== undefined && setText(v) : (v) => void commit(v)}
           control={control}
           startHeight={startHeight}
         />
+        {saveButtons && (
+          <div className="dd-inline-buttons">
+            <button type="button" className="primary" aria-label={`${label} 저장`} disabled={busy || otherSaving} onClick={() => void commit()}>
+              저장
+            </button>
+            <button type="button" aria-label={`${label} 취소`} disabled={busy} onClick={close}>
+              취소
+            </button>
+          </div>
+        )}
       </div>
       {(hint || flashed[label]) && <p className="field-hint">{flashed[label] ? WHITESPACE_MESSAGE : hint}</p>}
       <ErrorBanner error={error} format={messageOf} />

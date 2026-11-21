@@ -17,13 +17,15 @@ interface ActionDetailFieldsProps {
   registeredOn: string
   types: readonly { id: number; name: string }[]
   statusBusy: boolean
+  /** 이 팝업의 칸 저장이 진행 중이다(다른 칸의 "저장"을 끈다). */
+  saving: boolean
   onChangeStatus: (action: DealAction, status: NextActionStatus) => void
   /** 바꾼 칸만 담아 저장한다. 화면 검증 위반은 Error로 reject한다. */
   onSave: (patch: Partial<ActionUpdateInput>) => Promise<void>
 }
 
 /** Action 상세 팝업의 항목 목록: 칸마다 값을 누르면 그 자리에서 고친다(담당자·등록 시점 Status·Forecast·상태는 고치지 않는다). */
-export function ActionDetailFields({ action, canEdit, today, registeredOn, types, statusBusy, onChangeStatus, onSave }: ActionDetailFieldsProps) {
+export function ActionDetailFields({ action, canEdit, today, registeredOn, types, statusBusy, saving, onChangeStatus, onSave }: ActionDetailFieldsProps) {
   const text = (value: string | null) => (value && value !== '' ? value : '—')
   return (
     <dl className="dd-dl dd-action-dl">
@@ -64,6 +66,8 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
         <InlineEdit
           label="진행사항"
           fill
+          saveButtons
+          otherSaving={saving}
           kind="custom"
           canEdit={canEdit}
           display={text(action.progress)}
@@ -77,6 +81,8 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
         <InlineEdit
           label="Next Action · Due Date"
           fill
+          saveButtons
+          otherSaving={saving}
           kind="custom"
           canEdit={canEdit}
           display={text(action.nextAction)}

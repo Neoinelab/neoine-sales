@@ -17,6 +17,7 @@
 
 .dd-inline-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .dd-inline-edit input { width: min(11rem, 100%); }
+.dd-inline-buttons { display: flex; flex: 1 0 100%; gap: 6px; justify-content: flex-end; }
 .dd-inline-wrap { display: grid; gap: 4px; min-width: 0; }
 /*
  * 보기와 편집의 글자 위치·글꼴 일치: 클릭 편집 값(button.dd-click)과 편집 입력기는 같은 상자
