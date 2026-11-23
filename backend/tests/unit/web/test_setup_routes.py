@@ -367,7 +367,7 @@ async def test_neither_password_appears_in_any_response_or_log(
     assert BIND_PASSWORD not in everything
 
 
-def test_openapi_documents_the_five_setup_routes_and_their_request_shapes() -> None:
+def test_openapi_documents_the_six_setup_routes_and_their_request_shapes() -> None:
     """openapi에 최초 설정 경로와 요청 모양이 문서화된다.
 
     테스트 코드: SU-042
@@ -379,9 +379,10 @@ def test_openapi_documents_the_five_setup_routes_and_their_request_shapes() -> N
     paths = schema["paths"]
     schemas = schema["components"]["schemas"]
 
-    # then: 다섯 경로·메서드가 있다
+    # then: 여섯 경로·메서드가 있다
     assert set(paths["/api/v1/auth/setup/auth-mode"]) == {"put"}
     assert set(paths["/api/v1/auth/setup/directory"]) == {"put"}
+    assert set(paths["/api/v1/auth/setup/directory/test"]) == {"post"}
     assert set(paths["/api/v1/auth/setup/storage"]) == {"put"}
     assert set(paths["/api/v1/auth/setup/storage/test"]) == {"post"}
     assert set(paths["/api/v1/auth/setup"]) == {"post"}

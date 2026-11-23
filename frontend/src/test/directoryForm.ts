@@ -22,3 +22,9 @@ export function fillDirectoryForm(
   setField(/^바인드 계정/, over.bindAccount ?? 'CORP\\svc-sales')
   setField(/^바인드 비밀번호/, over.bindPassword ?? 'Svc-Dummy-pw-1!')
 }
+
+/** 최초 설정 AD 폼에서 "연결 테스트"를 눌러 성공 알림이 보일 때까지 기다린다(등록은 테스트 성공 뒤에만 열린다, SU-R17). */
+export async function passDirectoryTest(user: UserEvent) {
+  await user.click(screen.getByRole('button', { name: '연결 테스트' }))
+  await screen.findByText(/연결 테스트에 성공했습니다/)
+}

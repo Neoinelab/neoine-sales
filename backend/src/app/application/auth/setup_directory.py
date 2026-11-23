@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.application.auth.messages import SETUP_CLOSED
 from app.application.directory.errors import DirectoryVerificationError
+from app.application.directory.test_settings import SUCCESS_MESSAGE, TestResult
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.mode import AuthMode
 from app.domain.common.errors import InvalidStateError
@@ -34,12 +35,12 @@ class RegisterSetupDirectory:
 
     async def execute(self, settings: DirectorySettings) -> StoredDirectorySettings:
         async with self._uow_factory() as uow:
-            await self._ensure_open(uow)
-        base_dn = await self._discover(settings)
+            await ensure_setup_open(uow)
+        base_dn = await discover_setup_base_dn(self._directory, settings)
         sealed = self._cipher.seal(settings.bind_password.reveal())
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
-            await self._ensure_open(uow)
+            await ensure_setup_open(uow)
             current = await uow.directory_settings.get()
             now = self._clock.now()
             stored = await uow.directory_settings.save(
@@ -54,14 +55,37 @@ class RegisterSetupDirectory:
             await uow.commit()
         return stored
 
-    @staticmethod
-    async def _ensure_open(uow: UnitOfWork) -> None:
-        if await uow.users.count_active_admins() > 0:
-            raise InvalidStateError(SETUP_CLOSED)
 
-    async def _discover(self, settings: DirectorySettings) -> str:
+class TestSetupDirectory:
+    """최초 설정 AD 연결 테스트. 서비스 계정 바인드·Base DN 탐색까지만 하고 저장하지 않는다."""
+
+    __test__ = False
+
+    def __init__(self, uow_factory: UnitOfWorkFactory, directory: DirectoryAuthenticator) -> None:
+        self._uow_factory = uow_factory
+        self._directory = directory
+
+    async def execute(self, settings: DirectorySettings) -> TestResult:
+        async with self._uow_factory() as uow:
+            await ensure_setup_open(uow)
         try:
-            return await self._directory.discover_base_dn(settings)
-        except DirectoryUnavailableError as error:
-            # 원인 문구는 서버 내부 정보를 담을 수 있어 단계만 옮긴다
-            raise DirectoryVerificationError(error.stage or VerificationStage.CONNECT) from None
+            base_dn = await discover_setup_base_dn(self._directory, settings)
+        except DirectoryVerificationError as error:
+            return TestResult(success=False, stage=error.stage, message=error.message)
+        return TestResult(success=True, stage=None, message=SUCCESS_MESSAGE, base_dn=base_dn)
+
+
+async def ensure_setup_open(uow: UnitOfWork) -> None:
+    """admin이 이미 있으면 최초 설정이 닫힌 것이다."""
+    if await uow.users.count_active_admins() > 0:
+        raise InvalidStateError(SETUP_CLOSED)
+
+
+async def discover_setup_base_dn(
+    directory: DirectoryAuthenticator, settings: DirectorySettings
+) -> str:
+    try:
+        return await directory.discover_base_dn(settings)
+    except DirectoryUnavailableError as error:
+        # 원인 문구는 서버 내부 정보를 담을 수 있어 단계만 옮긴다
+        raise DirectoryVerificationError(error.stage or VerificationStage.CONNECT) from None

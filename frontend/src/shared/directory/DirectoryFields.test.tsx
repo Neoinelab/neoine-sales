@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import type { DirectorySettings } from '../model/types'
 import { DIRECTORY_SAVED } from '../../test/directoryFixtures'
-import { fillDirectoryForm, selectSecurity, setField } from '../../test/directoryForm'
+import { fillDirectoryForm, passDirectoryTest, selectSecurity, setField } from '../../test/directoryForm'
 import { mockControl } from '../../test/fake/default'
 import { renderAt } from '../../test/mockApp'
 import { BIND_PASSWORD_MASK } from './directoryForm'
@@ -202,13 +202,15 @@ describe('최초 설정에서는 바인드 비밀번호가 필수다 (AC4)', () 
 
     // given: 비밀번호만 비운 채 나머지를 채운다
     const save = vi.spyOn(gateway.setup, 'saveDirectory')
+    const test = vi.spyOn(gateway.setup, 'testDirectory')
     fillDirectoryForm({ bindPassword: '' })
 
-    // when: "AD 서버 등록"을 누른다
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
+    // when: "연결 테스트"를 누른다
+    await user.click(screen.getByRole('button', { name: '연결 테스트' }))
 
-    // then: 비밀번호 입력 안내가 보이고 저장 요청은 보내지 않으며 등록 화면에 머문다
+    // then: 비밀번호 입력 안내가 보이고 테스트·저장 요청은 보내지 않으며 등록 화면에 머문다
     expect(await screen.findByRole('alert')).toHaveTextContent('바인드 비밀번호를 입력하세요')
+    expect(test).not.toHaveBeenCalled()
     expect(save).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
   })
@@ -221,6 +223,7 @@ describe('최초 설정에서는 바인드 비밀번호가 필수다 (AC4)', () 
     const save = vi.spyOn(gateway.setup, 'saveDirectory')
     fillDirectoryForm({ host: 'dc2.corp.test', bindAccount: 'svc@corp.test', bindPassword: 'Typed-pw-3!' })
     await selectSecurity(user, 'starttls')
+    await passDirectoryTest(user)
 
     // when: "AD 서버 등록"을 누른다
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
@@ -245,6 +248,7 @@ describe('최초 설정에서는 바인드 비밀번호가 필수다 (AC4)', () 
     // given: 서비스 계정 바인드 단계 실패를 돌려주도록 하고 폼을 채운다
     vi.spyOn(gateway.setup, 'saveDirectory').mockRejectedValue(await failure('service_bind'))
     fillDirectoryForm()
+    await passDirectoryTest(user)
 
     // when: "AD 서버 등록"을 누른다
     await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))

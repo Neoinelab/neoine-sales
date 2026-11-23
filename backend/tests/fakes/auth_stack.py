@@ -9,6 +9,7 @@
   (.session: IssuedSession, .directory_warning: DirectoryWarning | None)
 - SetupFirstAdmin(deps, issue_session)  execute(...) -> IssuedSession (변경 없음)
 - RegisterSetupDirectory(uow_factory, clock, directory, cipher)
+- TestSetupDirectory(uow_factory, directory)  execute(settings) -> TestResult (setup_directory.py)
 - GetAuthStatus(uow_factory), Authenticate(uow_factory, clock)
 
 앱 자체 계정 관리(local 모드) 개편 계약(구현자가 따른다).
@@ -55,7 +56,7 @@ if TYPE_CHECKING:
     from app.application.auth.password_login import PasswordLogin
     from app.application.auth.setup_admin import SetupAdmin
     from app.application.auth.setup_auth_mode import ChooseSetupAuthMode
-    from app.application.auth.setup_directory import RegisterSetupDirectory
+    from app.application.auth.setup_directory import RegisterSetupDirectory, TestSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_first_local_admin import SetupFirstLocalAdmin
     from app.application.ports.clock import Clock
@@ -123,6 +124,12 @@ class AuthStack:
         from app.application.auth.setup_directory import RegisterSetupDirectory  # noqa: PLC0415
 
         return RegisterSetupDirectory(self._uow_factory, self._clock, self.directory, self.cipher)
+
+    @cached_property
+    def test_setup_directory(self) -> TestSetupDirectory:
+        from app.application.auth.setup_directory import TestSetupDirectory  # noqa: PLC0415
+
+        return TestSetupDirectory(self._uow_factory, self.directory)
 
     @cached_property
     def setup_admin(self) -> SetupFirstAdmin:

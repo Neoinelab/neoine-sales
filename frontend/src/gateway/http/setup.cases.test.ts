@@ -150,3 +150,52 @@ describe('최초 설정 HTTP 게이트웨이 (SU-043~SU-045)', () => {
     await expect(call).rejects.toMatchObject({ status: 422, kind: 'directory-verification-failed', stage: 'service_bind' })
   })
 })
+
+describe('최초 설정 연결 테스트 HTTP 게이트웨이 (SU-072)', () => {
+  const SEVEN_KEYS = ['bind_account', 'bind_password', 'connect_timeout_seconds', 'host', 'port', 'security', 'user_filter']
+  // 테스트 대상 메서드는 구현 전이라 타입에 없을 수 있어 느슨하게 부른다.
+  type Testable = { testDirectory: (input: typeof DIRECTORY_INPUT) => Promise<{ baseDn: string }> }
+  const testDirectory = () => (createSetupHttp() as unknown as Testable).testDirectory(DIRECTORY_INPUT)
+
+  // 연결 테스트는 정해진 경로로 7칸을 보내고 성공이면 Base DN을 돌려준다.
+  // 테스트 코드: SU-072
+  it('posts the seven inputs to the test path and resolves with the found base DN', async () => {
+    // given: 서버가 200 success=true와 Base DN으로 답한다
+    const { calls } = stubFetch(json({ success: true, stage: null, message: 'AD 설정을 확인했습니다', base_dn: 'dc=found,dc=test' }))
+
+    // when: testDirectory를 부른다
+    const result = await testDirectory()
+
+    // then: POST /api/v1/auth/setup/directory/test에 snake_case 7키가 가고 Base DN이 돌아온다
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/setup/directory/test' })
+    expect(Object.keys(calls[0]?.body as object).sort()).toEqual(SEVEN_KEYS)
+    expect(result).toEqual({ baseDn: 'dc=found,dc=test' })
+  })
+
+  // 200이어도 success=false이면 확인 실패 오류(422, 단계 포함)로 바꾼다.
+  // 테스트 코드: SU-072
+  it('turns a 200 failure result into a directory-verification-failed error with its stage', async () => {
+    // given: 서버가 200 success=false(service_bind 단계)로 답한다
+    stubFetch(json({ success: false, stage: 'service_bind', message: '서버 문구', base_dn: null }))
+
+    // when: testDirectory를 부른다
+    const call = testDirectory()
+
+    // then: ApiError 422 directory-verification-failed, 서버 문구와 단계가 그대로다
+    await expect(call).rejects.toMatchObject({ status: 422, kind: 'directory-verification-failed', message: '서버 문구', stage: 'service_bind' })
+  })
+
+  // 설정이 닫혔으면 409를 서버 문구 그대로 넘긴다.
+  // 테스트 코드: SU-072
+  it('rejects with the server 409 message when the setup is closed', async () => {
+    // given: 서버가 409 invalid-state로 답한다
+    stubFetch(problem(409, 'invalid-state', '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다'))
+
+    // when: testDirectory를 부른다
+    const call = testDirectory()
+
+    // then: ApiError 409 conflict와 서버 문구
+    await expect(call).rejects.toMatchObject({ status: 409, kind: 'conflict', message: '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다' })
+  })
+})

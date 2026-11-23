@@ -11,7 +11,7 @@
   - 저장 위치 조회·쓰기 테스트·변경, 경로 값 규칙(`StoragePath`)과 쓰기 확인
   - 화면 Admin > 외부연동(`/admin/integrations`)의 AD 섹션·저장 위치 섹션, AD 입력 칸 공용 컴포넌트(`DirectoryFields`·`directoryForm`)와 AD 오류 문구(`shared/directory/messages.ts`)
 - 범위 밖(다른 feature)
-  - 최초 설정 마법사의 AD 단계·저장 위치 단계(`/auth/setup/directory`·`/auth/setup/storage*`)와 인증 방식 선택 → SU. 단 SU는 이 문서의 값 규칙(IN-R2~IN-R8, IN-R11, IN-R12, IN-R23, IN-R24)과 공용 입력 칸(IN-R31)을 가리킨다
+  - 최초 설정 마법사의 AD 단계·저장 위치 단계(`/auth/setup/directory`·`/auth/setup/directory/test`·`/auth/setup/storage*`)와 인증 방식 선택 → SU. 단 SU는 이 문서의 값 규칙(IN-R2~IN-R8, IN-R11, IN-R12, IN-R23, IN-R24)과 공용 입력 칸(IN-R31)을 가리킨다
   - 로그인(search-then-bind)·대체 로그인·admin AD 경고 팝업·시도 제한의 횟수·잠금 시간·문구·`/auth/config` 응답 → AU. 인증 방식(`ad`/`local`) 판정 → SU·AU
   - 첨부 업로드·다운로드와 저장 위치가 없을 때의 503 `storage-unavailable` → AT·LC
   - 암호화 키 설정(`APP_SETTINGS_ENCRYPTION_KEY` 필수·형식) → PL-R25·PL-R26
@@ -769,3 +769,4 @@ IN-R28~IN-R36. 화면 접근 가드·Admin 서브 메뉴는 PL-R31·PL-R35.
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 AD 서버·저장 위치 설정 동작을 정본 명세로 옮김. 규칙 IN-R1~R36, use case IN-UC1~UC7, BDD 케이스 IN-001~IN-086 | IN-001~IN-086(신규) |
+| 2026-11-23 | 범위 밖 문구에 최초 설정 AD 연결 테스트 경로(`/auth/setup/directory/test`, SU-R20) 추가. IN 규칙·외부연동 화면 동작 불변(테스트 성공 전 저장 비활성화는 이번 범위 밖) | 없음 |

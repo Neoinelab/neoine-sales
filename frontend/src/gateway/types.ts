@@ -151,6 +151,8 @@ export interface SetupGateway {
   chooseAuthMode(mode: AuthMode): Promise<void>
   /** AD 단계. 항상 가능(재저장 허용, 방식은 AD가 된다). directoryDone=true. `bindPassword`가 비면 422. */
   saveDirectory(input: DirectorySettingsInput): Promise<void>
+  /** AD 연결 테스트(저장 없음). 실패는 422 `directory-verification-failed`(단계 포함), 성공하면 찾은 Base DN. */
+  testDirectory(input: DirectorySettingsInput): Promise<{ baseDn: string }>
   /** 2단계. directoryDone이 false면 409. 검증은 settings.storage.save와 같다. */
   saveStorage(path: string): Promise<void>
   /** 2단계 쓰기 테스트. 로그인·1단계 불필요, 저장 없이 검증만(저장소 장애 시뮬레이션 시 503). */

@@ -1,4 +1,4 @@
-# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-13 사용자 확인))
+# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-23 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/auth_setup.py`, `web/schemas/{auth,auth_directory,storage,password_field}.py`, `web/error_handlers.py`, `application/auth/{auth_status,mode,messages,setup_auth_mode,setup_directory,setup_storage,setup_admin,setup_first_admin,setup_first_local_admin,credential_check}.py`, `application/directory/errors.py`, `application/storage/probe.py`, `domain/auth/{mode,credentials,password_policy}.py`, `domain/storage/path.py`, `domain/user/{profile,retired_login_ids}.py`, `frontend/src/features/setup/**`, `features/auth/LoginPage.tsx`, `data/setup.ts`, `gateway/http/setup.ts`, `shared/directory/{messages,directoryForm}.ts`)이며 문구·type·상태 코드는 서버 코드에서 그대로 옮겼습니다. 테스트용 Fake 게이트웨이(`frontend/src/test/fake/gateway/auth.ts`)가 서버와 다르게 동작하는 곳은 서버를 따랐습니다(계획 `artifacts/10-analysis/su-plan.md` 확인 필요 질문 Q1~Q3).
 
@@ -7,9 +7,9 @@
 - 목적: 처음 설치한 시스템에 관리자가 아무도 없을 때, 로그인 없이 ① 인증 방식(AD 연동이면 AD 서버 등록까지) → ② 파일 저장 위치 → ③ 첫 관리자(admin) 등록을 차례로 마치게 한다. 첫 admin이 생기면 최초 설정은 닫히고 그 사람은 바로 로그인된다.
 - 사용자(역할): 미인증 방문자(설치 담당자). 재직 admin이 한 명이라도 있으면 아무도 쓸 수 없다.
 - 범위
-  - `PUT /auth/setup/auth-mode`, `PUT /auth/setup/directory`, `PUT /auth/setup/storage`, `POST /auth/setup/storage/test`, `POST /auth/setup`
+  - `PUT /auth/setup/auth-mode`, `PUT /auth/setup/directory`, `POST /auth/setup/directory/test`, `PUT /auth/setup/storage`, `POST /auth/setup/storage/test`, `POST /auth/setup`
   - `GET /auth/config` 응답 중 최초 설정 진행 상태(`needs_directory_setup`·`needs_storage_setup`·`needs_admin_setup`·`auth_mode`)의 의미와 유효 인증 방식 판정
-  - 화면: `/setup`(단계 표시, 인증 방식 선택, AD 서버 등록 폼, 저장 위치·쓰기 테스트, 관리자 등록), 로그인 화면이 최초 설정이 필요할 때 `/setup`으로 보내는 동작
+  - 화면: `/setup`(단계 표시, 인증 방식 선택, AD 서버 연결 테스트·등록 폼, 저장 위치·쓰기 테스트, 관리자 등록), 로그인 화면이 최초 설정이 필요할 때 `/setup`으로 보내는 동작
 - 범위 밖(다른 feature)
   - `/auth/config` 경로 자체와 `directory_login`, 세션 쿠키 속성, 로그인 시도 제한의 횟수·잠금 시간·문구(429), 로그인·대체 로그인 → AU
   - AD 접속 정보 7칸의 값 규칙(IN-R1~IN-R8), Base DN 자동 탐색(IN-R11 ①·IN-R12), 바인드 비밀번호 암호화(IN-R15), AD 설정 응답 모양(IN-R16), 저장 경로 값 규칙(IN-R23), 쓰기 확인(IN-R24), AD 입력 칸 공용 컴포넌트(IN-R31) → IN. 설정 뒤 AD·저장 위치 변경(`/settings/directory*`·`/settings/storage*`) → IN
@@ -47,15 +47,15 @@
 | `user_password_hashes` | 첫 admin 비밀번호의 scrypt 해시(AD·local 모두, 원문은 어디에도 저장하지 않음) |
 | `auth_sessions` | 첫 admin의 새 세션(AU) |
 
-요청·응답 모델(web): `AuthModeRequest{mode}`, `DirectorySettingsRequest`(접속 정보 6칸 + `bind_password`), `StorageSettingsRequest{path}`, `SetupAdminRequest{login_id, password, display_name?, email?, phone?}`, 응답 `DirectorySettingsResponse`(IN-R16), `StorageSettingsResponse{path, updated_at, updated_by}`(IN-R22), `PrincipalResponse{user_id, subject, email, name, role}`. 모든 요청 모델은 모르는 필드를 거부한다(422 `request-validation`).
+요청·응답 모델(web): `AuthModeRequest{mode}`, `DirectorySettingsRequest`(접속 정보 6칸 + `bind_password`), `StorageSettingsRequest{path}`, `SetupAdminRequest{login_id, password, display_name?, email?, phone?}`, 응답 `DirectorySettingsResponse`(IN-R16), AD 연결 테스트 결과 `DirectoryTestResultResponse{success, stage, message, base_dn}`(IN-R18과 같은 스키마), `StorageSettingsResponse{path, updated_at, updated_by}`(IN-R22), `PrincipalResponse{user_id, subject, email, name, role}`. 모든 요청 모델은 모르는 필드를 거부한다(422 `request-validation`).
 
 ### 2.3 비즈니스 규칙
 
 공통
 - **SU-R1** 최초 설정은 ① 인증 방식(AD 연동이면 AD 서버 등록) → ② 파일 저장 위치 → ③ 첫 admin 등록 순서다. 모든 `/auth/setup/**` 경로는 로그인 없이 부를 수 있고(세션을 읽지도 요구하지도 않음), 상태 변경 요청이라 CSRF 헤더가 필요하다(PL-R9). 첫 admin 등록이 성공하기 전까지 앞 단계는 몇 번이든 다시 저장해 덮어쓸 수 있다.
-- **SU-R2** 설정 닫힘: 재직 admin이 1명 이상이면 다섯 경로 모두 409 `invalid-state`, `detail` = "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"다. 거절되면 AD를 부르지 않고 디스크·DB에 아무것도 쓰지 않는다. AD·저장 위치 설정 행이 지워져 있어도 재직 admin이 있으면 닫혀 있다. 퇴사한 admin만 있거나 admin이 아닌 사용자만 있으면 열려 있다. 판정 위치:
+- **SU-R2** 설정 닫힘: 재직 admin이 1명 이상이면 여섯 경로 모두 409 `invalid-state`, `detail` = "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"다. 거절되면 AD를 부르지 않고 디스크·DB에 아무것도 쓰지 않는다. AD·저장 위치 설정 행이 지워져 있어도 재직 admin이 있으면 닫혀 있다. 퇴사한 admin만 있거나 admin이 아닌 사용자만 있으면 열려 있다. 판정 위치:
   - 방식 선택·저장 위치 등록·쓰기 테스트: 요청 형식(422 `request-validation`) 다음 가장 먼저(선행 단계·경로 형식·쓰기 확인보다 먼저)
-  - AD 서버 등록: 요청 형식과 칸 값 검사(SU-R6) 다음, AD 확인보다 먼저
+  - AD 서버 등록·AD 연결 테스트: 요청 형식과 칸 값 검사(SU-R6·SU-R20) 다음, AD 확인보다 먼저
   - 첫 admin 등록: 입력 검사(빈 비밀번호, AD 방식 프로필 필드, 아이디 형식, 예약 아이디, local 비밀번호 정책·프로필)와 AD 방식의 시도 제한 확인(429) 다음, 선행 단계 확인·AD 인증보다 먼저(SU-R12·R13)
 - **SU-R3** 유효 인증 방식: `auth_settings`에 값이 있으면 그 값이다. 없으면 재직 admin이 있거나 AD 설정 행이 있는 기존 시스템은 `ad`, 둘 다 없으면 미선택(`null`)이다. 저장된 `local`은 남아 있는 AD 설정 행보다 우선한다.
 
@@ -74,6 +74,13 @@
   - 확인은 IN-R11 ①(연결·TLS → 서비스 계정 바인드 → Base DN 탐색)까지만 하고 사용자 인증(IN-R11 ②)과 시도 제한은 하지 않는다. 저장되는 Base DN은 AD가 알려 준 값이다(IN-R12).
   - 확인이 실패하면 422 `directory-verification-failed`, 본문에 `stage`(`connect`·`tls`·`service_bind`·`base_dn`, 단계 정보가 없으면 `connect`)와 단계별 서버 문구(2.8)를 담는다. AD가 준 원인 문구와 비밀번호는 응답에 없다. 아무것도 저장하지 않고 인증 방식도 기록하지 않으며 이전에 저장한 AD 설정은 그대로다.
   - 성공하면 AD 설정을 저장(처음이면 `revision` 1, 덮어쓰면 +1, `updated_by` NULL, 바인드 비밀번호는 IN-R15로 암호화)하고, 같은 트랜잭션에서 인증 방식을 `ad`로 기록한다(앞서 `local`을 골랐어도 `ad`로 바뀐다). 응답 200 `DirectorySettingsResponse`(IN-R16, `bind_credential_status: "ok"`, `updated_by: null`).
+- **SU-R20** `POST /auth/setup/directory/test`(AD 연결 테스트): AD 서버를 등록하기 전에 입력값으로 연결만 확인한다. 판정 순서는 요청 형식·칸 값 → 닫힘(SU-R2) → AD 확인이다.
+  - 본문은 SU-R6과 같은 `DirectorySettingsRequest`(IN-R1의 7칸)이고 값 규칙·문구·`request-validation` 구분은 IN-R2~IN-R8을 따른다(위반이면 AD를 부르지 않음). `bind_password`가 없거나 `null`이면 422 `request-validation`, 현재 admin 비밀번호(`password`)·`expected_revision`을 보내면 422 `request-validation`이다.
+  - 확인은 SU-R6과 같이 IN-R11 ①(연결·TLS → 서비스 계정 바인드 → Base DN 탐색)까지만 하고 사용자 인증(IN-R11 ②)과 시도 제한은 하지 않는다.
+  - 아무것도 저장하지 않는다: AD 설정 행(접속 정보·암호문·Base DN·revision), 인증 방식(`auth_settings`), 진행 상태가 그대로다. 인증 방식이 미선택이거나 `local`이어도, AD 설정이 이미 저장되어 있어도 테스트할 수 있고 저장된 값을 쓰거나 바꾸지 않는다(입력한 7칸만 쓴다).
+  - 확인이 성공하면 200 `{"success": true, "stage": null, "message": "AD 설정을 확인했습니다", "base_dn": <찾은 값>}`, 확인이 실패하면 오류가 아니라 200 `{"success": false, "stage": <단계, 단계 정보가 없으면 "connect">, "message": <2.8 단계별 서버 문구>, "base_dn": null}`이다(IN-R18과 같은 응답 모양). AD가 준 원인 문구와 비밀번호는 응답에 없다. 형식·값 위반(422)과 닫힘(409)은 결과가 아니라 오류 응답이다.
+  - 호출 횟수·빈도 제한은 두지 않는다(SU-R6과 같음). 그래서 이 경로는 저장 없이 반복 탐색에 쓸 수 있고 응답에 찾은 Base DN이 들어간다. 설정이 열려 있는 동안만 가능하며 SU-R6의 수용 위험(임의 호스트로 LDAP 연결 시도)과 같은 범위로 받아들인다(2026-11-23 사용자 결정).
+  - 서버는 테스트 결과를 기억하지 않는다. AD 서버 등록(SU-R6)은 테스트 여부와 무관하게 같은 확인을 다시 하고 저장한다. "테스트 성공 뒤에만 등록"은 화면 규칙(SU-R17)이다.
 
 ② 파일 저장 위치
 - **SU-R7** `PUT /auth/setup/storage` `{path}`: 판정 순서는 닫힘(SU-R2) → 유효 방식 미선택이면 409 `invalid-state` "먼저 인증 방식을 고르세요." → 방식이 `ad`인데 AD 설정 행이 없으면 409 `invalid-state` "먼저 AD 서버를 등록하세요" → 경로 값 규칙(IN-R23) → 쓰기 확인(IN-R24) → (닫힘 재확인) → 저장이다. 앞에서 거절되면 디스크를 건드리지 않는다(예: 방식 미선택이면 상대 경로여도 409). `local`이면 AD 설정 없이 저장할 수 있고, 방식 행이 없어도 AD 설정 행이 있으면(유효 방식 `ad`) 저장할 수 있다. 성공하면 정규화한 경로를 저장(덮어쓰기, `updated_by` NULL)하고 200 `{path, updated_at, updated_by: null}`이다. 쓰기 확인이 실패한 덮어쓰기는 이전 경로를 그대로 둔다. `path`가 없거나 문자열이 아니거나 추가 필드가 있으면 422 `request-validation`.
@@ -92,17 +99,24 @@
   - 시도 제한 집계: 비밀번호가 틀리거나 사용자를 찾지 못하면(0건) 401 "아이디 또는 비밀번호가 올바르지 않습니다"이고 실패 1회로 남는다. 닫힘·선행 단계 409와 AD 장애·복호화 불가 503은 실패로 남지 않는다(선점 해제). 성공하면 그 계정·IP의 실패 횟수를 지운다.
   - AD 장애(연결·TLS·서비스 계정 바인드·Base DN·검색 2건 이상·알 수 없는 통신 실패)와 저장된 바인드 비밀번호 복호화 불가는 503 `directory-unavailable` "인증 서버(AD)에 연결할 수 없습니다. 잠시 후 다시 시도하세요"이며 원인 문구를 싣지 않는다. 최초 설정에서는 저장된 비밀번호 해시로 대신 인증하지 않는다(대체 로그인은 AU 로그인에만).
   - 성공하면 이름·이메일은 AD가 준 값(`displayName`·`mail`)으로 저장하고, 입력한 비밀번호의 해시를 저장한다(이후 AU 대체 로그인에 쓰임). 비밀번호가 틀린 시도는 해시를 저장하지 않는다.
-- **SU-R12** 비밀번호 비노출: 첫 admin 비밀번호와 바인드 비밀번호는 어떤 응답 본문(성공·401·422)에도, 로그에도 나오지 않는다. 비밀번호 원문은 어느 테이블에도 저장하지 않는다.
+- **SU-R12** 비밀번호 비노출: 첫 admin 비밀번호와 바인드 비밀번호는 어떤 응답 본문(성공·401·422, AD 연결 테스트 결과 포함)에도, 로그에도 나오지 않는다. 비밀번호 원문은 어느 테이블에도 저장하지 않는다.
 
 화면(frontend)
 - **SU-R13** HTTP 게이트웨이 `setup`(`gateway/http/setup.ts`):
   - `status()`는 `GET /api/v1/auth/config`를 읽어 `{authMode: auth_mode ?? null, directoryDone: !needs_directory_setup, storageDone: !needs_storage_setup, adminDone: !(needs_directory_setup || needs_storage_setup || needs_admin_setup)}`를 돌려준다(`auth_mode`가 없는 응답은 `null`).
-  - `chooseAuthMode(mode)` = `PUT /api/v1/auth/setup/auth-mode {mode}`, `saveDirectory(input)` = `PUT …/setup/directory`에 7칸(`host, port, security, bind_account, bind_password, user_filter, connect_timeout_seconds`, 비밀번호가 없으면 `""`), `saveStorage(path)` = `PUT …/setup/storage {path}`(응답 본문은 버림), `testStorage(path)` = `POST …/setup/storage/test {path}`, `registerAdmin(loginId, password, profile?)` = `POST …/setup`에 `{login_id, password}`, profile이 있으면 `display_name`과 값이 있는 `email`·`phone`만 더 보내고, 응답을 `Me{id, loginId, name, role}`로 바꿔 돌려준다. 서버 오류는 상태·`kind`·서버 `detail` 그대로 `ApiError`로 넘긴다(`directory-verification-failed`는 `stage` 포함).
+  - `chooseAuthMode(mode)` = `PUT /api/v1/auth/setup/auth-mode {mode}`, `saveDirectory(input)` = `PUT …/setup/directory`에 7칸(`host, port, security, bind_account, bind_password, user_filter, connect_timeout_seconds`, 비밀번호가 없으면 `""`), `testDirectory(input)` = `POST …/setup/directory/test`에 `saveDirectory`와 같은 7칸을 보내고, 응답이 `success: true`면 `{baseDn: base_dn}`을 돌려주며 `success: false`면 `ApiError` 422 kind `directory-verification-failed`(문구 = 서버 `message`, `stage` 유지)로 바꿔 던진다(IN-R35와 같은 변환), `saveStorage(path)` = `PUT …/setup/storage {path}`(응답 본문은 버림), `testStorage(path)` = `POST …/setup/storage/test {path}`, `registerAdmin(loginId, password, profile?)` = `POST …/setup`에 `{login_id, password}`, profile이 있으면 `display_name`과 값이 있는 `email`·`phone`만 더 보내고, 응답을 `Me{id, loginId, name, role}`로 바꿔 돌려준다. 서버 오류는 상태·`kind`·서버 `detail` 그대로 `ApiError`로 넘긴다(`directory-verification-failed`는 `stage` 포함).
   - `auth.config()`의 `needsSetup`은 세 `needs_*` 중 하나라도 `true`면 `true`다.
 - **SU-R14** 진입: 로그인 화면은 `needsSetup`이면 항상 `/setup`으로 바꾼다(이력 교체). 따라서 설정이 필요한 시스템에서 로그인하지 않은 방문자가 보호 화면을 열면 `/login`(PL-R29)을 거쳐 `/setup`으로 간다. `/setup`은 상태를 읽는 동안 "불러오는 중…", 읽기 실패면 제목 "최초 설정"과 오류 배너(서버 문구), `adminDone`이면(관리자 등록 진행 중이 아닐 때) `/login`으로 바꾼다(로그인한 admin도 `/setup`에 머물지 않음).
 - **SU-R15** 단계 결정과 표시: 화면은 서버 상태로 정한다 — `authMode`가 `null`이면 인증 방식 선택, `directoryDone`이 아니면 AD 서버 등록 폼, `storageDone`이 아니면 저장 위치, 그 밖은 관리자 등록. 사용자가 "AD 연동"을 누르거나 "인증 방식 다시 선택"을 누른 것만 화면 상태로 덮어쓴다. 제목 "최초 설정", 안내 "처음 한 번만 필요한 설정입니다. 순서대로 진행하세요.", 단계 목록(`aria-label="설정 단계"`) "1. 인증 방식"·"2. 파일 저장 위치"·"3. 관리자 등록" 중 현재 단계에 `aria-current="step"`, 끝난 단계에 "완료" 표시(1단계 완료 = 방식 선택됨 그리고 `directoryDone`).
 - **SU-R16** 인증 방식 화면(제목 "인증 방식"): 버튼 "AD 연동"은 서버를 부르지 않고 AD 서버 등록 폼을 연다(방식은 AD 서버를 저장할 때 기록됨). 버튼 "앱에서 직접 관리"는 `chooseAuthMode('local')`을 부르고 성공하면 서버 상태대로 다음 단계(저장 위치)로 간다. 실패하면 서버 문구를 보이고 선택 화면에 머문다. 요청 중에는 두 버튼이 비활성이다.
-- **SU-R17** AD 서버 등록 폼(제목 "AD 서버 등록", 안내 "로그인에 사용할 회사 AD 서버를 등록합니다."): 입력 칸과 기본값은 IN-R31의 공용 칸(새 폼: 보안 연결 `ssl`, 포트 636, 사용자 검색 필터 `(&(objectClass=user)(sAMAccountName={login_id}))`, 연결 제한 시간 5, 바인드 비밀번호 빈 값)이다. 바인드 비밀번호가 비었거나 공백뿐이면 서버를 부르지 않고 "바인드 비밀번호를 입력하세요"를 보인다(IN-R32와 같은 검사). 서버 거절은 `directory-verification-failed`면 단계별 화면 문구(2.8), 429면 "시도가 너무 많습니다. 잠시 후 다시 시도하세요.", 그 밖은 서버 문구를 보이고 입력값을 유지하며 폼에 머문다. 성공하면 서버 상태대로 다음 단계로 간다. "인증 방식 다시 선택"은 선택 화면으로 간다.
+- **SU-R17** AD 서버 등록 폼(제목 "AD 서버 등록", 안내 "로그인에 사용할 회사 AD 서버를 등록합니다."): 입력 칸과 기본값은 IN-R30의 공용 칸(새 폼: 보안 연결 `ssl`, 포트 636, 사용자 검색 필터 `(&(objectClass=user)(sAMAccountName={login_id}))`, 연결 제한 시간 5, 바인드 비밀번호 빈 값)이다. 버튼은 "인증 방식 다시 선택"·"연결 테스트"·"AD 서버 등록"(주 버튼, 폼 제출) 순서다.
+  - 연결 테스트: "연결 테스트"를 누르면, 바인드 비밀번호가 비었거나 공백뿐일 때 서버를 부르지 않고 "바인드 비밀번호를 입력하세요"를 보인다(IN-R32와 같은 검사). 아니면 `testDirectory(입력 7칸)`을 부른다. 성공하면 성공 알림 "연결 테스트에 성공했습니다. Base DN: <찾은 값>"을 보이고 '테스트 성공' 상태가 된다. 실패하면 아래 문구 규칙으로 오류를 보이고 입력값(바인드 비밀번호 포함)을 유지하며 '테스트 성공'이 아니다.
+  - 등록 버튼 활성: "AD 서버 등록"은 '테스트 성공' 상태이고 요청 중이 아닐 때만 활성이다. '테스트 성공'이 아닐 때는 비활성이고 버튼 근처에 안내 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다."를 보인다('테스트 성공'이면 숨김). '테스트 성공'이 아닐 때 폼 제출(입력 칸에서 Enter 포함)은 아무 요청도 보내지 않는다.
+  - 무효화: '테스트 성공' 뒤 7칸 중 하나라도 바뀌면(같은 값으로 되돌려도, 보안 연결 변경으로 포트가 자동으로 바뀌어도) 성공 알림이 사라지고 '테스트 성공'이 풀려 등록이 다시 비활성이 된다. 성공 알림의 닫기는 알림만 숨기고 '테스트 성공'은 유지한다.
+  - 등록: 활성 상태에서 "AD 서버 등록"을 누르면 테스트한 7칸 그대로 `saveDirectory`를 부른다(서버는 SU-R6으로 다시 확인한다). 성공하면 서버 상태대로 다음 단계로 간다. 실패하면 아래 문구 규칙으로 오류를 보이고 입력값을 유지하며 폼에 머물고, '테스트 성공'을 풀어 등록을 비활성으로 한다(다시 연결 테스트해야 등록할 수 있음).
+  - 공통: 한 동작(테스트·등록)을 시작하면 이전 결과(성공 알림·오류)를 지운다. 요청 중에는 "연결 테스트"·"AD 서버 등록"이 모두 비활성이다. 입력한 바인드 비밀번호는 테스트 뒤에도 칸에 남긴다(등록에 다시 쓴다). 비밀번호가 든 요청 값은 쿼리 캐시에 남기지 않는다(테스트·등록 모두 `gcTime: 0`).
+  - 문구 규칙: 서버 거절이 `directory-verification-failed`면 단계별 화면 문구(2.8, 모르는 단계는 서버 문구), 429면 "시도가 너무 많습니다. 잠시 후 다시 시도하세요.", 그 밖은 서버 문구.
+  - "인증 방식 다시 선택"은 선택 화면으로 간다. 다시 "AD 연동"으로 열면 기본값의 새 폼이고 '테스트 성공'이 아니다.
 - **SU-R18** 저장 위치 화면(제목 "파일 저장 위치"): 안내 "Deal 첨부 파일이 저장될 서버의 절대 경로를 입력합니다. 예: /var/lib/neoine-sales/files"와 "나중에 Admin > Settings > 외부연동에서 바꿀 수 있습니다. 위치를 바꿔도 기존 파일 이동은 관리자가 수작업으로 처리합니다.", 칸 "저장 경로"(처음 빈 값, 화면은 경로를 미리 검증하지 않음). "쓰기 테스트"가 성공하면 성공 알림 "쓰기 테스트에 성공했습니다."를 보이고 저장하지 않으며 단계에 머문다. "저장 위치 등록"이 성공하면 관리자 등록으로 간다. 어느 쪽이든 실패하면 서버 문구(SU-R17과 같은 문구 규칙)를 보이고 입력을 유지한다. 한쪽을 실행하면 다른 쪽의 이전 결과(알림·오류)를 지우고, 요청 중에는 두 버튼이 비활성이다. "인증 방식 다시 선택"은 선택 화면으로 간다.
 - **SU-R19** 관리자 등록 화면(제목 "관리자 등록"):
   - AD(방식이 `local`이 아님): 안내 "처음 등록하는 AD 계정이 관리자가 됩니다.", 칸 "AD 아이디"·"비밀번호"(`autocomplete="current-password"`). 입력한 그대로 `registerAdmin(loginId, password)`를 부른다(프로필 없음).
@@ -127,7 +141,7 @@ admin이 생기기 전에는 어느 상태에서든 방식 선택·AD 서버 등
 
 | 행동 | 미인증 | user | sales | admin | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| `PUT /auth/setup/auth-mode`·`/directory`·`/storage`, `POST /auth/setup/storage/test`·`/auth/setup` | 가능(설정이 열려 있을 때) | 같음 | 같음 | 같음 | 세션을 보지 않는다. 재직 admin이 있으면 누구든 409(SU-R2) |
+| `PUT /auth/setup/auth-mode`·`/directory`·`/storage`, `POST /auth/setup/directory/test`·`/auth/setup/storage/test`·`/auth/setup` | 가능(설정이 열려 있을 때) | 같음 | 같음 | 같음 | 세션을 보지 않는다. 재직 admin이 있으면 누구든 409(SU-R2) |
 | `/setup` 화면 | 가능 | 같음 | 같음 | 같음 | 설정이 끝났으면 `/login`으로(SU-R14) |
 
 ### 2.6 API 계약 (`/api/v1`, 모두 공개 경로·CSRF 헤더 필요)
@@ -136,13 +150,14 @@ admin이 생기기 전에는 어느 상태에서든 방식 선택·AD 서버 등
 | --- | --- | --- | --- |
 | PUT `/auth/setup/auth-mode` | `{"mode":"ad"|"local"}` | 204 | 409 `invalid-state`(닫힘), 422 `request-validation` |
 | PUT `/auth/setup/directory` | `DirectorySettingsRequest`(7칸) | 200 `DirectorySettingsResponse` | 409 `invalid-state`(닫힘), 422 `request-validation`·`invalid-value`·`directory-verification-failed`(+`stage`) |
+| POST `/auth/setup/directory/test` | `DirectorySettingsRequest`(7칸, PUT과 같음) | 200 `DirectoryTestResultResponse` `{success, stage, message, base_dn}`(확인 실패도 200 `success: false`) | 409 `invalid-state`(닫힘), 422 `request-validation`·`invalid-value` |
 | PUT `/auth/setup/storage` | `{"path":string}` | 200 `{path, updated_at, updated_by:null}` | 409 `invalid-state`(닫힘·방식 미선택·AD 먼저), 422 `request-validation`·`invalid-value` |
 | POST `/auth/setup/storage/test` | `{"path":string}` | 204 | 409 `invalid-state`(닫힘), 422 `request-validation`·`invalid-value` |
 | POST `/auth/setup` | `{"login_id","password","display_name"?,"email"?,"phone"?}` | 200 `PrincipalResponse` + 세션 쿠키 | 401 `unauthenticated`, 409 `invalid-state`·`already-exists`, 422 `request-validation`·`invalid-value`(+`errors` 비밀번호), 429 `too-many-attempts`, 503 `directory-unavailable` |
 | GET `/auth/config`(AU 경로) | — | 200, 진행 상태는 SU-R4 | — |
 
-- 라우터: `web/routers/auth_setup.py`(`APIRouter(prefix="/api/v1/auth", dependencies=[require_csrf_header])`). 유스케이스: `ChooseSetupAuthMode`, `RegisterSetupDirectory`, `RegisterSetupStorage`, `TestSetupStorage`, `SetupAdmin`(→ `SetupFirstLocalAdmin`·`SetupFirstAdmin`), 진행 상태 `GetAuthStatus`.
-- openapi: 다섯 경로가 문서화되고, `AuthModeRequest`의 속성은 `mode` 하나, `SetupAdminRequest`의 `display_name`·`email`·`phone`은 선택, 오류 응답은 위 표의 상태 코드다. 새 오류 type 없음.
+- 라우터: `web/routers/auth_setup.py`(`APIRouter(prefix="/api/v1/auth", dependencies=[require_csrf_header])`). 유스케이스: `ChooseSetupAuthMode`, `RegisterSetupDirectory`, `TestSetupDirectory`, `RegisterSetupStorage`, `TestSetupStorage`, `SetupAdmin`(→ `SetupFirstLocalAdmin`·`SetupFirstAdmin`), 진행 상태 `GetAuthStatus`.
+- openapi: 여섯 경로가 문서화되고(연결 테스트 응답은 `DirectoryTestResultResponse`, 요청은 PUT과 같은 `DirectorySettingsRequest`), `AuthModeRequest`의 속성은 `mode` 하나, `SetupAdminRequest`의 `display_name`·`email`·`phone`은 선택, 오류 응답은 위 표의 상태 코드다. 새 오류 type 없음.
 
 ### 2.7 화면 동작
 
@@ -175,9 +190,11 @@ SU-R13~SU-R19.
 | AD 확인 실패 `tls` | 같음 | TLS 연결에 실패했습니다. 보안 연결(SSL/StartTLS) 방식과 포트를 확인하세요 |
 | AD 확인 실패 `service_bind` | 같음 | 바인드 계정으로 AD에 로그인하지 못했습니다. 계정과 비밀번호를 확인하세요 |
 | AD 확인 실패 `base_dn` | 같음 | AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다. 바인드 계정 권한을 확인하세요 |
+| AD 연결 테스트 성공(결과 `message`) | 200 `success: true` | AD 설정을 확인했습니다 |
+| AD 연결 테스트 확인 실패(결과 `message`) | 200 `success: false` + `stage` | 위 `connect`·`tls`·`service_bind`·`base_dn` 단계 문구와 같음 |
 | 요청 형식(모르는 필드·타입·누락) | 422 `request-validation` | 요청 형식이 올바르지 않습니다 |
 
-화면 문구(frontend, 서버 `detail` 대신 보임): `directory-verification-failed`의 단계별 문구는 IN 2.8의 화면 문구와 같다(`shared/directory/messages.ts`, 예: `connect` "AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.", 모르는 단계는 서버 문구), 429 "시도가 너무 많습니다. 잠시 후 다시 시도하세요."(AD 폼·저장 위치), 화면 검사 "바인드 비밀번호를 입력하세요", "비밀번호를 입력하세요.", "비밀번호 확인이 일치하지 않습니다.", 성공 알림 "쓰기 테스트에 성공했습니다.".
+화면 문구(frontend, 서버 `detail` 대신 보임): `directory-verification-failed`의 단계별 문구는 IN 2.8의 화면 문구와 같다(`shared/directory/messages.ts`, 예: `connect` "AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.", 모르는 단계는 서버 문구), 429 "시도가 너무 많습니다. 잠시 후 다시 시도하세요."(AD 폼·저장 위치), 화면 검사 "바인드 비밀번호를 입력하세요", "비밀번호를 입력하세요.", "비밀번호 확인이 일치하지 않습니다.", 성공 알림 "쓰기 테스트에 성공했습니다."·"연결 테스트에 성공했습니다. Base DN: <찾은 값>", AD 폼 안내 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다.".
 
 ## 3. Business use case
 
@@ -197,9 +214,9 @@ SU-R13~SU-R19.
 ### SU-UC3 AD 서버 등록
 - 행위자: 설치 담당자
 - 사전 조건: 재직 admin 없음
-- 기본 흐름: 접속 정보 6칸 + 바인드 비밀번호 입력 → 서비스 계정 바인드·Base DN 탐색 → 저장·방식 `ad` 기록 → 저장 위치 단계(SU-R6·R17)
-- 대안: admin 전 다시 저장하면 덮어쓴다(revision +1)
-- 예외: 칸 값 422, 확인 단계 실패 422 `directory-verification-failed`(저장 없음), 닫힘 409
+- 기본 흐름: 접속 정보 6칸 + 바인드 비밀번호 입력 → "연결 테스트"(서비스 계정 바인드·Base DN 탐색, 저장 없음, 찾은 Base DN 표시, SU-R20) → 성공하면 "AD 서버 등록" 활성 → 등록(서버가 다시 확인) → 저장·방식 `ad` 기록 → 저장 위치 단계(SU-R6·R17)
+- 대안: 테스트 성공 뒤 입력을 바꾸면 등록이 다시 꺼져 다시 테스트한다. admin 전 다시 저장하면 덮어쓴다(revision +1)
+- 예외: 빈 바인드 비밀번호(화면, 요청 없음), 칸 값 422, 테스트 확인 실패(200 `success: false`, 등록 비활성 유지), 등록 확인 실패 422 `directory-verification-failed`(저장 없음, 다시 테스트 필요), 닫힘 409
 - 결과: AD 설정 행과 `auth_settings = ad`
 
 ### SU-UC4 파일 저장 위치 등록과 쓰기 테스트
@@ -274,7 +291,7 @@ SU-R13~SU-R19.
 | SU-039 | 재직 admin이 있으면 모든 최초 설정 경로가 409이고 AD를 부르지 않으며 바뀌는 것이 없다 | SU-R2, SU-UC7 | backend | `application/test_setup_closed_cases.py::test_every_setup_operation_is_closed_and_changes_nothing`<br>`application/test_setup_closed_cases.py::test_every_setup_operation_stays_closed_when_the_setting_rows_are_gone`<br>`application/test_setup_closed_cases.py::test_the_local_first_admin_registration_is_closed_too` |
 | SU-040 | 최초 설정 경로는 로그인 없이 쓸 수 있다 | SU-R1, SU-UC3, SU-UC4 | backend | `web/test_setup_routes.py::test_the_setup_routes_work_without_a_session` |
 | SU-041 | 첫 admin·바인드 비밀번호는 응답과 로그 어디에도 나오지 않는다 | SU-R12, SU-UC3, SU-UC5 | backend | `web/test_setup_routes.py::test_neither_password_appears_in_any_response_or_log` |
-| SU-042 | openapi에 최초 설정 경로와 요청 모양이 문서화된다 | SU-R5, SU-R9 | backend | `web/test_setup_routes.py::test_openapi_documents_the_five_setup_routes_and_their_request_shapes`<br>`web/test_setup_routes.py::test_openapi_setup_directory_request_takes_the_seven_fields_with_a_masked_password` |
+| SU-042 | openapi에 최초 설정 경로와 요청 모양이 문서화된다 | SU-R5, SU-R9 | backend | `web/test_setup_routes.py::test_openapi_documents_the_six_setup_routes_and_their_request_shapes`<br>`web/test_setup_routes.py::test_openapi_setup_directory_request_takes_the_seven_fields_with_a_masked_password` |
 | SU-043 | HTTP 게이트웨이는 진행 상태를 세 단계 완료 여부와 방식으로 바꾼다 | SU-R13, SU-UC1 | frontend | `gateway/http/setup.cases.test.ts > maps needs_directory=%s needs_storage=%s needs_admin=%s auth_mode=%s to the step flags and needsSetup`<br>`gateway/http/setup.cases.test.ts > reads the progress from GET /api/v1/auth/config` |
 | SU-044 | HTTP 게이트웨이는 각 단계를 정해진 경로·본문으로 보낸다 | SU-R13, SU-UC2, SU-UC3, SU-UC4, SU-UC5, SU-UC6 | frontend | `gateway/http/setup.cases.test.ts > sends each step to its path with its body` |
 | SU-045 | HTTP 게이트웨이는 서버 거절을 상태·문구·단계 그대로 넘긴다 | SU-R13, SU-UC3, SU-UC4, SU-UC5, SU-UC6 | frontend | `gateway/http/setup.cases.test.ts > %s rejects with the server status, kind and message (%s %s)`<br>`gateway/http/setup.cases.test.ts > keeps the failed stage of a directory verification error` |
@@ -284,9 +301,9 @@ SU-R13~SU-R19.
 | SU-049 | "앱에서 직접 관리"를 누르면 서버에 기록하고 AD 폼 없이 저장 위치 단계로 간다 | SU-R16, SU-UC2 | frontend | `features/setup/SetupFlow.cases.test.tsx > records local on the server and moves to the storage step without an AD form` |
 | SU-050 | 방식 선택이 거절되면 서버 문구를 보이고 선택 화면에 머문다 | SU-R16, SU-UC2, SU-UC7 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows the server message and stays on the choice when choosing fails (%s)` |
 | SU-051 | "AD 연동"은 서버를 부르지 않고 기본값이 채워진 AD 폼을 열고 되돌아갈 수 있다 | SU-R16, SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > opens the AD form with defaults without calling the server and can go back` |
-| SU-052 | AD 폼을 저장하면 7칸을 보내고 1단계 완료와 함께 저장 위치 단계로 간다 | SU-R17, SU-R15, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > sends the seven inputs and moves to the storage step with step 1 done` |
-| SU-053 | 바인드 비밀번호가 비면 서버를 부르지 않고 입력을 요구한다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > asks for the bind password without calling the server` |
-| SU-054 | AD 폼 저장이 거절되면 값 오류는 서버 문구, 확인 실패는 단계별 안내를 보이고 입력을 유지한다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows the server message for an invalid value and keeps the input`<br>`features/setup/SetupFlow.cases.test.tsx > explains the %s stage of a verification failure and keeps the input` |
+| SU-052 | 연결 테스트에 성공한 AD 폼을 등록하면 7칸을 보내고 1단계 완료와 함께 저장 위치 단계로 간다 | SU-R17, SU-R15, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > sends the seven inputs and moves to the storage step with step 1 done` |
+| SU-053 | 바인드 비밀번호가 비면 연결 테스트도 서버를 부르지 않고 입력을 요구한다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > asks for the bind password without calling the server` |
+| SU-054 | 연결 테스트 뒤 등록이 거절되면 문구를 보이고 입력을 유지하며 다시 테스트해야 등록할 수 있다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows the server message for an invalid value and keeps the input`<br>`features/setup/SetupFlow.cases.test.tsx > explains the %s stage of a verification failure and keeps the input` |
 | SU-055 | 화면 단계는 서버 진행 상태를 따른다 | SU-R15, SU-UC1 | frontend | `features/setup/SetupFlow.cases.test.tsx > opens the AD form directly when the mode is ad but no AD server exists`<br>`features/setup/SetupFlow.cases.test.tsx > opens the storage step directly when the AD server exists but the location does not`<br>`features/setup/SetupFlow.cases.test.tsx > skips the storage step when the location already exists, even after going back` |
 | SU-056 | 저장 위치 단계는 안내를 보이고 잘못된 경로는 서버 문구로 거절하며 입력을 유지한다 | SU-R18, SU-UC4 | frontend | `features/setup/SetupFlow.cases.test.tsx > explains the location and starts with an empty path`<br>`features/setup/SetupFlow.cases.test.tsx > rejects the path %j with the server message and keeps the input` |
 | SU-057 | 쓰기 테스트는 성공 알림만 보이고 저장하지 않으며 다시 하면 이전 결과를 지운다 | SU-R18, SU-UC4 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows only a success notice for the write test and does not save`<br>`features/setup/SetupFlow.cases.test.tsx > shows the server message for an unwritable location and clears it on the next run` |
@@ -297,6 +314,20 @@ SU-R13~SU-R19.
 | SU-062 | local 방식 관리자 등록은 프로필 칸을 받고 성공하면 그 admin으로 로그인된다 | SU-R19, SU-UC6 | frontend | `features/setup/SetupFlow.cases.test.tsx > registers the local admin with the profile and signs in`<br>`features/setup/SetupFlow.cases.test.tsx > sends an empty email and phone as null` |
 | SU-063 | local 방식에서 비밀번호가 비거나 확인과 다르면 서버를 부르지 않는다 | SU-R19, SU-UC6 | frontend | `features/setup/SetupFlow.cases.test.tsx > does not call the server when %s` |
 | SU-064 | local 방식 서버 거절은 문구를 보이고 두 비밀번호 칸을 비우며 다른 입력은 유지한다 | SU-R19, SU-UC6 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows the weak password message, clears both password fields, keeps the rest and flags the field`<br>`features/setup/SetupFlow.cases.test.tsx > shows the name message from the server and keeps the other inputs` |
+| SU-065 | 연결 테스트가 성공하면 찾은 Base DN을 돌려주고 아무것도 저장하지 않는다 | SU-R20, SU-UC3 | backend | `application/test_setup_directory_test_cases.py::test_a_successful_test_returns_the_found_base_dn_and_saves_nothing`<br>`web/test_setup_directory_test_routes.py::test_a_successful_test_is_200_with_the_base_dn_and_stores_nothing` |
+| SU-066 | 연결 테스트 확인이 단계별로 실패하면 200 실패 결과로 단계와 서버 문구만 알리고 저장하지 않는다 | SU-R20, SU-UC3 | backend | `application/test_setup_directory_test_cases.py::test_a_failed_check_is_a_failure_result_with_the_stage_message_only`<br>`web/test_setup_directory_test_routes.py::test_a_failed_check_is_200_with_the_stage_message_and_no_leak` |
+| SU-067 | 저장된 AD 설정이나 고른 방식이 있어도 연결 테스트는 그것을 쓰거나 바꾸지 않는다 | SU-R20, SU-R1, SU-UC3 | backend | `application/test_setup_directory_test_cases.py::test_a_stored_directory_setting_is_neither_used_nor_changed`<br>`application/test_setup_directory_test_cases.py::test_a_chosen_local_mode_is_kept_when_testing`<br>`web/test_setup_directory_test_routes.py::test_a_stored_directory_or_chosen_mode_is_left_as_it_was` |
+| SU-068 | 형식이 틀린 연결 테스트 입력은 422이고 AD를 부르지 않는다 | SU-R20, SU-UC3 | backend | `web/test_setup_directory_test_routes.py::test_a_malformed_test_body_is_422_without_calling_the_directory`<br>`web/test_setup_directory_test_routes.py::test_a_missing_bind_password_is_a_request_validation_error_for_the_test`<br>`web/test_setup_directory_test_routes.py::test_a_malformed_body_is_422_even_when_setup_is_closed` |
+| SU-069 | 설정이 닫혔으면 연결 테스트는 409이고 AD를 부르지 않는다 | SU-R2, SU-R20, SU-UC7 | backend | `application/test_setup_directory_test_cases.py::test_a_closed_setup_is_409_and_never_calls_the_directory`<br>`web/test_setup_directory_test_routes.py::test_a_closed_setup_is_409_and_the_directory_is_not_called` |
+| SU-070 | 연결 테스트는 로그인 없이 되고 바인드 비밀번호는 응답·로그에 나오지 않는다 | SU-R1, SU-R12, SU-R20 | backend | `web/test_setup_directory_test_routes.py::test_the_test_route_works_without_a_session_and_requires_the_csrf_header`<br>`web/test_setup_directory_test_routes.py::test_the_bind_password_never_appears_in_a_response_or_log` |
+| SU-071 | openapi에 연결 테스트 경로와 요청·응답 모양이 문서화된다 | SU-R20 | backend | `web/test_setup_directory_test_routes.py::test_openapi_documents_the_directory_test_route_and_its_shapes` |
+| SU-072 | HTTP 게이트웨이는 연결 테스트를 정해진 경로로 보내고 실패 결과를 확인 실패 오류로 바꾼다 | SU-R13, SU-UC3 | frontend | `gateway/http/setup.cases.test.ts > posts the seven inputs to the test path and resolves with the found base DN`<br>`gateway/http/setup.cases.test.ts > turns a 200 failure result into a directory-verification-failed error with its stage`<br>`gateway/http/setup.cases.test.ts > rejects with the server 409 message when the setup is closed` |
+| SU-073 | AD 폼의 등록 버튼은 처음엔 꺼져 있고 연결 테스트에 성공하면 Base DN과 함께 켜진다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > keeps register disabled until the connection test succeeds and then shows the base DN` |
+| SU-074 | 연결 테스트 성공 뒤 입력을 바꾸면 성공이 풀리고 등록이 다시 꺼진다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > invalidates the success when the input changes: %s`<br>`features/setup/SetupFlow.cases.test.tsx > only hides the notice when it is closed, keeping register enabled` |
+| SU-075 | 연결 테스트가 실패하면 문구를 보이고 입력을 유지하며 등록은 꺼진 채다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > shows the %s stage message when the connection test fails and keeps register disabled`<br>`features/setup/SetupFlow.cases.test.tsx > shows the server message for %s and keeps register disabled`<br>`features/setup/SetupFlow.cases.test.tsx > clears an earlier success when a later test fails` |
+| SU-076 | 연결 테스트·등록 요청 중에는 두 버튼이 모두 꺼진다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > disables both buttons while the connection test is pending and enables them on success`<br>`features/setup/SetupFlow.cases.test.tsx > disables both buttons while the registration is pending` |
+| SU-077 | 연결 테스트에 성공하지 않았으면 Enter로 제출해도 요청이 없다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > sends no request when Enter is pressed before the connection test succeeded` |
+| SU-078 | 연결 테스트 응답을 기다리는 동안 입력을 바꾸면 늦게 온 성공이 등록 버튼을 켜지 않는다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > ignores a late success of the previous input after the input changed` |
 
 ### SU-001 새 시스템은 방식 미선택이고 AD·저장 위치 단계가 필요하며 관리자 단계는 아직이다
 - Given 사용자·방식·AD 설정·저장 위치가 하나도 없다
@@ -547,20 +578,20 @@ SU-R13~SU-R19.
 - When "AD 연동"을 누르고, 이어서 "인증 방식 다시 선택"을 누른다
 - Then 방식 선택 요청 없이 제목 "AD 서버 등록"이 보이고 보안 연결 `ssl`, 포트 636, 사용자 검색 필터 `(&(objectClass=user)(sAMAccountName={login_id}))`, 연결 제한 시간 5, 바인드 비밀번호 빈 값이며 서버 URL·StartTLS·CA 인증서·바인드 템플릿·Base DN·속성·응답 제한 시간 칸은 없다. 되돌리면 제목 "인증 방식"이 보인다
 
-### SU-052 AD 폼을 저장하면 7칸을 보내고 1단계 완료와 함께 저장 위치 단계로 간다
-- Given AD 서버 등록 폼에 호스트 `dc1.corp.test`, 보안 연결 `starttls`(포트 389), 바인드 계정, 바인드 비밀번호, 필터, 제한 시간 5를 넣었다
+### SU-052 연결 테스트에 성공한 AD 폼을 등록하면 7칸을 보내고 1단계 완료와 함께 저장 위치 단계로 간다
+- Given AD 서버 등록 폼에 호스트 `dc1.corp.test`, 보안 연결 `starttls`(포트 389), 바인드 계정, 바인드 비밀번호, 필터, 제한 시간 5를 넣고 "연결 테스트"에 성공했다
 - When "AD 서버 등록"을 누른다
-- Then 저장 요청이 `{host, port: 389, security: "starttls", bindAccount, bindPassword, userFilter, connectTimeoutSeconds: 5}`로 가고, 제목 "파일 저장 위치"가 보이며 1단계는 "완료", 2단계가 현재 단계다
+- Then 테스트 요청과 저장 요청이 각각 1회, 둘 다 `{host, port: 389, security: "starttls", bindAccount, bindPassword, userFilter, connectTimeoutSeconds: 5}`로 가고, 제목 "파일 저장 위치"가 보이며 1단계는 "완료", 2단계가 현재 단계다
 
-### SU-053 바인드 비밀번호가 비면 서버를 부르지 않고 입력을 요구한다
+### SU-053 바인드 비밀번호가 비면 연결 테스트도 서버를 부르지 않고 입력을 요구한다
 - Given AD 서버 등록 폼에서 바인드 비밀번호만 비웠다
-- When "AD 서버 등록"을 누른다
-- Then "바인드 비밀번호를 입력하세요"가 `role="alert"`로 보이고 저장 요청은 없으며 폼에 머문다
+- When "연결 테스트"를 누른다
+- Then "바인드 비밀번호를 입력하세요"가 `role="alert"`로 보이고 테스트·저장 요청은 없으며, "AD 서버 등록"은 비활성인 채 폼에 머문다
 
-### SU-054 AD 폼 저장이 거절되면 값 오류는 서버 문구, 확인 실패는 단계별 안내를 보이고 입력을 유지한다
-- Given AD 서버 등록 폼을 채웠다
-- When 서버가 422 `invalid-value`(호스트 오류)로 거절하거나, 422 `directory-verification-failed`(`stage` `connect`·`service_bind`·`base_dn`, `detail` "서버 문구")로 거절한다
-- Then 앞의 경우 서버 문구가, 뒤의 경우 단계별 화면 문구(예: "AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.")가 `role="alert"`로 보이고, 바인드 계정 등 입력값이 그대로이며 제목 "AD 서버 등록"에 머문다
+### SU-054 연결 테스트 뒤 등록이 거절되면 문구를 보이고 입력을 유지하며 다시 테스트해야 등록할 수 있다
+- Given AD 서버 등록 폼을 채워 "연결 테스트"에 성공했다
+- When "AD 서버 등록"을 눌렀는데 서버가 422 `invalid-value`(호스트 오류)로 거절하거나, 422 `directory-verification-failed`(`stage` `connect`·`service_bind`·`base_dn`, `detail` "서버 문구")로 거절한다
+- Then 앞의 경우 서버 문구가, 뒤의 경우 단계별 화면 문구(예: "AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.")가 `role="alert"`로 보이고, 바인드 계정·바인드 비밀번호 등 입력값이 그대로이며 제목 "AD 서버 등록"에 머문다. 성공 알림은 사라지고 "AD 서버 등록"은 비활성이며 안내 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다."가 보인다
 
 ### SU-055 화면 단계는 서버 진행 상태를 따른다
 - Given (가) 방식 `ad`인데 AD 설정이 없다 / (나) AD 서버는 등록되었고 저장 위치가 없다 / (다) 저장 위치는 이미 있고 방식을 고르지 않았다
@@ -612,9 +643,78 @@ SU-R13~SU-R19.
 - When 비밀번호 `short7!`(또는 이름 없이)로 등록한다
 - Then 그 문구가 `role="alert"`로 보이고 "비밀번호"·"비밀번호 확인"은 빈 값, "아이디" `boss`·"이름"은 그대로이며 제목 "관리자 등록"에 머문다. 비밀번호 오류면 "비밀번호" 칸이 잘못된 칸으로 표시된다
 
+### SU-065 연결 테스트가 성공하면 찾은 Base DN을 돌려주고 아무것도 저장하지 않는다
+- Given 새 시스템이다(방식 미선택, AD 설정·저장 위치 없음). AD는 Base DN `dc=found,dc=test`를 알려 준다
+- When 호스트 `dc1.corp.test`, 포트 636, `ssl`, 바인드 계정, 바인드 비밀번호, 사용자 필터, 연결 제한 시간 5로 AD 연결 테스트를 한다(`POST /auth/setup/directory/test`)
+- Then 200 `{"success": true, "stage": null, "message": "AD 설정을 확인했습니다", "base_dn": "dc=found,dc=test"}`이다. AD는 Base DN 탐색만 1회 받았고 사용자 인증은 받지 않았다. AD 설정 행은 없고 방식은 미선택이며 진행 상태는 `auth_mode: null, needs_directory_setup: true, needs_storage_setup: true`다
+
+### SU-066 연결 테스트 확인이 단계별로 실패하면 200 실패 결과로 단계와 서버 문구만 알리고 저장하지 않는다
+- Given AD 확인이 `connect`·`tls`·`service_bind`·`base_dn` 단계에서 원인 문구 "internal-ldap-detail"로 실패한다(각각), 또는 단계 정보 없이 실패한다
+- When AD 연결 테스트를 한다
+- Then 200 `success: false`, `stage`는 그 단계(단계 정보가 없으면 `connect`), `message`는 2.8의 그 단계 서버 문구, `base_dn: null`이다. 응답에 "internal-ldap-detail"과 바인드 비밀번호가 없고, AD 설정·방식은 저장되지 않는다
+
+### SU-067 저장된 AD 설정이나 고른 방식이 있어도 연결 테스트는 그것을 쓰거나 바꾸지 않는다
+- Given (가) AD 서버(호스트 `dc1.corp.test`)가 revision 1로 등록되어 있다 / (나) 방식 `local`을 골라 두었다(AD 설정 없음)
+- When 호스트 `dc2.corp.test`와 새 바인드 비밀번호로 AD 연결 테스트를 한다(확인 성공)
+- Then 둘 다 200 `success: true`이고 AD는 `dc2.corp.test` 입력값으로 확인되었다. (가) 저장된 설정은 호스트 `dc1.corp.test`·revision 1·같은 암호문이고 방식은 `ad`다. (나) 방식은 `local`, AD 설정 행은 없고 `needs_directory_setup: false` 그대로다
+
+### SU-068 형식이 틀린 연결 테스트 입력은 422이고 AD를 부르지 않는다
+- When 다음 본문으로 AD 연결 테스트를 한다(각각): `host` 빈 값, `port` 0·`"636"`(문자열), `security` `"tls"`, `bind_password` 빈 값·NUL 포함, `bind_password` 누락·`null`, 폐지된 옛 필드(`server_urls`) 추가, `password`(현재 admin 비밀번호) 추가, `expected_revision` 추가
+- Then 칸 값 위반은 422 `invalid-value`(문구에 그 필드 이름), 타입·누락·`null`·옛 필드·모르는 필드·enum 위반은 422 `request-validation`이고 AD 확인은 0회다(칸별 전체 경계값은 IN 케이스)
+
+### SU-069 설정이 닫혔으면 연결 테스트는 409이고 AD를 부르지 않는다
+- Given 재직 admin이 있다(AD 설정 행이 지워진 경우 포함), 로그아웃 상태다
+- When 올바른 입력으로 AD 연결 테스트를 한다
+- Then 409 `invalid-state` "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"이고 AD 확인 호출이 없다
+
+### SU-070 연결 테스트는 로그인 없이 되고 바인드 비밀번호는 응답·로그에 나오지 않는다
+- Given 로그인하지 않았다(세션 쿠키 없음), 로그를 DEBUG까지 모은다
+- When 바인드 비밀번호를 넣어 AD 연결 테스트를 성공·확인 실패로 각각 보낸다
+- Then 둘 다 200이고 요청 뒤에도 호출자는 익명이다(`/auth/me` 401). 어느 응답 본문과 로그에도 바인드 비밀번호가 없다. CSRF 헤더가 없으면 403 `csrf`다(PL-R9)
+
+### SU-071 openapi에 연결 테스트 경로와 요청·응답 모양이 문서화된다
+- When 앱의 openapi 문서를 만든다
+- Then `/api/v1/auth/setup/directory/test`에는 `post`만 있고, 요청 스키마는 `DirectorySettingsRequest`(7칸, `bind_password` required·`format: password`·`writeOnly`), 200 응답은 `DirectoryTestResultResponse`(`success`·`stage`·`message`·`base_dn`), 문서화된 오류 코드는 409·422다
+
+### SU-072 HTTP 게이트웨이는 연결 테스트를 정해진 경로로 보내고 실패 결과를 확인 실패 오류로 바꾼다
+- Given 서버가 (가) 200 `{success: true, stage: null, message: "AD 설정을 확인했습니다", base_dn: "dc=found,dc=test"}` / (나) 200 `{success: false, stage: "service_bind", message: "서버 문구", base_dn: null}` / (다) 409 `invalid-state` "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"로 답한다
+- When `setup.testDirectory(7칸 입력)`을 부른다
+- Then 요청은 `POST /api/v1/auth/setup/directory/test`에 `saveDirectory`와 같은 snake_case 7키다. (가)는 `{baseDn: "dc=found,dc=test"}`로 resolve, (나)는 `ApiError` 422 kind `directory-verification-failed`·문구 "서버 문구"·`stage` `service_bind`로 reject, (다)는 `ApiError` 409 kind `conflict`·서버 문구로 reject된다
+
+### SU-073 AD 폼의 등록 버튼은 처음엔 꺼져 있고 연결 테스트에 성공하면 Base DN과 함께 켜진다
+- Given "AD 연동"으로 AD 서버 등록 폼을 열고 호스트·바인드 계정·바인드 비밀번호를 넣었다(Fake는 Base DN `dc=found,dc=test`를 돌려준다)
+- When "연결 테스트"를 누른다
+- Then 누르기 전에는 "AD 서버 등록"이 비활성이고 안내 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다."가 보인다. 누른 뒤에는 테스트 요청이 입력 7칸으로 1회 가고 저장 요청은 없으며, "연결 테스트에 성공했습니다. Base DN: dc=found,dc=test"가 보이고 안내가 사라지며 "AD 서버 등록"이 활성이다. 제목 "AD 서버 등록"에 머물고 바인드 비밀번호 칸 값은 그대로다
+
+### SU-074 연결 테스트 성공 뒤 입력을 바꾸면 성공이 풀리고 등록이 다시 꺼진다
+- Given AD 서버 등록 폼을 채워 "연결 테스트"에 성공했다
+- When (가) 호스트에 한 글자를 더한다 / (나) 보안 연결을 `starttls`로 바꾼다(포트 자동 변경) / (다) 바인드 비밀번호를 바꾼다 / (라) 호스트에 한 글자를 더했다가 지워 원래 값으로 되돌린다 / (마) 성공 알림의 닫기를 누른다
+- Then (가)~(라)는 성공 알림이 사라지고 "AD 서버 등록"이 비활성이며 안내 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다."가 다시 보인다. 이어서 다시 "연결 테스트"에 성공하면 등록이 활성이 된다. (마)는 알림만 사라지고 "AD 서버 등록"은 활성이다
+
+### SU-075 연결 테스트가 실패하면 문구를 보이고 입력을 유지하며 등록은 꺼진 채다
+- Given AD 서버 등록 폼을 채웠다(또는 한 번 성공한 뒤 호스트를 바꿨다). 테스트가 (가) 확인 실패(`stage` `connect`·`tls`·`service_bind`·`base_dn`) / (나) 422 `invalid-value`(호스트 오류) / (다) 409 "이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다"로 실패한다
+- When "연결 테스트"를 누른다
+- Then (가)는 단계별 화면 문구(예: `connect` "AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요."), (나)·(다)는 서버 문구가 `role="alert"`로 보인다. 입력값(바인드 비밀번호 포함)이 그대로이고 성공 알림은 없으며 "AD 서버 등록"은 비활성이고 저장 요청은 없다
+
+### SU-076 연결 테스트·등록 요청 중에는 두 버튼이 모두 꺼진다
+- Given AD 서버 등록 폼을 채웠고, (가) 테스트 응답을 / (나) 테스트 성공 뒤 등록 응답을 Fake가 아직 돌려주지 않는다
+- When (가) "연결 테스트"를 / (나) "AD 서버 등록"을 누른다
+- Then 응답이 오기 전까지 "연결 테스트"와 "AD 서버 등록"이 모두 비활성이다. (가)의 응답이 성공으로 오면 두 버튼이 모두 활성이 된다
+
+### SU-077 연결 테스트에 성공하지 않았으면 Enter로 제출해도 요청이 없다
+- Given AD 서버 등록 폼을 모두 채웠고 연결 테스트는 하지 않았다
+- When 호스트 칸에서 Enter를 누른다
+- Then 테스트·저장 요청이 없고 제목 "AD 서버 등록"에 머문다
+
+### SU-078 연결 테스트 응답을 기다리는 동안 입력을 바꾸면 늦게 온 성공이 등록 버튼을 켜지 않는다
+- Given "AD 서버 등록" 폼에 7칸을 채우고 "연결 테스트"를 눌러 서버 응답이 늦다
+- When 응답이 오기 전에 입력 칸 하나(예: 호스트)를 바꾸고, 그 뒤 예전 입력에 대한 성공 응답이 도착한다
+- Then 성공 알림과 Base DN이 보이지 않고 "AD 서버 등록"은 꺼진 채이며 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다." 안내가 보인다. 바뀐 입력으로 "연결 테스트"를 다시 눌러 성공해야 등록이 켜진다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 최초 설정 동작을 정본 명세로 옮김. 규칙 SU-R1~R19, use case SU-UC1~UC7, BDD 케이스 SU-001~SU-064. AD 칸 값·Base DN·암호화·경로·쓰기 확인 규칙은 IN 번호로 가리킴. Fake 게이트웨이와 서버가 다른 곳(AD 방식 기존 사용자 승격, 빈 아이디·비밀번호 문구, 중복·이름·비밀번호 문구)은 서버 기준으로 적고 확인 필요 질문으로 남김 | SU-001~SU-064(신규) |
 | 2026-11-13 | US 변경(users 등록자 컬럼 삭제, 2026-11-13 사용자 확인)에 맞춰 첫 admin의 `created_by` = 자기 자신 문구 삭제(데이터 모델 표·SU 규칙·SU-023). 동작은 등록자 기록이 없어지는 것 외 불변 | 변경: SU-023 |
+| 2026-11-23 | AD 서버 등록 전 연결 테스트(사용자 요청 2026-11-23, 확정 2026-11-23 사용자 확인: 최초 설정만 적용·호출 횟수 제한 없음): 새 공개 경로 `POST /auth/setup/directory/test`(저장 없음, Base DN 탐색까지, 결과는 IN-R18과 같은 200 `success` 모양) 규칙 SU-R20 추가, AD 폼은 연결 테스트 성공 뒤 입력이 그대로일 때만 등록 활성(SU-R17 교체, 공용 칸 참조를 IN-R30으로 정정), SU-R2·R12·R13·2.5·2.6·2.8·SU-UC3 갱신. 서버 PUT 규칙(SU-R6)은 불변 | 신규: SU-065~SU-077. 변경: SU-052·SU-053·SU-054. 절차 영향(테스트 코드만, 등록 전에 연결 테스트): SU-055·SU-059. 경로 목록 영향 확인: SU-042 |

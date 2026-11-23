@@ -15,6 +15,7 @@ from app.web.schemas.auth_directory import (
     directory_response,
 )
 from app.web.schemas.password_field import to_new_password
+from app.web.schemas.settings_directory import DirectoryTestResultResponse
 from app.web.schemas.storage import (
     StorageSettingsRequest,
     StorageSettingsResponse,
@@ -44,6 +45,14 @@ async def setup_directory(
 ) -> DirectorySettingsResponse:
     stored = await provider.register_setup_directory().execute(body.to_domain())
     return await directory_response(provider, stored)
+
+
+@router.post("/setup/directory/test", responses={409: PROBLEM, 422: PROBLEM})
+async def test_setup_directory(
+    body: DirectorySettingsRequest, provider: Provider
+) -> DirectoryTestResultResponse:
+    result = await provider.test_setup_directory().execute(body.to_domain())
+    return DirectoryTestResultResponse.from_result(result)
 
 
 @router.put("/setup/storage", responses={409: PROBLEM, 422: PROBLEM})

@@ -26,6 +26,7 @@ PUBLIC_WRITES = [
     ("POST", "/api/v1/auth/logout", None),
     ("PUT", "/api/v1/auth/setup/auth-mode", {"mode": "local"}),
     ("PUT", "/api/v1/auth/setup/directory", {}),
+    ("POST", "/api/v1/auth/setup/directory/test", {}),
     ("PUT", "/api/v1/auth/setup/storage", {"path": "/data/neoine/files"}),
     ("POST", "/api/v1/auth/setup/storage/test", {"path": "/data/neoine/files"}),
     ("POST", "/api/v1/auth/setup", {"login_id": "kim"}),

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from app.application.auth.password_login import PasswordLogin
     from app.application.auth.setup_admin import SetupAdmin
     from app.application.auth.setup_auth_mode import ChooseSetupAuthMode
-    from app.application.auth.setup_directory import RegisterSetupDirectory
+    from app.application.auth.setup_directory import RegisterSetupDirectory, TestSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_storage import RegisterSetupStorage, TestSetupStorage
     from app.application.dashboard.get_summary import GetDashboardSummary
@@ -312,6 +312,9 @@ class FakeUseCases(
 
     def register_setup_directory(self) -> RegisterSetupDirectory:
         return self._auth.register_directory
+
+    def test_setup_directory(self) -> TestSetupDirectory:
+        return self._auth.test_setup_directory
 
     def setup_first_admin(self) -> SetupFirstAdmin:
         return self._auth.setup_admin

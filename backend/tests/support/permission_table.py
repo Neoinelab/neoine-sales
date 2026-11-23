@@ -145,6 +145,7 @@ PUBLIC: Final = (
     ("POST", "/api/v1/auth/logout"),  # AU
     ("PUT", "/api/v1/auth/setup/auth-mode"),  # SU 최초 설정 1단계: 인증 방식 선택(admin 전까지)
     ("PUT", "/api/v1/auth/setup/directory"),  # SU
+    ("POST", "/api/v1/auth/setup/directory/test"),  # SU AD 연결 테스트(저장 없음, admin 전까지)
     ("PUT", "/api/v1/auth/setup/storage"),  # SU P2b 최초 설정 2단계
     ("POST", "/api/v1/auth/setup/storage/test"),  # SU
     ("POST", "/api/v1/auth/setup"),  # SU

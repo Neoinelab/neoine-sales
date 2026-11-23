@@ -28,6 +28,11 @@ export function useSaveSetupDirectory(): Mutation<DirectorySettingsInput> {
   })
 }
 
+/** gateway.setup.testDirectory. 최초 설정(로그인 전) AD 연결 테스트. 캐시 영향 없음. */
+export function useTestSetupDirectory(): Mutation<DirectorySettingsInput, { baseDn: string }> {
+  return useMutation<{ baseDn: string }, ApiError, DirectorySettingsInput>({ mutationFn: (input) => gateway.setup.testDirectory(input) })
+}
+
 /** gateway.setup.saveStorage(path). 성공: keys.setup 무효화. */
 export function useSaveSetupStorage(): Mutation<string> {
   const invalidate = useInvalidate()

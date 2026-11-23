@@ -9,7 +9,7 @@ from app.application.auth.deps import AuthDeps
 from app.application.auth.directory_login import DirectoryLogin
 from app.application.auth.issue_session import IssueSession
 from app.application.auth.logout import Logout
-from app.application.auth.setup_directory import RegisterSetupDirectory
+from app.application.auth.setup_directory import RegisterSetupDirectory, TestSetupDirectory
 from app.application.auth.setup_first_admin import SetupFirstAdmin
 from app.application.auth.throttle import LoginThrottle
 from app.domain.auth.login_failure import FailurePolicy
@@ -63,6 +63,9 @@ class AuthAssembly:
 
     def register_setup_directory(self) -> RegisterSetupDirectory:
         return RegisterSetupDirectory(self._uow_factory, self._clock, self._directory, self._cipher)
+
+    def test_setup_directory(self) -> TestSetupDirectory:
+        return TestSetupDirectory(self._uow_factory, self._directory)
 
     def setup_first_admin(self) -> SetupFirstAdmin:
         return SetupFirstAdmin(self._deps, self._issue_session)

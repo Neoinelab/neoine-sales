@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from app.application.auth.authenticate import Authenticate
     from app.application.auth.directory_login import DirectoryLogin
     from app.application.auth.logout import Logout
-    from app.application.auth.setup_directory import RegisterSetupDirectory
+    from app.application.auth.setup_directory import RegisterSetupDirectory, TestSetupDirectory
     from app.application.auth.setup_first_admin import SetupFirstAdmin
     from app.application.auth.setup_storage import RegisterSetupStorage
     from app.application.auth.setup_storage import TestSetupStorage as ProbeSetupStorage
@@ -153,6 +153,9 @@ class Container(
 
     def register_setup_directory(self) -> RegisterSetupDirectory:
         return self._auth.register_setup_directory()
+
+    def test_setup_directory(self) -> TestSetupDirectory:
+        return self._auth.test_setup_directory()
 
     def register_setup_storage(self) -> RegisterSetupStorage:
         return self._storage.register_setup_storage()

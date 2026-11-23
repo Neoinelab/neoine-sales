@@ -1,8 +1,11 @@
 import { api } from '../../shared/api/client'
+import { ApiError } from '../../shared/api/problem'
 import type { SetupGateway } from '../types'
 import { toDirectoryRequest } from './mappers/settings'
 import { toMe } from './mappers/user'
 import { unwrap, unwrapVoid } from './request'
+
+const FAILED_TYPE = 'https://sales.neoine.test/problems/directory-verification-failed'
 
 export function createSetupHttp(): SetupGateway {
   return {
@@ -18,6 +21,20 @@ export function createSetupHttp(): SetupGateway {
     },
     saveDirectory: async (input) => {
       await unwrap(api.PUT('/api/v1/auth/setup/directory', { body: { ...toDirectoryRequest(input), bind_password: input.bindPassword ?? '' } }))
+    },
+    // 서버는 검증 실패도 200 { success: false }로 줄 수 있다. 화면이 한 가지 경로(오류)로 다루도록 422로 바꾼다.
+    testDirectory: async (input) => {
+      const result = await unwrap(
+        api.POST('/api/v1/auth/setup/directory/test', { body: { ...toDirectoryRequest(input), bind_password: input.bindPassword ?? '' } }),
+      )
+      if (result.success) return { baseDn: result.base_dn ?? '' }
+      throw new ApiError(422, {
+        type: FAILED_TYPE,
+        title: 'Directory Verification Failed',
+        status: 422,
+        detail: result.message,
+        ...(result.stage ? { stage: result.stage } : {}),
+      })
     },
     chooseAuthMode: (mode) => unwrapVoid(api.PUT('/api/v1/auth/setup/auth-mode', { body: { mode } })),
     saveStorage: (path) => unwrapVoid(api.PUT('/api/v1/auth/setup/storage', { body: { path } })),

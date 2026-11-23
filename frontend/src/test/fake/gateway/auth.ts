@@ -16,6 +16,8 @@ import {
 import { read, requireUser, setSession, write, type MockContext } from './context'
 import { checkBindPassword, checkDirectoryInput, checkDirectoryReachable, saveDirectoryRecord, validateStoragePath } from './settings'
 
+/** 최초 설정 연결 테스트가 찾아 주는 Base DN(Fake). */
+export const SETUP_FAKE_BASE_DN = 'dc=found,dc=test'
 const LOGIN_FAILED = '아이디 또는 비밀번호가 올바르지 않습니다'
 
 function meOf(user: UserRecord): Me {
@@ -97,6 +99,15 @@ export function createSetupGateway(ctx: MockContext): SetupGateway {
         saveDirectoryRecord(ctx, input, null)
         setup().authMode = 'ad'
         setup().directoryDone = true
+      }),
+    // 연결 테스트(SU-R20): 저장 없이 값 검사 → 닫힘 → 연결 확인. 실패는 게이트웨이가 바꾼 모양(422 확인 실패)으로 던진다.
+    testDirectory: (input: DirectorySettingsInput) =>
+      write(ctx, () => {
+        checkDirectoryInput(input)
+        checkBindPassword(input, null)
+        if (setup().adminDone) throw conflict(ADMIN_EXISTS_FOR_SETUP)
+        checkDirectoryReachable(input)
+        return { baseDn: SETUP_FAKE_BASE_DN }
       }),
     saveStorage: (path) =>
       write(ctx, () => {
