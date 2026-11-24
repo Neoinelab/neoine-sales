@@ -1,4 +1,4 @@
-# 연동 설정(AD 서버·저장 위치)   (feature 코드: IN, 상태: 확정(2026-11-09 사용자 확인))
+# 연동 설정(AD 서버·저장 위치)   (feature 코드: IN, 상태: 확정(2026-11-24 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/domain/directory/{settings,rules,host,errors}.py`, `domain/storage/{path,settings}.py`, `domain/auth/credentials.py`의 `Password`, `application/directory/{get_settings,test_settings,update_settings,verify_settings,credentials,errors}.py`, `application/storage/{get_settings,test_settings,update_settings,probe}.py`, `application/auth/mode.py`, `application/ports/{directory,secret_cipher,file_storage}.py`, `web/routers/settings_{directory,storage}.py`, `web/schemas/{settings_directory,auth_directory,storage}.py`, `web/error_handlers.py`, `infra/db/{directory,storage}_settings_repository.py`, `infra/storage/_io.py`, `frontend/src/features/admin/integrations/**`, `shared/directory/**`, `gateway/http/{settings.ts,mappers/settings.ts}`, `data/settings.ts`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 테스트·Fake가 어긋나는 곳은 계획 `artifacts/10-analysis/in-plan.md`의 확인 필요 질문으로 남겼고, 이 문서는 서버 코드를 따릅니다.
 
@@ -69,7 +69,7 @@
 | updated_by_user_id | bigint NULL | FK `users.id` RESTRICT, 인덱스 | 최초 설정으로 저장했으면 NULL |
 
 - 도메인: `SecurityMode`(`none`·`ssl`·`starttls`), `DirectoryConnection`(생성 시 전 필드 검증), `DirectorySettings`(접속 정보 + `Password`, repr에 비밀번호 없음), `DirectorySettingsDraft`(바인드 비밀번호 `None` = 유지 요청), `StoredDirectorySettings`(`sealed_bind_password: SealedSecret` 등), `StoragePath`(정규화된 경로 값 객체), `StoredStorageSettings`.
-- 고정 값(입력 아님): 수신 제한 시간 10초, 표시 이름 속성 `displayName`, 메일 속성 `mail`.
+- 고정 값(입력 아님): 수신 제한 시간 10초, 표시 이름 속성 `displayName`, 메일 속성 `mail`, 전화 속성 `mobile`·`telephoneNumber`(`mobile` 우선, 규칙 AU-R8a, 2026-11-24). 서비스 계정이 전화 속성을 읽지 못하면 AD 전화번호가 없는 것으로 보고 사용자의 기존 전화번호를 그대로 둔다. 연결 테스트(IN-R18)는 이 속성을 판정에 쓰지 않아 결과가 바뀌지 않는다.
 - Port: `DirectoryAuthenticator.discover_base_dn(settings)`·`authenticate(settings, base_dn, login_id, password)`, `SecretCipher.seal`·`unseal`(풀 수 없으면 `SecretDecryptionError`), `FileStorage.check_writable(root)`, `DirectorySettingsRepository.get`·`save(..., expected_revision, updated_by, now)`, `StorageSettingsRepository.get`·`save(path, updated_by, now)`.
 - 마이그레이션 없음(두 테이블은 기준선 리비전에 있음, SC).
 
@@ -90,7 +90,7 @@ AD 접속 정보 값 규칙(SU의 AD 단계도 같은 규칙)
 
 현재 admin 비밀번호와 확인
 - **IN-R10** 저장·연결 테스트는 현재 admin 비밀번호(`password`)가 필요하다. 없거나 `null`이면 Base DN 탐색 전에 422 `invalid-value` "AD 설정을 확인하려면 현재 관리자의 비밀번호가 필요합니다"다. 값은 `Password` 규칙(IN-R8과 같은 문구, 접두어 없음)을 따르고 위반은 AD를 부르지 않고 422 `invalid-value`다. 예외 계정(예전 개발용 아이디 포함) 없이 모든 admin에게 같다.
-- **IN-R11** 확인은 후보 설정(IN-R9로 완성한 바인드 비밀번호 포함)으로 다음 순서를 한다: ① 연결(+TLS) → 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 ② 요청 admin의 로그인 아이디로 사용자 검색(`user_filter`) → 찾은 DN과 현재 admin 비밀번호로 바인드(search-then-bind). ①이 실패하면 ②를 하지 않는다. 실패 단계와 서버 문구는 2.8 표이며, AD 원인 문구·주소·비밀번호는 응답에 싣지 않는다. 서버 인증서는 검증하지 않는다(`ssl`·`starttls`도 암호화만, `none`은 평문 — 받아들인 위험).
+- **IN-R11** 확인은 후보 설정(IN-R9로 완성한 바인드 비밀번호 포함)으로 다음 순서를 한다: ① 연결(+TLS) → 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 ② 요청 admin의 로그인 아이디로 사용자 검색(`user_filter`) → 현재 admin 비밀번호로 바인드(search-then-bind). 바인드 이름은 로그인과 같은 규칙(AU-R7a)으로, 서버 환경변수 `APP_AD_LOGIN_DOMAIN`이 있으면 `<admin 아이디>@<도메인>`, 없으면 찾은 DN이다. 도메인 값이 AD와 맞지 않으면 이 단계가 `bind` 실패로 나온다. ①이 실패하면 ②를 하지 않는다. 실패 단계와 서버 문구는 2.8 표이며, AD 원인 문구·주소·비밀번호는 응답에 싣지 않는다. 서버 인증서는 검증하지 않는다(`ssl`·`starttls`도 암호화만, `none`은 평문 — 받아들인 위험).
 - **IN-R12** Base DN은 입력받지 않는다. 저장 때 찾은 값을 함께 저장하고(1~512자, 제어문자 없음), 테스트 때는 찾은 값을 결과로 돌려주기만 한다. 저장된 Base DN은 다음 로그인에 그대로 쓰이고 로그인 때 다시 찾지 않는다(AU).
 - **IN-R13** 현재 admin 바인드는 로그인 시도 제한(AU)과 같은 계정+IP 카운터를 쓴다: 바인드 전에 한도를 확인해 잠겨 있으면 429 `too-many-attempts`이고 admin 바인드를 하지 않는다(Base DN 탐색은 이미 했을 수 있다). 비밀번호 거절·검색 0건(`InvalidCredentialsError`)은 실패 1회로 남고, 연결·TLS 등 통신 실패와 성공은 횟수를 남기지 않는다. Base DN 탐색 실패는 카운터에 영향이 없다.
 
@@ -770,3 +770,5 @@ IN-R28~IN-R36. 화면 접근 가드·Admin 서브 메뉴는 PL-R31·PL-R35.
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 AD 서버·저장 위치 설정 동작을 정본 명세로 옮김. 규칙 IN-R1~R36, use case IN-UC1~UC7, BDD 케이스 IN-001~IN-086 | IN-001~IN-086(신규) |
 | 2026-11-23 | 범위 밖 문구에 최초 설정 AD 연결 테스트 경로(`/auth/setup/directory/test`, SU-R20) 추가. IN 규칙·외부연동 화면 동작 불변(테스트 성공 전 저장 비활성화는 이번 범위 밖) | 없음 |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): 고정 속성에 전화 `mobile`·`telephoneNumber` 추가(AU-R8a). 연결 테스트·설정 저장 동작 그대로 | 없음 |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): IN-R11 ②의 admin 바인드 이름이 AU-R7a를 따름(`APP_AD_LOGIN_DOMAIN`이 있으면 `<아이디>@<도메인>`, 없으면 찾은 DN). 화면·API·저장 값 변경 없음 | 없음(어댑터 동작은 AU-093~AU-100, 같은 어댑터 사용은 AU-099) |

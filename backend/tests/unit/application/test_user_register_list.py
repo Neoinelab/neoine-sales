@@ -242,7 +242,7 @@ async def test_list_users_exposes_the_last_login_time(
     """
     # given: 로그인 기록이 있는 kim
     user = await seed_user(uow_factory, "kim", Role.SALES)
-    user.record_login(NOW, display_name="김영업", email="kim@corp.test")
+    user.record_login(NOW, display_name="김영업", email="kim@corp.test", phone=None)
     async with uow_factory() as active:
         await active.users.update(user)
         await active.commit()

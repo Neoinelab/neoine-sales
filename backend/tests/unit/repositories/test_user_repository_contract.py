@@ -47,7 +47,7 @@ async def test_add_then_get_round_trips_every_field(repository: UserRepository) 
     """추가한 사용자를 조회하면 모든 필드가 그대로 돌아온다."""
     # given: 로그인 기록이 있는 사용자
     user = make_user("kim", Role.ADMIN, now=NOW)
-    user.record_login(later(30), display_name="김영업", email="kim@corp.test")
+    user.record_login(later(30), display_name="김영업", email="kim@corp.test", phone=None)
     await repository.add(user)
 
     # when: 사용자를 조회한다
@@ -272,7 +272,7 @@ async def test_update_persists_login_record(repository: UserRepository) -> None:
     user = make_user("kim")
     await repository.add(user)
     # when: 로그인을 기록하고 update한다
-    user.record_login(later(30), display_name="김영업", email="kim@corp.test")
+    user.record_login(later(30), display_name="김영업", email="kim@corp.test", phone=None)
     await repository.update(user)
     # then: 마지막 로그인 시각이 저장돼 있다
     assert (await repository.get(user.id)).last_login_at == later(30)
@@ -349,7 +349,7 @@ async def test_returned_users_are_copies(repository: UserRepository) -> None:
     await repository.add(user)
     fetched = await repository.get(user.id)
     # when: 조회한 객체를 바꾼다
-    fetched.record_login(later(5), display_name="바뀜", email=None)
+    fetched.record_login(later(5), display_name="바뀜", email=None, phone=None)
 
     # then: 다시 조회한 표시 이름은 그대로 비어 있다
     assert (await repository.get(user.id)).display_name is None

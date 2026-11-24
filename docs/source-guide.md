@@ -151,7 +151,7 @@ infra ──┘
 | `db/like.py` | 키워드 검색용 LIKE 이스케이프 |
 | `deal_code_source.py` | Deal code 발급 Port 구현 |
 | `storage/local_file_storage.py` | FileStorage Port의 로컬 디스크 구현(폴더 조각 검증·심볼릭 링크 거부, Deal 첨부 `<root>/<deal_code>/<key>`, 계약 첨부 `<root>/license-contracts/<계약 id>/<key>`, 폴더 이름은 `application/storage/folders.py`, I/O는 스레드에서) |
-| `auth/ldap.py`, `auth/ldap_connection.py`, `auth/ldap_errors.py` | ldap3 기반 AD 인증. 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 → 사용자 검색 → 찾은 DN으로 사용자 바인드(search-then-bind). 보안 연결 none·ssl·starttls, 서버 인증서 미검증 |
+| `auth/ldap.py`, `auth/ldap_connection.py`, `auth/ldap_errors.py` | ldap3 기반 AD 인증. 서비스 계정 바인드 → RootDSE `defaultNamingContext`로 Base DN 찾기 → 사용자 검색 → 찾은 DN(또는 `APP_AD_LOGIN_DOMAIN`이 있으면 `<아이디>@<도메인>`)으로 사용자 바인드(search-then-bind). 보안 연결 none·ssl·starttls, 서버 인증서 미검증 |
 | `crypto/fernet_cipher.py`, `crypto/scrypt_hasher.py` | `SecretCipher`(AD 바인드 비밀번호 암호화, `APP_SETTINGS_ENCRYPTION_KEY`)와 `PasswordHasher`(대체 로그인 scrypt 해시, `ln=17,r=8,p=1`, 스레드 계산) 구현 |
 | `db/user_password_hash_repository.py` | `UserPasswordHashRepository` 구현(`user_password_hashes`, users FK CASCADE, `uow.password_hashes`) |
 | `system_clock.py` | `Clock` Port 구현 |

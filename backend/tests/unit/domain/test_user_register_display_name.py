@@ -120,7 +120,7 @@ def test_record_login_overwrites_the_display_name_given_at_registration() -> Non
     user = _register("임시 이름")
 
     # when: AD 이름으로 로그인을 기록한다
-    user.record_login(later(5), display_name="AD 이름", email=None)
+    user.record_login(later(5), display_name="AD 이름", email=None, phone=None)
 
     # then: 표시 이름이 AD 이름이다
     assert user.display_name == "AD 이름"

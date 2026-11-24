@@ -64,6 +64,14 @@ class RecordingConnection(Connection):  # type: ignore[misc]
         if code is not None:
             self.result = {"result": code, "description": "injected", "message": ""}
             return False
+        expected = self._owner.upn_passwords.get(str(self.user))
+        if (
+            expected is not None
+        ):  # UPN(`아이디@도메인`) 바인드. 모의 서버가 DN만 알므로 직접 판정한다
+            matches = bool(self.password == expected)
+            code = 0 if matches else 49
+            self.result = {"result": code, "description": "upn-bind", "message": ""}
+            return matches
         return bool(super().bind(*args, **kwargs))
 
     def search(self, *args: object, **kwargs: object) -> bool:
@@ -106,7 +114,9 @@ class RecordingConnection(Connection):  # type: ignore[misc]
         return bool(super().unbind(*args, **kwargs))
 
 
-def user_attributes(sam: str, password: str, **extra: str) -> dict[str, str | list[str]]:
+def user_attributes(
+    sam: str, password: str, **extra: str | list[str]
+) -> dict[str, str | list[str]]:
     """AD 사용자 항목의 기본 속성. extra로 displayName, mail 같은 속성을 더한다."""
     return {"objectClass": ["user"], "userPassword": password, "sAMAccountName": sam, **extra}
 
@@ -121,6 +131,8 @@ class MockDirectory:
         self.bind_code: int | None = None  # 설정하면 모든 bind가 이 LDAP 결과 코드로 실패한다
         # 바인드 계정(DN)별 결과 코드. bind_code보다 우선한다(서비스 계정만/사용자만 실패시킬 때)
         self.bind_codes_by_user: dict[str, int] = {}
+        # UPN 바인드 이름(`kim@neoine.co.kr`) -> 비밀번호. 이 이름의 바인드는 비밀번호를 비교한다
+        self.upn_passwords: dict[str, str] = {}
         # 설정하면 사용자 검색이 이 결과 코드로 끝난다(항목은 그대로 응답에 남는다)
         self.user_search_code: int | None = None
         # RootDSE 속성. None이면 RootDSE 읽기가 거부된다
@@ -137,20 +149,26 @@ class MockDirectory:
     def add_entry(self, dn: str, attributes: dict[str, str | list[str]]) -> None:
         self._seed.strategy.add_entry(dn, attributes)
 
-    def add_user(
+    def add_user(  # noqa: PLR0913 - 속성별 키워드
         self,
         login_id: str,
         password: str,
         *,
         display_name: str | None = None,
         mail: str | None = None,
+        mobile: str | list[str] | None = None,
+        telephone: str | list[str] | None = None,
     ) -> str:
         """`cn=<login_id>,ou=users,<BASE_DN>` 항목을 만들고 DN을 돌려준다."""
-        extra: dict[str, str] = {}
+        extra: dict[str, str | list[str]] = {}
         if display_name is not None:
             extra["displayName"] = display_name
         if mail is not None:
             extra["mail"] = mail
+        if mobile is not None:
+            extra["mobile"] = mobile
+        if telephone is not None:
+            extra["telephoneNumber"] = telephone
         dn = f"cn={login_id},ou=users,{BASE_DN}"
         self.add_entry(dn, user_attributes(login_id, password, **extra))
         return dn

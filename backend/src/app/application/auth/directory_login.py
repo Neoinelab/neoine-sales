@@ -104,7 +104,12 @@ class DirectoryLogin:
                 )
                 raise AuthenticationError(LOGIN_FAILED) from None
             if user is not None:
-                user.record_login(now, display_name=profile.display_name, email=profile.email)
+                user.record_login(
+                    now,
+                    display_name=profile.display_name,
+                    email=profile.email,
+                    phone=profile.phone,
+                )
                 try:
                     await uow.users.update(user)
                     await uow.password_hashes.save(user.id, password_hash, now)

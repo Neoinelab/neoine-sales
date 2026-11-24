@@ -81,7 +81,7 @@ def test_resign_keeps_identity_and_profile_for_history() -> None:
     """
     # given: 이름이 있는 admin 사용자
     user = make_user("kim", Role.ADMIN)
-    user.record_login(later(1), display_name="김영업", email="kim@corp.test")
+    user.record_login(later(1), display_name="김영업", email="kim@corp.test", phone=None)
     original_id = user.id
 
     # when: 퇴사 처리한다

@@ -1,7 +1,8 @@
 """DirectoryAuthenticator Port의 ldap3 구현(AD). 서비스 계정 search-then-bind.
 
 흐름: (연결 -> TLS) -> 서비스 계정 바인드 -> 사용자 검색(로그인 아이디는 필터 값으로만 쓰고 DN에는
-넣지 않는다) -> 찾은 항목의 DN과 사용자 비밀번호로 새 연결 바인드. Base DN은 설정 저장 때
+넣지 않는다) -> 사용자 비밀번호로 새 연결 바인드(바인드 이름은 도메인(APP_AD_LOGIN_DOMAIN)이 있으면
+`<아이디>@<도메인>`, 없으면 찾은 항목의 DN). Base DN은 설정 저장 때
 RootDSE(defaultNamingContext)에서 찾아 저장한 값을 쓴다.
 
 ldap3은 동기 라이브러리이므로 호출마다 asyncio.to_thread에서 실행한다. 설정은 호출 때마다 받고
@@ -52,6 +53,9 @@ _INVALID_CREDENTIALS = "아이디 또는 비밀번호가 올바르지 않습니�
 _NAMING_CONTEXT = "defaultNamingContext"
 _SUCCESS = 0
 _SIZE_LIMIT_EXCEEDED = 4
+
+_MOBILE_ATTRIBUTE = "mobile"
+_TELEPHONE_ATTRIBUTE = "telephoneNumber"
 
 
 def _first(attributes: dict[str, Any], name: str) -> str | None:
@@ -105,7 +109,12 @@ def _find_user(
             base_dn,
             search_filter,
             search_scope=SUBTREE,
-            attributes=[DISPLAY_NAME_ATTRIBUTE, EMAIL_ATTRIBUTE],
+            attributes=[
+                DISPLAY_NAME_ATTRIBUTE,
+                EMAIL_ATTRIBUTE,
+                _MOBILE_ATTRIBUTE,
+                _TELEPHONE_ATTRIBUTE,
+            ],
             size_limit=SEARCH_SIZE_LIMIT,
         ),
     )
@@ -124,8 +133,14 @@ def _find_user(
         login_id=login_id,
         display_name=_first(attributes, DISPLAY_NAME_ATTRIBUTE) or login_id,
         email=_first(attributes, EMAIL_ATTRIBUTE),
+        phone=_first(attributes, _MOBILE_ATTRIBUTE) or _first(attributes, _TELEPHONE_ATTRIBUTE),
     )
     return str(entries[0]["dn"]), user
+
+
+def user_bind_name(user_dn: str, login_id: str, domain: str | None) -> str:
+    """사용자 비밀번호 바인드 이름: 도메인이 있으면 `<아이디>@<도메인>`, 없으면 찾은 항목의 DN."""
+    return f"{login_id}@{domain}" if domain else user_dn
 
 
 def _logged[**P, T](action: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
@@ -137,8 +152,15 @@ def _logged[**P, T](action: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -
 
 
 class LdapDirectoryAuthenticator:
-    def __init__(self, connect: ConnectionFactory | None = None) -> None:
+    def __init__(
+        self, connect: ConnectionFactory | None = None, *, user_bind_domain: str | None = None
+    ) -> None:
         self._connect = connect or default_connection_factory
+        self._user_bind_domain = user_bind_domain
+
+    @property
+    def user_bind_domain(self) -> str | None:
+        return self._user_bind_domain
 
     async def discover_base_dn(self, settings: DirectorySettings) -> str:
         return await asyncio.to_thread(_logged, self._discover, settings)
@@ -163,11 +185,12 @@ class LdapDirectoryAuthenticator:
     ) -> DirectoryUser:
         with service_session(self._connect, settings) as connection:
             user_dn, user = _find_user(connection, settings, base_dn, login_id)
-        self._bind_user(settings, user_dn, secret)
+        bind_name = user_bind_name(user_dn, login_id, self._user_bind_domain)
+        self._bind_user(settings, bind_name, secret)
         return user
 
-    def _bind_user(self, settings: DirectorySettings, user_dn: str, secret: str) -> None:
-        connection = self._connect(settings, user_dn, secret)
+    def _bind_user(self, settings: DirectorySettings, bind_name: str, secret: str) -> None:
+        connection = self._connect(settings, bind_name, secret)
         try:
             open_secure(connection, settings)
             if not guarded(connection.bind):

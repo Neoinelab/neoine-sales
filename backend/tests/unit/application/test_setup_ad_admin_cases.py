@@ -366,3 +366,41 @@ async def test_a_dev_prefixed_id_that_is_not_reserved_is_an_ordinary_account(
 
     # then: 등록된다
     assert issued.principal.subject == "dev-qa"
+
+
+@pytest.mark.parametrize(
+    ("login_id", "directory_phone", "stored"),
+    [("kim", "02-123-4567", "02-123-4567"), ("lee", None, None)],
+    ids=["with-directory-phone", "without-directory-phone"],
+)
+async def test_the_first_ad_admin_gets_the_directory_phone(  # noqa: PLR0913, PLR0917
+    auth: AuthStack,
+    uow_factory: UnitOfWorkFactory,
+    uow: FakeUnitOfWork,
+    login_id: str,
+    directory_phone: str | None,
+    stored: str | None,
+) -> None:
+    """AD 계정으로 확인된 첫 admin에는 AD의 전화번호가 있으면 저장되고 없으면 비어 있다.
+
+    테스트 코드: SU-079
+    """
+    # given: AD 서버·저장 위치가 등록된 새 시스템, 경우마다 전화가 있거나 없는 AD 계정
+    await seed_directory(uow_factory)
+    await seed_storage(uow_factory)
+    auth.directory.add_account(
+        login_id,
+        "pw-kim",
+        display_name="김관리",
+        email=f"{login_id}@corp.test",
+        phone=directory_phone,
+    )
+
+    # when: 맞는 비밀번호로 첫 admin을 등록한다
+    issued = await _register(auth, login_id)
+
+    # then: 등록되고 admin 행의 전화는 AD 값(없으면 null)이다
+    assert issued.principal.subject == login_id
+    user = await uow.users.get_active_by_login_id(LoginId(login_id))
+    assert user is not None
+    assert (user.role, user.phone) == (Role.ADMIN, stored)

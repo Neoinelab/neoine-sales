@@ -11,6 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 FERNET_KEY_BYTES = 32
 _URLSAFE_B64 = re.compile(r"[A-Za-z0-9_-]+={0,2}")
+_DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+_DOMAIN = re.compile(rf"{_DOMAIN_LABEL}(?:\.{_DOMAIN_LABEL})*")
+DOMAIN_MAX_LENGTH = 253
 
 
 def decode_fernet_key(text: str) -> bytes | None:
@@ -63,6 +66,9 @@ class Settings(BaseSettings):
     # AD 바인드 비밀번호 암호화 키(Fernet: URL-safe base64 32바이트). jwt_secret과 별개
     settings_encryption_key: SecretStr
 
+    # AD 사용자 비밀번호 바인드를 <아이디>@<도메인>으로 하는 도메인(선택, 없으면 찾은 DN으로 바인드)
+    ad_login_domain: str | None = None
+
     # 로그인 시도 제한(계정별·IP별 실패 횟수, 집계 창, 잠금 시간)
     login_max_failures_per_account: int = Field(default=5, ge=1)
     login_max_failures_per_ip: int = Field(default=30, ge=1)
@@ -87,3 +93,15 @@ class Settings(BaseSettings):
         if decoded is None or len(decoded) != FERNET_KEY_BYTES:
             raise ValueError("Fernet 키 형식(URL-safe base64로 인코딩한 32바이트)이어야 합니다")
         return value
+
+    @field_validator("ad_login_domain")
+    @classmethod
+    def _check_ad_login_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip().lower()
+        if not text:
+            return None
+        if len(text) > DOMAIN_MAX_LENGTH or _DOMAIN.fullmatch(text) is None:
+            raise ValueError("ad_login_domain은 도메인 형식(예: neoine.co.kr)이어야 합니다")
+        return text

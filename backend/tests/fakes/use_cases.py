@@ -447,7 +447,7 @@ class FakeUseCases(
     ) -> User:
         user = make_user(login_id, role, now=self.clock.now())
         if display_name is not None:  # 로그인 때 AD에서 받은 표시 이름
-            user.record_login(self.clock.now(), display_name=display_name, email=None)
+            user.record_login(self.clock.now(), display_name=display_name, email=None, phone=None)
         async with self._factory() as uow:
             await uow.users.add(user)
             await uow.commit()
@@ -480,7 +480,7 @@ class FakeUseCases(
             if user is None:
                 user = make_user(principal.subject, principal.role, now=self.clock.now())
                 user.record_login(
-                    self.clock.now(), display_name=principal.name, email=principal.email
+                    self.clock.now(), display_name=principal.name, email=principal.email, phone=None
                 )
                 await uow.users.add(user)
                 await uow.commit()

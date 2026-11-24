@@ -118,7 +118,9 @@ class Container(
         self._snapshot_interval = settings.forecast_snapshot_check_interval_seconds
         self._clock: Clock = clock or SystemClock()
         self._suffix_source = RandomDealCodeSuffixSource()
-        self.directory: DirectoryAuthenticator = directory or LdapDirectoryAuthenticator()
+        self.directory: DirectoryAuthenticator = directory or LdapDirectoryAuthenticator(
+            user_bind_domain=settings.ad_login_domain
+        )
         self.cipher: SecretCipher = cipher or FernetSecretCipher(settings.settings_encryption_key)
         self.password_hasher: PasswordHasher = password_hasher or ScryptPasswordHasher()
         self._auth = AuthAssembly(

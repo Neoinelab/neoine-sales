@@ -140,7 +140,7 @@ async def test_changes_after_commit_are_discarded(uow_factory: UnitOfWorkFactory
         user = make_user("kim")
         await uow.users.add(user)
         await uow.commit()
-        user.record_login(later(10), display_name="나중", email=None)
+        user.record_login(later(10), display_name="나중", email=None, phone=None)
         await uow.users.update(user)
         await _save_settings(uow)
 

@@ -87,7 +87,7 @@ async def test_profile_comes_from_the_users_table(
     # given: 이름·이메일이 저장된 kim의 세션
     user = await seed_user(uow_factory, "kim", Role.SALES)
     async with uow_factory() as uow:
-        user.record_login(NOW, display_name="김영업", email="kim@corp.test")
+        user.record_login(NOW, display_name="김영업", email="kim@corp.test", phone=None)
         await uow.users.update(user)
         await uow.commit()
     issued = await auth.issue.execute(user.to_principal())

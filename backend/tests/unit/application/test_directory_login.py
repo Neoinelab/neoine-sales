@@ -17,7 +17,13 @@ from tests.factories import NOW
 from tests.factories_auth import BASE_DN, BIND_PASSWORD
 from tests.factories_directory import make_directory_connection
 from tests.fakes.auth_stack import SESSION_TTL
-from tests.support.auth_seed import DUMMY_PASSWORD, account_key, seed_directory, seed_user
+from tests.support.auth_seed import (
+    DUMMY_PASSWORD,
+    account_key,
+    seed_directory,
+    seed_user,
+    set_user_phone,
+)
 
 if TYPE_CHECKING:
     from app.application.auth.issue_session import IssuedSession
@@ -536,3 +542,87 @@ async def test_login_password_never_reaches_stored_rows_in_plain_text(
     stored = repr(uow.password_hashes._items) + repr(uow.directory_settings._items)
     assert "pw-kim" not in stored
     assert BIND_PASSWORD not in stored
+
+
+@pytest.mark.usefixtures("ready")
+@pytest.mark.parametrize(
+    ("directory_phone", "stored"),
+    [(" 010-1234-5678 ", "010-1234-5678"), ("010.1234.5678 내선 12", "010.1234.5678 내선 12")],
+    ids=["mobile-with-spaces", "format-outside-app-rule"],
+)
+async def test_login_overwrites_the_phone_with_the_directory_mobile(
+    auth: AuthStack,
+    uow: FakeUnitOfWork,
+    uow_factory: UnitOfWorkFactory,
+    directory_phone: str,
+    stored: str,
+) -> None:
+    """AD 로그인에 성공하면 앱에서 입력한 전화번호를 AD의 mobile 값으로 형식과 무관하게 덮어쓴다.
+
+    테스트 코드: AU-089
+    """
+    # given: kim 행의 전화가 앱에서 입력한 값이고, AD는 mobile 값(공백 또는 앱 형식 밖)을 준다
+    await set_user_phone(uow_factory, "kim", "02-111-2222")
+    auth.directory.add_account(
+        "kim", "pw-kim", display_name="김부장", email="kim2@corp.test", phone=directory_phone
+    )
+
+    # when: kim이 맞는 비밀번호로 로그인한다
+    await _login(auth)
+
+    # then: 전화는 정리한 AD 값이고 이름·이메일도 AD 값이다
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone == stored
+    assert (user.display_name, user.email) == ("김부장", "kim2@corp.test")
+
+
+@pytest.mark.usefixtures("ready")
+@pytest.mark.parametrize(
+    "directory_phone", [None, "", "  "], ids=["no-attribute", "empty", "blank"]
+)
+async def test_login_keeps_the_stored_phone_when_the_directory_has_none(
+    auth: AuthStack,
+    uow: FakeUnitOfWork,
+    uow_factory: UnitOfWorkFactory,
+    directory_phone: str | None,
+) -> None:
+    """AD에 전화번호가 없으면(못 읽은 경우 포함) 저장된 전화번호를 그대로 둔다.
+
+    테스트 코드: AU-091
+    """
+    # given: kim 행의 전화가 admin이 등록 때 넣은 값이고, AD는 전화 없이 이름·이메일만 준다
+    await set_user_phone(uow_factory, "kim", "02-111-2222")
+    auth.directory.add_account(
+        "kim", "pw-kim", display_name="김영업", email="kim@corp.test", phone=directory_phone
+    )
+
+    # when: kim이 로그인한다
+    issued = await _login(auth)
+
+    # then: 세션이 발급되고 전화는 그대로이며 이름·이메일은 AD 값이다
+    assert issued.principal.subject == "kim"
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone == "02-111-2222"
+    assert (user.display_name, user.email) == ("김영업", "kim@corp.test")
+
+
+@pytest.mark.usefixtures("ready")
+async def test_login_leaves_a_user_without_a_phone_empty_when_the_directory_has_none(
+    auth: AuthStack, uow: FakeUnitOfWork
+) -> None:
+    """전화가 비어 있던 사용자는 AD에 전화번호가 없어도 계속 비어 있다.
+
+    테스트 코드: AU-091
+    """
+    # given: 전화가 없는 kim과 전화번호를 주지 않는 AD 계정
+    auth.directory.add_account("kim", "pw-kim", display_name="김영업", email="kim@corp.test")
+
+    # when: kim이 로그인한다
+    await _login(auth)
+
+    # then: 전화는 비어 있다(null)
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone is None

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 from app.domain.auth.principal import NAME_MAX, Principal, Role
-from app.domain.common.contact import EMAIL_MAX_LENGTH
+from app.domain.common.contact import EMAIL_MAX_LENGTH, PHONE_MAX_LENGTH
 from app.domain.common.entity import AuditedEntity
 from app.domain.common.errors import InvalidStateError
 from app.domain.common.validation import require_aware
@@ -94,13 +94,26 @@ class User(AuditedEntity[UserId]):
         self.role = role
         return True
 
-    def record_login(self, now: datetime, *, display_name: str | None, email: str | None) -> None:
-        """로그인 성공 시각을 남기고 디렉터리의 표시 이름·메일로 프로필을 덮어쓴다."""
+    def record_login(
+        self,
+        now: datetime,
+        *,
+        display_name: str | None,
+        email: str | None,
+        phone: str | None,
+    ) -> None:
+        """로그인 성공 시각을 남기고 디렉터리의 이름·메일·전화로 프로필을 덮어쓴다.
+
+        이름·메일은 비면 비우지만 전화는 비면 기존 값을 유지한다(형식 검증 없음).
+        """
         self._touch(now)
         self.last_login_at = now
         self.display_name = _directory_text(display_name, NAME_MAX, truncate=True)
         mail = _directory_text(email, EMAIL_MAX_LENGTH, truncate=False)
         self.email = mail if mail is not None and "@" in mail else None
+        new_phone = _directory_text(phone, PHONE_MAX_LENGTH, truncate=True)
+        if new_phone is not None:
+            self.phone = new_phone
 
     def change_profile(self, changes: ProfileChanges, now: datetime, *, require_name: bool) -> bool:
         """보낸 값만 바꾼다(UNSET은 그대로, None·빈 값은 비움). 바뀐 게 없으면 False.

@@ -26,7 +26,7 @@ def test_from_domain_of_a_resigned_user_keeps_the_role_and_label() -> None:
     """
     # given: 퇴사한 sales
     user = make_resigned_user("hong", Role.SALES)
-    user.record_login(later(1), display_name="홍길동", email="hong@corp.test")
+    user.record_login(later(1), display_name="홍길동", email="hong@corp.test", phone=None)
 
     # when: 응답 스키마로 바꿔 직렬화한다
     dumped = UserRef.from_domain(user.to_ref()).model_dump()
