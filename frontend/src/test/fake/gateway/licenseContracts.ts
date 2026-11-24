@@ -47,6 +47,11 @@ function checkedFields(fields: LicenseContractFields): LicenseContractFields {
 }
 
 function checkedTerm(input: LicenseIssueInput) {
+  if (input.end !== undefined) {
+    if (!DATE.test(input.start) || !DATE.test(input.end)) throw validation('라이선스 시작일과 종료일을 입력하세요.')
+    if (input.end < input.start) throw validation('라이선스 종료일은 시작일보다 빠를 수 없습니다.')
+    return null
+  }
   const { amount, unit } = input.term
   if (!DATE.test(input.start)) throw validation('라이선스 시작일을 입력하세요.')
   if (!Number.isInteger(amount) || amount < TERM_MIN || amount > TERM_MAX) throw validation(`기간은 ${TERM_MIN}~${TERM_MAX} 사이로 입력하세요.`)
@@ -58,7 +63,7 @@ function applyIssue(record: LicenseContractRecord, input: LicenseIssueInput, sta
   Object.assign(record, {
     status,
     licenseStart: input.start,
-    licenseEnd: licenseEnd(input.start, term.amount, term.unit),
+    licenseEnd: input.end ?? (term === null ? null : licenseEnd(input.start, term.amount, term.unit)),
     term,
   })
 }

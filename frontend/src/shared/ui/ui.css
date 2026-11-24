@@ -55,9 +55,9 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); border-col
 .tabs-prominent .tab[aria-selected='true'] { font-weight: 700; }
 .tabs-prominent .tab > span { font-size: inherit; }
 .tabs-prominent .tab-icon { display: inline-flex; }
-.comment-badge { display: inline-block; min-width: 1.4em; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.5; text-align: center; }
-.tab .tab-badge { display: inline-block; min-width: 1.4em; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.5; text-align: center; }
-.tabs-prominent .tab > .tab-badge { font-size: 0.75rem; }
+.comment-badge { display: inline-block; min-width: 1.4em; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: var(--font-base); font-weight: 700; line-height: 1.5; text-align: center; }
+.tab .tab-badge { display: inline-block; min-width: 1.4em; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: var(--font-base); font-weight: 700; line-height: 1.5; text-align: center; }
+.tabs-prominent .tab > .tab-badge { font-size: var(--font-base); }
 
 /* Notice */
 .notice { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: var(--radius); background: var(--ui-info-bg); color: var(--ui-info-fg); }
@@ -69,7 +69,7 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); border-col
 .notice button:hover:not(:disabled) { background: transparent; opacity: 0.7; }
 
 /* Badges */
-.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 500; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); white-space: nowrap; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: var(--font-base); font-weight: 500; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); white-space: nowrap; }
 .badge[data-outcome='won'] { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
 .badge[data-outcome='lost'] { background: var(--ui-bad-bg); color: var(--ui-bad-fg); }
 .badge.status { background: var(--ui-info-bg); color: var(--ui-info-fg); }
@@ -87,8 +87,8 @@ tr.risk-stale > td { background: var(--risk-stale); }
 .date-input > .field-error { flex-basis: 100%; }
 
 /* 입력 아래 문구 */
-.field-error { color: var(--danger); margin: 2px 0 0; font-size: 0.8rem; }
-.field-hint { color: var(--muted); margin: 2px 0 0; font-size: 0.8rem; }
+.field-error { color: var(--danger); margin: 2px 0 0; font-size: var(--font-base); }
+.field-hint { color: var(--muted); margin: 2px 0 0; font-size: var(--font-base); }
 .amount { font-variant-numeric: tabular-nums; }
 
 /* 정렬 가능한 표 머리글(SortableHeader). */

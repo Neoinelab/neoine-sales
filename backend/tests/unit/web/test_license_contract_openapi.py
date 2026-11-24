@@ -44,7 +44,7 @@ RESPONSE_FIELDS = {
     "updated_at",
 }
 FIELDS_BODY = {"tech_owner", "inspection_cycle", "note"}
-ISSUE_BODY = {*FIELDS_BODY, "start_date", "term_amount", "term_unit"}
+ISSUE_BODY = {*FIELDS_BODY, "start_date", "end_date", "term_amount", "term_unit"}
 
 
 @pytest.fixture(scope="module")
@@ -306,14 +306,15 @@ def test_the_issue_and_renewal_bodies_add_the_period(schema: dict[str, Any], pat
 
     # then: 필드와 필수, 수량 1~99, 단위 month·year
     assert set(body["properties"]) == ISSUE_BODY
-    assert {"start_date", "term_amount", "term_unit"} <= set(body["required"])
+    assert set(body["required"]) == {"start_date"}
     assert body["additionalProperties"] is False
     assert body["properties"]["start_date"]["format"] == "date"
     assert (
-        body["properties"]["term_amount"]["minimum"],
-        body["properties"]["term_amount"]["maximum"],
+        body["properties"]["term_amount"]["anyOf"][0]["minimum"],
+        body["properties"]["term_amount"]["anyOf"][0]["maximum"],
     ) == (1, 99)
-    assert _enum(schema, body["properties"]["term_unit"]) == {"month", "year"}
+    assert _enum(schema, body["properties"]["term_unit"]["anyOf"][0]) == {"month", "year"}
+    assert body["properties"]["end_date"]["anyOf"][0]["format"] == "date"
 
 
 def test_the_contract_response_has_the_documented_fields(schema: dict[str, Any]) -> None:

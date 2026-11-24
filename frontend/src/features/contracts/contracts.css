@@ -31,16 +31,15 @@
 /* 계약 수정 대화상자 위쪽: 상태(배지 + 발급·갱신 버튼)와 라이선스 기간 */
 .contract-edit-license { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
 .contract-license-fields { display: grid; gap: 6px; margin-top: 10px; }
-.contract-edit-status { display: inline-flex; align-items: center; gap: 8px; }
+.contract-edit-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.contract-edit-status .contract-status-cell { flex-wrap: wrap; white-space: normal; min-width: 0; }
 .contract-edit-label { font-weight: 600; color: var(--muted); }
 /* Deal에서 오는 읽기 전용 값(고객사명·Vendor·제품명·파트너사·담당영업) */
 .contract-deal-values .contract-edit-grid { grid-template-columns: 1fr; gap: 4px; }
 .contract-deal-values { display: grid; gap: 6px; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
-.contract-deal-heading { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.contract-deal-heading { margin: 0; font-size: var(--font-base); color: var(--muted); }
 .contract-deal-value { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
 .contract-delete-button { margin-right: auto; }
 .contracts-more { display: flex; justify-content: center; }
-/* 라이선스 시작일·기간·단위는 한 줄(좁으면 줄바꿈), 종료일은 아래 줄 */
-.contract-license-grid { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
-.contract-license-grid .field input[type='number'] { width: 90px; }
+.contract-license-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px 12px; align-items: end; }
 .contract-license-end { display: flex; gap: 8px; align-items: baseline; }

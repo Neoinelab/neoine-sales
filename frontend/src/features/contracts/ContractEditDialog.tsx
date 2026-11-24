@@ -9,7 +9,7 @@ import { SelectField, TextArea, TextField } from '../../shared/ui/fields'
 import { messageOf } from '../deals/detail/detailHelpers'
 import { ContractAttachments } from './ContractAttachments'
 import { INSPECTION_LABELS, STATUS_LABELS, isIssuedStatus } from './contractLabels'
-import { currentLicenseValues, draftEnd, parseAmount, startError, startLicenseDraft, type LicenseDraft } from './licenseDraft'
+import { currentLicenseValues, endError, startError, startLicenseDraft, type LicenseDraft } from './licenseDraft'
 import { LicenseFields } from './LicenseFields'
 
 interface ContractEditDialogProps {
@@ -37,7 +37,7 @@ function DealValue({ label, value }: { label: string; value: string }) {
 
 /**
  * 계약 수정 대화상자. 고객사명·Vendor·제품명·파트너사·담당영업은 Deal 값이라 읽기 전용이고, 계약 칸(기술담당·점검주기·Note)만 고친다.
- * 라이선스 칸은 상태 옆 발급·갱신 버튼을 눌러야 활성화되며 저장할 때 서버가 종료일을 계산해 반영한다. 계약 종료·삭제(admin)는 확인 뒤 바로 반영된다.
+ * 라이선스 칸은 상태 옆 발급·갱신 버튼을 눌러야 활성화된다. 계약 종료·삭제(admin)는 확인 뒤 바로 반영된다.
  * 첨부는 올리는 즉시 반영된다. 서버 거절(409·422 등)은 대화상자 안 알림으로 보이고 닫히지 않는다.
  */
 export function ContractEditDialog({ contract, today, onDone, onClose }: ContractEditDialogProps) {
@@ -66,7 +66,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
   const issued = isIssuedStatus(contract.status)
   const busy = update.isPending || issue.isPending || renew.isPending || end.isPending || remove.isPending
   const startMessage = license && submitted ? startError(license.start) : undefined
-  const amountMessage = license && submitted && parseAmount(license.amount) === null ? '기간을 1~99 사이의 숫자로 입력하세요.' : undefined
+  const endMessage = license && submitted ? endError(license.start, license.end) : undefined
 
   async function run(action: () => Promise<unknown>, message: string) {
     setError(null)
@@ -85,9 +85,8 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
       void run(() => update.mutateAsync({ id: contract.id, fields }), '계약을 수정했습니다.')
       return
     }
-    const amount = parseAmount(license.amount)
-    if (draftEnd(license) === null || amount === null) return
-    const input = { ...fields, start: license.start, term: { amount, unit: license.unit } }
+    if (startError(license.start) || endError(license.start, license.end)) return
+    const input = { ...fields, start: license.start, end: license.end }
     if (license.mode === 'issue') void run(() => issue.mutateAsync({ id: contract.id, input }), '라이선스를 발급했습니다.')
     else void run(() => renew.mutateAsync({ id: contract.id, input }), '라이선스를 갱신했습니다.')
   }
@@ -163,10 +162,9 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
       </div>
       <LicenseFields
         {...shown}
-        end={draftEnd(shown)}
         disabled={!license}
         startError={startMessage}
-        amountError={amountMessage}
+        endError={endMessage}
         startRef={startRef}
         onChange={(patch) => setLicense((prev) => (prev ? { ...prev, ...patch } : prev))}
       />

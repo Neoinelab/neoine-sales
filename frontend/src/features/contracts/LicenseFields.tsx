@@ -1,24 +1,19 @@
 import type { RefObject } from 'react'
 import { DateInput } from '../../shared/ui/DateInput'
-import { PERIOD_UNIT_LABELS, type PeriodUnit } from './licensePeriod'
+import { licenseDays } from './licenseDraft'
 
 interface LicenseFieldsProps {
   start: string
-  amount: string
-  unit: PeriodUnit
-  /** 시작일 + 기간으로 계산한 종료일. 계산할 수 없으면 null. */
-  end: string | null
+  end: string
   disabled: boolean
   startError?: string
-  amountError?: string
+  endError?: string
   startRef: RefObject<HTMLInputElement | null>
-  onChange: (patch: { start?: string; amount?: string; unit?: PeriodUnit }) => void
+  onChange: (patch: { start?: string; end?: string }) => void
 }
 
-const UNITS = Object.keys(PERIOD_UNIT_LABELS) as PeriodUnit[]
-
-/** 계약 수정 대화상자의 라이선스 시작일·기간·기간 단위 칸과 종료일 미리보기. */
-export function LicenseFields({ start, amount, unit, end, disabled, startError, amountError, startRef, onChange }: LicenseFieldsProps) {
+export function LicenseFields({ start, end, disabled, startError, endError, startRef, onChange }: LicenseFieldsProps) {
+  const days = licenseDays(start, end)
   return (
     <div className="contract-license-fields">
       <div className="contract-license-grid">
@@ -26,29 +21,14 @@ export function LicenseFields({ start, amount, unit, end, disabled, startError, 
           <label htmlFor="license-start">라이선스 시작일</label>
           <DateInput id="license-start" inputRef={startRef} value={start} disabled={disabled} error={startError} onChange={(next) => onChange({ start: next })} />
         </div>
-        <label className="field">
-          <span>기간</span>
-          <input type="number" min={1} max={99} step={1} value={amount} disabled={disabled} onChange={(e) => onChange({ amount: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>기간 단위</span>
-          <select value={unit} disabled={disabled} onChange={(e) => onChange({ unit: e.target.value as PeriodUnit })}>
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {PERIOD_UNIT_LABELS[u]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field">
+          <label htmlFor="license-end">라이선스 종료일</label>
+          <DateInput id="license-end" value={end} disabled={disabled} error={endError} onChange={(next) => onChange({ end: next })} />
+        </div>
       </div>
-      {amountError && (
-        <p role="alert" className="error">
-          {amountError}
-        </p>
-      )}
       <div className="contract-license-end">
-        <span className="contract-edit-label">종료일</span>
-        <span>{end === null ? '-' : end}</span>
+        <span className="contract-edit-label">라이선스 유지 기간</span>
+        <span>{days === null ? '-' : `${days}일 (종료일 포함)`}</span>
       </div>
     </div>
   )

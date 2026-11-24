@@ -28,7 +28,7 @@
   --shadow-pop: 0 10px 24px rgb(16 24 40 / 14%);
   --radius: 8px;
   --radius-lg: 12px;
-  --font-base: 0.875rem; /* 본문·Deal 상세 비제목 글자 */
+  --font-base: 1rem;
   --font-title: 1.4rem; /* 페이지 제목(h1)과 상단 메뉴 링크가 같이 쓴다 */
   --topbar-h: 56px;
   font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', system-ui, sans-serif;
@@ -69,6 +69,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; background: var(--bg-grad), var(--bg); }
+small { font-size: var(--font-base); }
 h1, h2, h3 { color: var(--fg); font-weight: 600; letter-spacing: -0.01em; }
 h1 { font-size: var(--font-title); margin: 0; letter-spacing: -0.02em; }
 h2 { font-size: 1.1rem; margin: 0; }
@@ -80,7 +81,7 @@ a { color: var(--accent-text); }
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 20px; padding: 0 24px; height: var(--topbar-h); background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-md); }
 .brand { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-text); }
-.brand-sub { font-size: 0.8rem; color: var(--muted); }
+.brand-sub { font-size: var(--font-base); color: var(--muted); }
 .topbar-menu { flex: 1; display: flex; align-items: center; gap: 16px; align-self: stretch; min-width: 0; }
 .topbar nav { display: flex; gap: 4px; align-self: stretch; align-items: center; }
 .topbar nav a { position: relative; display: flex; align-items: center; text-decoration: none; color: var(--text); padding: 4px 12px; border-radius: var(--radius); font-size: var(--font-title); line-height: 1.3; white-space: nowrap; font-weight: 500; transition: background-color 0.15s, color 0.15s; }
@@ -100,7 +101,7 @@ button.user-menu-trigger { padding: 6px; line-height: 0; border-radius: 999px; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* 버튼 */
-button, .button { font: inherit; font-size: 0.875rem; font-weight: 500; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; text-decoration: none; display: inline-block; transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
+button, .button { font: inherit; font-size: var(--font-base); font-weight: 500; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; text-decoration: none; display: inline-block; transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
 button:hover:not(:disabled), .button:hover { background: var(--hover); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-sm); }
@@ -109,7 +110,7 @@ button.primary:hover:not(:disabled), .button.primary:hover { background: var(--a
 /* 표 */
 table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: 0.75rem; color: var(--muted); font-weight: 600; background: var(--head-bg); text-transform: none; letter-spacing: 0.02em; }
+th { font-size: var(--font-base); color: var(--muted); font-weight: 600; background: var(--head-bg); text-transform: none; letter-spacing: 0.02em; }
 tbody tr:hover > td { background: var(--head-bg); }
 tbody tr:last-child > td { border-bottom: none; }
 td.num { text-align: right; white-space: nowrap; }
@@ -119,7 +120,7 @@ td.wrap { white-space: pre-wrap; max-width: 360px; }
 /* 카드·폼 */
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 20px; display: grid; gap: 12px; max-width: 560px; }
 .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
-.field { display: grid; gap: 4px; font-size: 0.875rem; color: var(--text); font-weight: 500; }
+.field { display: grid; gap: 4px; font-size: var(--font-base); color: var(--text); font-weight: 500; }
 .field input, .field select, .field textarea, .inline-editor input, .inline-editor select { font: inherit; font-weight: 400; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input-bg); color: var(--fg); transition: border-color 0.15s, box-shadow 0.15s; }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .actions { display: flex; gap: 8px; }

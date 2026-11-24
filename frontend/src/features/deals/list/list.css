@@ -18,10 +18,10 @@
 .deal-filter-actions .filter-buttons { margin-left: auto; }
 
 .risk-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; margin: 0; padding: 0; }
-.risk-legend li { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.risk-legend li { display: flex; align-items: center; gap: 6px; font-size: var(--font-base); }
 
 .table-scroll { overflow-x: auto; border-radius: 8px; }
-.deals-table { min-width: 1340px; font-size: 0.9rem; }
+.deals-table { min-width: 1340px; font-size: var(--font-base); }
 .deals-table th { white-space: nowrap; }
 .deals-table td { vertical-align: middle; }
 
@@ -44,7 +44,7 @@
 .quick-view-row > td, .quick-view-row:hover > td { background: var(--accent-soft); }
 .quick-view { display: grid; gap: 8px; padding: 4px 4px 4px 28px; }
 .quick-view dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; margin: 0; }
-.quick-view dt { color: var(--muted); font-size: 0.8rem; }
+.quick-view dt { color: var(--muted); font-size: var(--font-base); }
 .quick-view dd { margin: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 720px) {

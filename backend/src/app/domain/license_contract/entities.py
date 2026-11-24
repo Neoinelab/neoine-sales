@@ -15,6 +15,7 @@ from app.domain.license_contract.values import (
     ContractFields,
     ContractStatus,
     LicenseContractId,
+    resolve_license_end,
 )
 
 if TYPE_CHECKING:
@@ -29,8 +30,7 @@ if TYPE_CHECKING:
 class LicenseContract(AuditedEntity[LicenseContractId]):
     """Deal 하나에 딸린 라이선스 계약 한 건(Deal 1:N, 발급 상태는 Deal당 최대 하나).
 
-    고객사·Vendor·제품 등은 Deal에서 읽으므로 저장하지 않는다. 종료일은 항상 서버가
-    시작일과 기간으로 계산한다.
+    고객사·Vendor·제품 등은 Deal에서 읽으므로 저장하지 않는다.
     """
 
     deal_code: DealCode
@@ -70,10 +70,18 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
         self.fields = fields
         self._stamp(by, now)
 
-    def issue(self, *, start: date, term: LicenseTerm, by: UserId, now: datetime) -> None:
+    def issue(
+        self,
+        *,
+        start: date,
+        by: UserId,
+        now: datetime,
+        end: date | None = None,
+        term: LicenseTerm | None = None,
+    ) -> None:
         if self.status is not ContractStatus.NOT_ISSUED:
             raise ContractTransitionError(NOT_ISSUED_ONLY)
-        end = term.end_for(start)
+        end = resolve_license_end(start, end, term)
         self.status = ContractStatus.ISSUED_NEW
         self.term, self.license_start, self.license_end = term, start, end
         self._stamp(by, now)
@@ -83,7 +91,8 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
         *,
         new_id: LicenseContractId,
         start: date,
-        term: LicenseTerm,
+        term: LicenseTerm | None = None,
+        end: date | None = None,
         fields: ContractFields,
         by: UserId,
         now: datetime,
@@ -91,7 +100,7 @@ class LicenseContract(AuditedEntity[LicenseContractId]):
         """발급 상태 계약을 종료하고 같은 Deal의 갱신 계약(발급(갱신))을 돌려준다."""
         if not self.status.is_issued:
             raise ContractTransitionError(ISSUED_ONLY)
-        end = term.end_for(start)
+        end = resolve_license_end(start, end, term)
         self._finish(by, now)
         return type(self)(
             id=new_id,

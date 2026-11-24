@@ -34,7 +34,9 @@ class IssueLicense:
             ensure_issuable_on(deal.sync)
             contract = await uow.license_contracts.get(contract_id, for_update=True)
             contract.revise(fields=data.fields, by=actor.user_id, now=now)
-            contract.issue(start=data.start, term=data.term, by=actor.user_id, now=now)
+            contract.issue(
+                start=data.start, end=data.end, term=data.term, by=actor.user_id, now=now
+            )
             other = await uow.license_contracts.issued_of_deal(contract.deal_code)
             if other is not None and other.id != contract.id:
                 raise LicenseAlreadyIssuedError

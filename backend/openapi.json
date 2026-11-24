@@ -3977,8 +3977,19 @@
       },
       "LicenseIssueRequest": {
         "additionalProperties": false,
-        "description": "발급·갱신 요청. 종료일은 서버가 시작일과 기간으로 계산한다.",
         "properties": {
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
           "inspection_cycle": {
             "$ref": "#/components/schemas/InspectionCycle",
             "default": "none"
@@ -4001,19 +4012,31 @@
             "type": "string"
           },
           "term_amount": {
-            "maximum": 99.0,
-            "minimum": 1.0,
-            "title": "Term Amount",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Amount"
           },
           "term_unit": {
-            "$ref": "#/components/schemas/TermUnit"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TermUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "start_date",
-          "term_amount",
-          "term_unit"
+          "start_date"
         ],
         "title": "LicenseIssueRequest",
         "type": "object"

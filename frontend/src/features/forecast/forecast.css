@@ -19,7 +19,7 @@
 .fc-table td.fc-total { font-weight: 600; }
 .fc-table tfoot th, .fc-table tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 .fc-zero { color: var(--muted); }
-.fc-sub { font-size: 0.8rem; }
+.fc-sub { font-size: var(--font-base); }
 .fc-table tr.fc-selected th, .fc-table tr.fc-selected td { background: var(--ui-info-bg); }
 
 button.fc-owner { border: none; background: transparent; padding: 2px 4px; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }

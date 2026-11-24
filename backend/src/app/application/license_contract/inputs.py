@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.domain.license_contract.values import resolve_license_end
+
 if TYPE_CHECKING:
     from datetime import date
 
@@ -9,8 +11,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class LicenseIssueInput:
-    """발급·갱신 입력: 계약 칸과 시작일·기간. 종료일은 서버가 계산한다."""
-
     fields: ContractFields
     start: date
-    term: LicenseTerm
+    end: date | None = None
+    term: LicenseTerm | None = None
+
+    def __post_init__(self) -> None:
+        resolve_license_end(self.start, self.end, self.term)

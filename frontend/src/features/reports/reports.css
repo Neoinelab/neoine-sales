@@ -16,7 +16,7 @@
 
 .report-page { display: grid; gap: 16px; min-width: 0; }
 .report-heading h1 { margin-top: 2px; }
-.report-crumb { font-size: 0.85rem; color: var(--muted); }
+.report-crumb { font-size: var(--font-base); color: var(--muted); }
 .report-list { display: grid; gap: 12px; }
 /* 공통 .panel의 폭 제한(560px)을 풀어 다른 메뉴 목록처럼 본문 폭을 다 쓴다 */
 .panel.report-list { max-width: none; min-width: 0; }
@@ -41,10 +41,10 @@
 .report-field-group li { display: flex; align-items: center; gap: 6px; }
 .report-field-group li.is-used .report-field-add { opacity: 0.55; }
 .report-field-add { flex: 1; min-width: 0; text-align: left; border: none; background: transparent; padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.report-kind { font-size: 0.7rem; color: var(--muted); }
-.report-field-condition { padding: 1px 6px; font-size: 0.75rem; }
+.report-kind { font-size: var(--font-base); color: var(--muted); }
+.report-field-condition { padding: 1px 6px; font-size: var(--font-base); }
 
-.report-scope { margin: 0; padding: 8px 12px; border-radius: var(--radius); font-size: 0.85rem; }
+.report-scope { margin: 0; padding: 8px 12px; border-radius: var(--radius); font-size: var(--font-base); }
 .report-scope-note { color: var(--text); }
 .scope-deal { color: var(--report-deal); background: var(--report-deal-bg); }
 .scope-action { color: var(--report-action); background: var(--report-action-bg); }
@@ -59,7 +59,7 @@
 .report-chip.is-invalid .report-chip-main { color: var(--danger); }
 .report-chip-remove { border: none; background: transparent; padding: 2px 7px; border-radius: 999px; }
 .report-chip-error { flex-basis: 100%; padding: 0 10px 4px; }
-.report-badge { font-size: 0.7rem; padding: 0 6px; border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.report-badge { font-size: var(--font-base); padding: 0 6px; border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
 
 .report-settings { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--head-bg); }
 .report-settings-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -70,12 +70,12 @@
 .report-check { display: inline-flex; align-items: center; gap: 6px; }
 
 .report-combine { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius); }
-.report-combine legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
+.report-combine legend { font-size: var(--font-base); color: var(--muted); padding: 0 4px; }
 .report-condition-item { display: grid; gap: 2px; }
 .report-condition { display: grid; grid-template-columns: 3.2em minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(160px, 2fr) auto; gap: 8px; align-items: center; }
 .report-condition select, .report-condition input[type='text'], .report-condition .date-input input[type='text'] { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-condition-value { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.report-join { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-align: right; }
+.report-join { font-size: var(--font-base); font-weight: 700; color: var(--muted); text-align: right; }
 
 .report-run { grid-template-columns: repeat(auto-fit, minmax(150px, max-content)); align-items: end; }
 .report-run .field select { min-width: 140px; }
@@ -94,17 +94,17 @@
 .report-num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .report-sql summary { cursor: pointer; }
-.report-sql pre { margin: 8px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); border-radius: var(--radius); background: var(--head-bg); font-size: 0.8rem; }
+.report-sql pre { margin: 8px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); border-radius: var(--radius); background: var(--head-bg); font-size: var(--font-base); }
 
 /* 저장 목록·메뉴·태그 */
 .report-filters { align-items: end; }
 .report-filters input[type='text'] { min-width: 220px; }
 .report-desc { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.report-tag { display: inline-block; margin-left: 6px; padding: 0 8px; font-size: 0.7rem; border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.report-tag { display: inline-block; margin-left: 6px; padding: 0 8px; font-size: var(--font-base); border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
 .report-tag.tag-deal { margin-left: 0; margin-right: 4px; background: var(--report-deal-bg); color: var(--report-deal); }
 .report-tag.tag-action { margin-left: 0; background: var(--report-action-bg); color: var(--report-action); }
 .report-tag.tag-private { background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
-.report-edited-by { font-size: 0.8rem; }
+.report-edited-by { font-size: var(--font-base); }
 .report-menu { position: relative; display: inline-block; }
 .report-menu-button { padding: 0 8px; line-height: 1.4; }
 .report-menu-list { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 110px; margin: 4px 0 0; padding: 4px; list-style: none; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-pop); }
@@ -114,7 +114,7 @@
 
 /* 제목 줄·저장 안 됨 표시·저장 대화상자 */
 .report-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.report-unsaved { font-size: 0.85rem; font-weight: 600; color: var(--warn); }
+.report-unsaved { font-size: var(--font-base); font-weight: 600; color: var(--warn); }
 .report-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-save-form { display: grid; gap: 12px; min-width: min(420px, 80vw); }
 .report-save-form textarea { font: inherit; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); resize: vertical; }
@@ -136,18 +136,18 @@
 .report-kinds button[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); }
 .report-kind-picker { display: grid; gap: 8px; }
 .report-families { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
-.report-families .report-check { font-size: 0.85rem; }
+.report-families .report-check { font-size: var(--font-base); }
 .report-families .report-check:has(input:disabled) { color: var(--muted); }
 .report-kinds button:disabled { opacity: 0.5; cursor: not-allowed; }
 .report-combo-rows { display: grid; gap: 6px; }
 .report-combo-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
-.report-combo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+.report-combo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-base); }
 .report-combo-row select { font: inherit; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-chart-group { display: grid; gap: 8px; margin: 0; padding: 8px 12px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
-.report-chart-group legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
+.report-chart-group legend { font-size: var(--font-base); color: var(--muted); padding: 0 4px; }
 .report-chart-group .field input[type='text'], .report-chart-group .field select { width: 100%; font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-chart-values { display: grid; gap: 4px; margin: 0; padding: 0; border: none; }
-.report-chart-values legend { font-size: 0.85rem; padding: 0; }
+.report-chart-values legend { font-size: var(--font-base); padding: 0; }
 
 .report-page [role='tabpanel'] { display: grid; gap: 16px; min-width: 0; }
 .report-page [role='tabpanel'][hidden] { display: none; }
@@ -156,7 +156,7 @@
 .report-results { display: grid; gap: 12px; min-width: 0; }
 .report-view-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .report-view-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
-.report-view-label { font-size: 0.85rem; color: var(--muted); }
+.report-view-label { font-size: var(--font-base); color: var(--muted); }
 .report-layout-status { margin: 0; }
 
 /* 타일: 한 줄(is-side)은 같은 너비 둘, 두 줄(is-stacked)은 위아래. 좁은 화면의 한 줄은 자동으로 세로로 쌓인다(저장 값은 그대로). */

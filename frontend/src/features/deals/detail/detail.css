@@ -5,6 +5,7 @@
 .deal-detail .tabpanel { display: grid; gap: 16px; min-width: 0; align-content: start; }
 
 /* 글자 크기 통일: Deal 상세 안의 제목(h1·h2·h3)을 뺀 모든 글자는 --font-base 하나만 쓴다(다른 화면에는 영향 없음). */
+.deal-detail :is(dt, .field > label, .field > span:first-child) { font-weight: 700; }
 .deal-detail { font-size: var(--font-base); }
 .deal-detail :not(h1, h2, h3, :is(h1, h2, h3) *) { font-size: var(--font-base); }
 .dd-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }

@@ -37,6 +37,7 @@ class RenewLicense:
             renewal = previous.renew(
                 new_id=await new_license_contract_id(uow.ids),
                 start=data.start,
+                end=data.end,
                 term=data.term,
                 fields=data.fields,
                 by=actor.user_id,

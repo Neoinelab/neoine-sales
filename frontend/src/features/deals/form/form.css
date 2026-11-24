@@ -1,6 +1,7 @@
 /* Deal 등록·수정 폼 전용 스타일. 전역 토큰만 사용해 다크 모드와 모바일 폭을 따른다. 타일 모양은 상세(.dd-card)와 같고 격자는 shared/ui/kvGrid.css를 쓴다. */
 .deal-form-page { display: grid; gap: 12px; min-width: 0; }
 .deal-form { display: grid; gap: 16px; }
+.deal-form :is(dt, .field > label, .field > span:first-child) { font-weight: 700; }
 .form-section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 16px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .form-section h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .deal-form .field.required > label::after { content: ' *'; color: var(--danger); }
@@ -12,7 +13,7 @@
 
 .partner-block { display: grid; gap: 6px; justify-items: start; }
 .partner-block .contact-picker { width: 100%; }
-.partner-clear { padding: 2px 10px; font-size: 0.85rem; }
+.partner-clear { padding: 2px 10px; font-size: var(--font-base); }
 
 .bant-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
 .link-button { justify-self: start; border: none; background: transparent; color: var(--accent); padding: 2px 0; }

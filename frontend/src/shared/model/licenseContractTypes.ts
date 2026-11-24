@@ -77,12 +77,9 @@ export interface LicenseContractFields {
   note: string
 }
 
-/** 발급·갱신 입력: 계약 칸 + 시작일 + 기간. 종료일은 서버가 계산한다. */
-export interface LicenseIssueInput extends LicenseContractFields {
-  /** 'YYYY-MM-DD'. */
+export type LicenseIssueInput = LicenseContractFields & {
   start: string
-  term: LicenseTerm
-}
+} & ({ end: string; term?: never } | { term: LicenseTerm; end?: never })
 
 /** 계약 첨부 한 건. Deal 첨부와 같은 모양이며 Deal 대신 계약에 속한다. */
 export interface ContractAttachment {

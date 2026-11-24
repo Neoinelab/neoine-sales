@@ -90,5 +90,7 @@ export function toFieldsBody(fields: LicenseContractFields): Schemas['LicenseCon
 }
 
 export function toIssueBody(input: LicenseIssueInput): Schemas['LicenseIssueRequest'] {
-  return { ...toFieldsBody(input), start_date: input.start, term_amount: input.term.amount, term_unit: input.term.unit }
+  return input.end !== undefined
+    ? { ...toFieldsBody(input), start_date: input.start, end_date: input.end }
+    : { ...toFieldsBody(input), start_date: input.start, term_amount: input.term.amount, term_unit: input.term.unit }
 }

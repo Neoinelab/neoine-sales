@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, NewType
 
 from app.domain.common.errors import InvalidValueError
-from app.domain.common.validation import assign, reject_nul
+from app.domain.common.validation import assign, check_date_in_bounds, reject_nul
 from app.domain.license_contract.term import TermUnit, license_end
 
 if TYPE_CHECKING:
@@ -66,6 +66,20 @@ class LicenseTerm:
 
     def end_for(self, start: date) -> date:
         return license_end(start, self.amount, self.unit)
+
+
+def resolve_license_end(start: date, end: date | None, term: LicenseTerm | None) -> date:
+    check_date_in_bounds(start, "라이선스 시작일")
+    if end is None:
+        if term is None:
+            raise InvalidValueError("라이선스 종료일을 입력하세요.")
+        return term.end_for(start)
+    if term is not None:
+        raise InvalidValueError("라이선스 종료일과 기간을 함께 지정할 수 없습니다.")
+    check_date_in_bounds(end, "라이선스 종료일")
+    if end < start:
+        raise InvalidValueError("라이선스 종료일은 시작일보다 빠를 수 없습니다.")
+    return end
 
 
 def _checked_text(value: str, field: str, max_length: int) -> str:

@@ -5,9 +5,9 @@
 """
 
 from datetime import date
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Self
 
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictInt, model_validator
 
 from app.application.license_contract.inputs import LicenseIssueInput
 from app.application.ports.deal_repository import SortOrder
@@ -18,6 +18,7 @@ from app.application.ports.license_contract_repository import (
     LicenseContractSort,
 )
 from app.application.ports.pagination import MAX_LIMIT
+from app.domain.common.errors import InvalidValueError
 from app.domain.license_contract.values import (
     NOTE_MAX,
     TECH_OWNER_MAX,
@@ -57,17 +58,26 @@ class LicenseContractFieldsRequest(RequestModel):
 
 
 class LicenseIssueRequest(LicenseContractFieldsRequest):
-    """발급·갱신 요청. 종료일은 서버가 시작일과 기간으로 계산한다."""
-
     start_date: date
-    term_amount: Annotated[StrictInt, Field(ge=TERM_MIN, le=TERM_MAX)]
-    term_unit: TermUnit
+    end_date: date | None = None
+    term_amount: Annotated[StrictInt | None, Field(ge=TERM_MIN, le=TERM_MAX)] = None
+    term_unit: TermUnit | None = None
+
+    @model_validator(mode="after")
+    def validate_period(self) -> Self:
+        self.to_input()
+        return self
 
     def to_input(self) -> LicenseIssueInput:
+        if (self.term_amount is None) != (self.term_unit is None):
+            raise InvalidValueError("기간과 기간 단위를 함께 지정하세요.")
         return LicenseIssueInput(
             fields=self.to_fields(),
             start=self.start_date,
-            term=LicenseTerm(amount=self.term_amount, unit=self.term_unit),
+            end=self.end_date,
+            term=None
+            if self.term_amount is None or self.term_unit is None
+            else LicenseTerm(amount=self.term_amount, unit=self.term_unit),
         )
 
 

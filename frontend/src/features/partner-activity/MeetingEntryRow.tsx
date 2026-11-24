@@ -114,7 +114,7 @@ export function MeetingEntryRow(props: MeetingEntryRowProps) {
         <textarea
           id={contentId}
           ref={contentRef}
-          rows={2}
+          rows={6}
           value={row.content}
           data-autofocus={autoFocusContent ? '' : undefined}
           aria-invalid={errors.content ? true : undefined}

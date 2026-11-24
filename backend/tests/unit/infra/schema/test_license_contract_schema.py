@@ -374,7 +374,7 @@ async def test_term_unit_outside_month_and_year_is_rejected(session: AsyncSessio
     # then: IntegrityError ck_license_contracts_term_unit
 
 
-async def test_the_four_period_columns_are_all_null_or_all_set(session: AsyncSession) -> None:
+async def test_legacy_term_amount_and_unit_must_be_set_together(session: AsyncSession) -> None:
     """기간 네 칸은 모두 NULL이거나 모두 채워져야 한다."""
     # given: head 스키마의 임시 DB 세션과 Deal·사용자
     code, user = await _deal(session)
@@ -383,6 +383,23 @@ async def test_the_four_period_columns_are_all_null_or_all_set(session: AsyncSes
     with pytest.raises(IntegrityError, match="ck_license_contracts_term_complete"):
         await insert_issued_contract(session, code, user, term_amount=None)
     # then: IntegrityError ck_license_contracts_term_complete
+
+
+async def test_explicit_dates_can_be_stored_without_a_legacy_term(session: AsyncSession) -> None:
+    code, user = await _deal(session)
+    contract_id = await insert_issued_contract(
+        session, code, user, term_amount=None, term_unit=None, license_end=date(2026, 3, 17)
+    )
+    row = (
+        await session.execute(
+            text(
+                "select license_start, license_end, term_amount, term_unit"
+                " from license_contracts where id = :id"
+            ),
+            {"id": contract_id},
+        )
+    ).one()
+    assert tuple(row) == (date(2026, 1, 1), date(2026, 3, 17), None, None)
 
 
 async def test_a_not_issued_contract_cannot_have_a_period(session: AsyncSession) -> None:

@@ -68,8 +68,8 @@ class LicenseContractRow(AuditColumns, Base):
         CheckConstraint("term_unit is null or term_unit in ('month', 'year')", name="term_unit"),
         CheckConstraint(
             "(license_start is null) = (license_end is null)"
-            " and (license_start is null) = (term_amount is null)"
-            " and (license_start is null) = (term_unit is null)",
+            " and (term_amount is null) = (term_unit is null)"
+            " and (term_amount is null or license_start is not null)",
             name="term_complete",
         ),
         CheckConstraint(

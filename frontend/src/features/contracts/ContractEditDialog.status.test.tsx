@@ -6,6 +6,7 @@ import type { LicenseContract } from '../../shared/model/types'
 import { allContracts, dotted, nextDay } from '../../test/licenseContracts'
 import { renderAt } from '../../test/mockApp'
 import { pinClock, unpinClock } from '../../test/partnerMeetings'
+import { licenseEnd } from './licensePeriod'
 import { STATUS_LABELS } from './contractLabels'
 
 /** 계약 수정 대화상자의 상태 묶음과 라이선스 칸, 발급·갱신 버튼(AC12~AC14). 서버가 종료일을 계산한다. 시계는 2027-03-15 고정. */
@@ -26,9 +27,7 @@ const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
 /** 종료일은 '종료일' 이름과 자동 계산 값이 한 항목으로 보인다. */
 function expectEnd(dlg: HTMLElement, date: string) {
-  const label = within(dlg).getByText('종료일')
-  expect(label).toBeVisible()
-  expect(label.parentElement).toHaveTextContent(date)
+  expect(within(dlg).getByLabelText('라이선스 종료일')).toHaveValue(dotted(date))
 }
 
 /** 첫 쪽에 보이고 Deal 코드가 유일한 계약. */
@@ -48,8 +47,7 @@ async function openEdit(c: LicenseContract, role: 'admin' | 'sales' | 'user' = '
 }
 const statusGroup = (dlg: HTMLElement) => within(dlg).getByRole('group', { name: '상태' })
 const startInput = (dlg: HTMLElement) => within(dlg).getByLabelText('라이선스 시작일')
-const amountInput = (dlg: HTMLElement) => within(dlg).getByLabelText('기간')
-const unitSelect = (dlg: HTMLElement) => within(dlg).getByLabelText('기간 단위')
+const endInput = (dlg: HTMLElement) => within(dlg).getByLabelText('라이선스 종료일')
 
 describe('상태 묶음과 라이선스 칸 (C3)', () => {
   // 상태 묶음에 상태 배지와 그 상태의 라이선스 버튼이 보인다.
@@ -79,8 +77,7 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
     expect(within(statusGroup(dlg)).getByText(STATUS_LABELS.ended)).toBeVisible()
     expect(within(statusGroup(dlg)).queryByRole('button')).not.toBeInTheDocument()
     expect(startInput(dlg)).toBeDisabled()
-    expect(amountInput(dlg)).toBeDisabled()
-    expect(unitSelect(dlg)).toBeDisabled()
+    expect(endInput(dlg)).toBeDisabled()
     expect(startInput(dlg)).toHaveValue(dotted(c.licenseStart!))
   })
 
@@ -102,11 +99,9 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
 
     // then: 시작일·기간·종료일이 비활성 칸에 보인다
     expect(startInput(dlg)).toBeDisabled()
-    expect(amountInput(dlg)).toBeDisabled()
-    expect(unitSelect(dlg)).toBeDisabled()
+    expect(endInput(dlg)).toBeDisabled()
     expect(startInput(dlg)).toHaveValue(dotted(c.licenseStart!))
-    expect(amountInput(dlg)).toHaveValue(c.term!.amount)
-    expect(unitSelect(dlg)).toHaveDisplayValue(c.term!.unit === 'year' ? '년' : '개월')
+    expect(endInput(dlg)).toHaveValue(dotted(c.licenseEnd!))
     expectEnd(dlg, c.licenseEnd!)
   })
 
@@ -119,10 +114,8 @@ describe('상태 묶음과 라이선스 칸 (C3)', () => {
     // then: 라이선스 칸은 비활성이고 시작일 빈 칸·기간 1년이 보인다
     expect(startInput(dlg)).toBeDisabled()
     expect(startInput(dlg)).toHaveValue('')
-    expect(amountInput(dlg)).toBeDisabled()
-    expect(amountInput(dlg)).toHaveValue(1)
-    expect(unitSelect(dlg)).toBeDisabled()
-    expect(unitSelect(dlg)).toHaveDisplayValue('년')
+    expect(endInput(dlg)).toBeDisabled()
+    expect(endInput(dlg)).toHaveValue('')
   })
 })
 
@@ -144,12 +137,10 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
     // then: 추가 대화상자 없이 칸이 활성화되고 시작일 포커스, 저장하면 발급(신규)됩니다 안내가 보인다
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(startInput(dlg)).toBeEnabled()
-    expect(amountInput(dlg)).toBeEnabled()
-    expect(unitSelect(dlg)).toBeEnabled()
+    expect(endInput(dlg)).toBeEnabled()
     expect(startInput(dlg)).toHaveFocus()
     expect(startInput(dlg)).toHaveValue(TODAY_TEXT)
-    expect(amountInput(dlg)).toHaveValue(1)
-    expect(unitSelect(dlg)).toHaveDisplayValue('년')
+    expect(endInput(dlg)).toHaveValue('2028.03.14')
     expectEnd(dlg, '2028-03-14')
     expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이선스 발급' })).not.toBeInTheDocument()
     expect(within(dlg).getByText('저장하면 발급(신규)됩니다')).toBeVisible()
@@ -164,6 +155,8 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
 
     await user.clear(startInput(dlg))
     await user.type(startInput(dlg), '20270101')
+    await user.clear(endInput(dlg))
+    await user.type(endInput(dlg), '20271231')
     expectEnd(dlg, '2027-12-31')
     await user.clear(within(dlg).getByLabelText('Note'))
     await user.type(within(dlg).getByLabelText('Note'), '발급과 함께 수정')
@@ -172,7 +165,7 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
 
     // then: 발급 요청에 칸·시작일·기간이 담기고 라이선스를 발급했습니다 알림과 발급(신규) 행이 보인다
     expect(await screen.findByText('라이선스를 발급했습니다.')).toBeVisible()
-    expect(issue).toHaveBeenCalledWith(target().id, { techOwner: target().techOwner, inspection: target().inspection, note: '발급과 함께 수정', start: '2027-01-01', term: { amount: 1, unit: 'year' } })
+    expect(issue).toHaveBeenCalledWith(target().id, { techOwner: target().techOwner, inspection: target().inspection, note: '발급과 함께 수정', start: '2027-01-01', end: '2027-12-31' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^계약 수정 - / })).not.toBeInTheDocument())
     const cells = within(rowOf(target().dealName)).getAllByRole('cell')
     expect(cells[5]).toHaveTextContent('2027-01-01')
@@ -183,22 +176,22 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
 
   // 대화상자의 종료일 미리보기는 2026-01-01 + 6개월 = 2026-06-30이다.
   // 테스트 코드: LC-040
-  it('computes 2026-06-30 for 2026-01-01 + 6 months', async () => {
+  it('saves the explicitly selected start and end dates', async () => {
     // given: 라이선스 발급을 누른 대화상자
     const { user, dlg } = await startIssue()
 
     await user.clear(startInput(dlg))
     await user.type(startInput(dlg), '20260101')
-    await user.selectOptions(unitSelect(dlg), '개월')
-    await user.clear(amountInput(dlg))
-    await user.type(amountInput(dlg), '6')
-    expectEnd(dlg, '2026-06-30')
+    await user.clear(endInput(dlg))
+    await user.type(endInput(dlg), '20260617')
+    expectEnd(dlg, '2026-06-17')
+    expect(within(dlg).getByText('168일 (종료일 포함)')).toBeVisible()
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     // when: 시작일 2026-01-01, 기간 6개월을 넣는다
     await screen.findByText('라이선스를 발급했습니다.')
     // then: 종료일 미리보기가 2026-06-30이다
-    expect(within(rowOf(target().dealName)).getAllByRole('cell')[6]).toHaveTextContent('2026-06-30')
+    expect(within(rowOf(target().dealName)).getAllByRole('cell')[6]).toHaveTextContent('2026-06-17')
   })
 
   // 시작일을 지우고 저장하면 요청 없이 문구를 보인다.
@@ -221,18 +214,27 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
 
   // 기간을 비우고 저장하면 요청 없이 문구를 보인다.
   // 테스트 코드: LC-047
-  it('does not send the request when the period is empty (C6)', async () => {
+  it('does not send the request when the end date is empty (C6)', async () => {
     // given: 발급 버튼을 누른 대화상자
     const issue = vi.spyOn(gateway.licenseContracts, 'issue')
     const { user, dlg } = await startIssue()
 
-    await user.clear(amountInput(dlg))
+    await user.clear(endInput(dlg))
     // when: 기간을 비우고 저장한다
     await user.click(within(dlg).getByRole('button', { name: '저장' }))
 
     // then: 요청이 가지 않고 기간을 1~99 사이의 숫자로 입력하세요가 보인다
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/기간.*(필수|입력하세요)/)
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/라이선스 종료일.*(필수|입력하세요)/)
     expect(issue).not.toHaveBeenCalled()
+  })
+
+  it('keeps the contract unissued when the end precedes the start', async () => {
+    const { user, dlg } = await startIssue()
+    await user.clear(endInput(dlg))
+    await user.type(endInput(dlg), '20270314')
+    await user.click(within(dlg).getByRole('button', { name: '저장' }))
+    expect(await within(dlg).findByText('라이선스 종료일은 시작일보다 빠를 수 없습니다.')).toBeVisible()
+    expect(within(rowOf(target().dealName)).getAllByRole('cell')[7]).toHaveTextContent('미발급')
   })
 
   // 같은 Deal에 다른 발급 계약이 있어 409면 대화상자 안에 문구를 보이고 닫지 않는다.
@@ -291,8 +293,7 @@ describe('라이선스 갱신 (C5, AC13)', () => {
     expect(startInput(dlg)).toBeEnabled()
     expect(startInput(dlg)).toHaveFocus()
     expect(startInput(dlg)).toHaveValue(dotted(nextDay(c.licenseEnd!)))
-    expect(amountInput(dlg)).toHaveValue(c.term!.amount)
-    expect(unitSelect(dlg)).toHaveDisplayValue(c.term!.unit === 'year' ? '년' : '개월')
+    expectEnd(dlg, licenseEnd(nextDay(c.licenseEnd!), c.term!.amount, c.term!.unit))
     expect(within(statusGroup(dlg)).queryByRole('button', { name: '라이선스 갱신' })).not.toBeInTheDocument()
     expect(within(dlg).getByText('저장하면 발급(갱신)됩니다')).toBeVisible()
   })
@@ -311,7 +312,7 @@ describe('라이선스 갱신 (C5, AC13)', () => {
 
     // then: 갱신 요청이 가고 라이선스를 갱신했습니다 알림, 새 발급(갱신) 행과 종료 행이 보인다
     expect(await screen.findByText('라이선스를 갱신했습니다.')).toBeVisible()
-    expect(renew).toHaveBeenCalledWith(c.id, expect.objectContaining({ start: nextDay(c.licenseEnd!), term: c.term }))
+    expect(renew).toHaveBeenCalledWith(c.id, expect.objectContaining({ start: nextDay(c.licenseEnd!), end: licenseEnd(nextDay(c.licenseEnd!), c.term!.amount, c.term!.unit) }))
     await waitFor(() => {
       const mine = rows().filter((r) => within(r).getAllByRole('cell')[0]?.textContent === c.dealName)
       const texts = mine.map((r) => within(r).getAllByRole('cell')[7]?.textContent)
