@@ -28,7 +28,7 @@
   --shadow-pop: 0 10px 24px rgb(16 24 40 / 14%);
   --radius: 8px;
   --radius-lg: 12px;
-  --font-base: 1rem;
+  --font-base: 14px;
   --font-title: 1.4rem; /* 페이지 제목(h1)과 상단 메뉴 링크가 같이 쓴다 */
   --topbar-h: 56px;
   font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', system-ui, sans-serif;
@@ -68,7 +68,7 @@
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; background: var(--bg-grad), var(--bg); }
+body { margin: 0; min-height: 100vh; font-size: var(--font-base); background: var(--bg-grad), var(--bg); }
 small { font-size: var(--font-base); }
 h1, h2, h3 { color: var(--fg); font-weight: 600; letter-spacing: -0.01em; }
 h1 { font-size: var(--font-title); margin: 0; letter-spacing: -0.02em; }

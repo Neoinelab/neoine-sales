@@ -19,7 +19,7 @@ describe('폰트 크기 규칙 (정적 점검)', () => {
 
   it('.deal-detail 아래 제목이 아닌 모든 글자 크기를 하나의 기본 토큰으로 통일한다', () => {
     // when·then: 기본 토큰 정의와 통일 규칙을 문자열로 확인한다
-    expect(indexCss).toMatch(/--font-base:\s*[\d.]+rem/)
+    expect(indexCss).toMatch(/--font-base:\s*14px/)
     expect(detailCss).toMatch(/\.deal-detail :not\(h1[^{]*\{[^}]*font-size:\s*var\(--font-base\)/)
   })
 
