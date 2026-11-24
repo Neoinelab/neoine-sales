@@ -10,16 +10,16 @@ if TYPE_CHECKING:
     from tests.support.ldap_mock import MockDirectory
 
 
-async def test_login_reads_mobile_and_telephone_number_attributes(
+async def test_login_requests_mobile_and_telephone_number_attributes(
     directory: MockDirectory,
 ) -> None:
     """사용자 검색은 mobile과 telephoneNumber 속성을 함께 요청한다."""
     # when: 로그인한다 (전제: 모의 디렉터리에 kim이 있다)
     await login(directory)
 
-    # then: 사용자 검색의 요청 속성에 두 속성이 모두 있다
+    # then: 사용자 검색(RootDSE 제외)의 요청 속성에 두 속성이 모두 있다
     requested = {
-        str(name).lower()
+        name.lower()
         for connection in directory.connections
         for args in connection.search_args
         if args.get("search_base") != ""

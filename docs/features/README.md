@@ -60,11 +60,11 @@ feature 목록은 2026-11-09 사용자 확인(질문 Q1~Q6 추천안 채택: 경
 | PL | [platform-common.md](platform-common.md) (플랫폼 공통: 권한 표·HTTP 관례·API 계약·화면 접근) | 확정(2026-11-09) |
 | TM | [server-time.md](server-time.md) (서버 시간·업무 날짜) | 확정(2026-11-09) |
 | SC | [schema-migration.md](schema-migration.md) (DB 스키마·마이그레이션 기준선) | 확정(2026-11-17 사용자 확인) |
-| AU | [login-session.md](login-session.md) (로그인·세션·대체 로그인) | 확정(2026-11-09) |
-| SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-23 AD 연결 테스트 사용자 확인) |
-| IN | [integration-settings.md](integration-settings.md) (연동 설정: AD 서버·저장 위치) | 확정(2026-11-09) |
-| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-20 선택 목록에 로그인 아이디 사용자 확인) |
-| ME | [my-account.md](my-account.md) (내 정보) | 확정(2026-11-09) |
+| AU | [login-session.md](login-session.md) (로그인·세션·대체 로그인) | 확정(2026-11-24 AD 사용자 바인드 도메인 사용자 확인) |
+| SU | [initial-setup.md](initial-setup.md) (최초 설정) | 확정(2026-11-24 AD 첫 admin 전화번호 사용자 확인) |
+| IN | [integration-settings.md](integration-settings.md) (연동 설정: AD 서버·저장 위치) | 확정(2026-11-24 AD 사용자 바인드 도메인 사용자 확인) |
+| US | [user-management.md](user-management.md) (사용자 관리) | 확정(2026-11-24 AD 전화 덮어쓰기 안내 사용자 확인) |
+| ME | [my-account.md](my-account.md) (내 정보) | 확정(2026-11-24 AD 전화 덮어쓰기 안내 사용자 확인) |
 | CD | [status-forecast-codes.md](status-forecast-codes.md) (Status·Forecast 코드) | 확정(2026-11-10) |
 | CL | [choice-catalogs.md](choice-catalogs.md) (선택 목록: BANT Label·Action 유형·Vendor) | 확정(2026-11-16 사용자 확인) |
 | CT | [contacts.md](contacts.md) (고객·파트너 연락처) | 확정(2026-11-10) |
@@ -94,7 +94,7 @@ API 경로는 `/api/v1/` 접두어를 뺀 값입니다. "범위 밖" 칸은 그 
 | PL | 플랫폼 공통 | 라우트 가드(`RequireAuth`·`RequireWrite`·`RequireAdmin`)·상단 메뉴·Admin 레이아웃, 역할 3종 권한 표의 전체 경로 검사, CSRF 헤더·`problem+json` 오류 형식·id 경로 파라미터·NUL 문자 거부, `/healthz`·`/readyz`, `openapi.json` 드리프트·역할/인증 표기, 프로파일 설정 검증 | 각 경로의 역할별 허용 여부(각 feature 2.5), 하네스 도구·배포 스크립트(feature 아님) |
 | TM | 서버 시간·업무 날짜 | `/time`, 응답 시각 오프셋(`ServerDateTime`), 업무 날짜·업무 시각, 프런트 서버 동기 시계·`useToday`·시각 표기(`shared/format.ts`) | 각 화면의 기본 날짜 사용(각 feature) |
 | SC | DB 스키마·마이그레이션 | 기준선 리비전, 빈 DB `upgrade head`, 리비전 그래프, head = ORM, bigint identity PK 공통 규칙, 기본 시드 | 테이블별 컬럼·제약(소유 feature 2.2와 스키마 테스트), product 적용(사람 승인) |
-| AU | 로그인·세션 | `/login` 화면, `/auth/login`·`/auth/logout`·`/auth/me`·`/auth/config`, AD search-then-bind·앱 계정 로그인·대체 로그인·admin AD 경고 팝업, 시도 제한, 세션 쿠키, 요청마다 활성·역할 재확인, 예약 아이디 | 최초 설정(SU), AD 설정 저장(IN), 비밀번호 변경(ME)·재설정(US) |
+| AU | 로그인·세션 | `/login` 화면, `/auth/login`·`/auth/logout`·`/auth/me`·`/auth/config`, AD search-then-bind(사용자 바인드 이름: 찾은 DN 또는 `아이디@APP_AD_LOGIN_DOMAIN`)·앱 계정 로그인·대체 로그인·admin AD 경고 팝업, 시도 제한, 세션 쿠키, 요청마다 활성·역할 재확인, 예약 아이디 | 최초 설정(SU), AD 설정 저장(IN), 비밀번호 변경(ME)·재설정(US) |
 | SU | 최초 설정 | `/setup` 화면, `/auth/setup/*`(인증 방식 → AD → 저장 위치 → 첫 admin) | 설정 뒤 AD·저장 위치 변경(IN) |
 | IN | 연동 설정 | Admin > 연동 설정, `/settings/directory*`·`/settings/storage*`, Base DN 자동 탐색, 바인드 비밀번호 암호화·마스크, local 모드 거부 | 첨부 저장·다운로드 동작(AT·LC) |
 | US | 사용자 관리 | Admin > 사용자, `/users*`(등록·목록·상태 필터·역할 변경·정보 수정·비밀번호 재설정·퇴사/삭제), `/user-options` | 내 정보(ME), 로그인(AU) |

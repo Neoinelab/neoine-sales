@@ -45,8 +45,11 @@ class FakeDirectoryAuthenticator:
         *,
         display_name: str | None = None,
         email: str | None = None,
+        phone: str | None = None,
     ) -> None:
-        user = DirectoryUser(login_id=login_id, display_name=display_name or login_id, email=email)
+        user = DirectoryUser(
+            login_id=login_id, display_name=display_name or login_id, email=email, phone=phone
+        )
         self._accounts[login_id] = (password, user)
 
     def fail_all_with(self, error: DirectoryError | None) -> None:

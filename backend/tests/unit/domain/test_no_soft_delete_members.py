@@ -105,7 +105,7 @@ def test_user_record_login_works_for_an_active_user() -> None:
     # given: 재직 중인 사용자
     user = make_user()
     # when: 로그인을 기록한다
-    user.record_login(later(5), display_name="김영업", email=None)
+    user.record_login(later(5), display_name="김영업", email=None, phone=None)
     # then: 마지막 로그인 시각이 갱신된다
     assert user.last_login_at == later(5)
 

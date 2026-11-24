@@ -1,4 +1,4 @@
-# 로그인·세션   (feature 코드: AU, 상태: 확정(2026-11-09 사용자 확인))
+# 로그인·세션   (feature 코드: AU, 상태: 확정(2026-11-24 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/{auth,auth_login}.py`, `web/schemas/auth.py`, `web/security.py`, `web/request_info.py`, `web/error_handlers.py`, `application/auth/{password_login,directory_login,local_login,fallback_login,credential_check,active_user,throttle,issue_session,authenticate,logout,auth_status,mode,messages,warning_stage,tokens}.py`, `domain/auth/{credentials,session,login_failure,password_hash,mode,principal,errors}.py`, `domain/user/{entities,retired_login_ids}.py`, `application/ports/{directory,password_hasher}.py`, `infra/auth/ldap.py`, `infra/crypto/scrypt_hasher.py`, `container_auth.py`, `config/base.py`, `frontend/src/features/auth/{LoginPage,DirectoryWarningDialog}.tsx`, `data/auth.ts`, `gateway/http/{auth.ts,mappers/user.ts}`)이며 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 서버 코드와 frontend Fake 게이트웨이가 다른 곳은 서버 코드를 정본으로 삼았고 질문으로 남겼습니다(계획 `artifacts/10-analysis/au-plan.md` Q1).
 
@@ -8,6 +8,7 @@
 - 사용자(역할): 미인증 방문자(로그인), `admin`·`sales`·`user`(세션·내 정보·로그아웃), admin(AD 경고 팝업).
 - 범위
   - `POST /api/v1/auth/login`(AD 로그인·대체 로그인·앱 계정(local) 로그인), 예약 아이디 거부, 로그인 시도 제한(429)
+  - AD 사용자 비밀번호 바인드 이름(검색한 DN 또는 `<아이디>@<도메인>`)과 그 도메인 환경변수 `APP_AD_LOGIN_DOMAIN`(AU-R7a)
   - 세션 발급·쿠키, 요청마다 세션·활성·역할 재확인(`Authenticate`), `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`
   - `GET /api/v1/auth/config` 응답과 인증 방식 판정(effective mode)
   - 비밀번호 해시(scrypt) 형식과 비밀 비노출
@@ -32,6 +33,8 @@
 | effective mode | 실제로 쓰는 인증 방식(AU-R22). 저장값이 없을 때의 판정 포함 |
 | 로그인 아이디 | `LoginId`. 앞뒤 공백 제거·소문자로 정규화한 값 |
 | AD 로그인 | 서비스 계정 search-then-bind로 AD가 비밀번호를 확인하는 로그인 |
+| 사용자 바인드 이름 | AD가 사용자 비밀번호를 확인할 때 쓰는 바인드 계정 이름. 도메인 없음이면 검색한 항목의 DN, 도메인 있음이면 `<로그인 아이디>@<도메인>`(UPN 형식, AU-R7a) |
+| 도메인(바인드) | 환경변수 `APP_AD_LOGIN_DOMAIN`을 정리한 값(예 `neoine.co.kr`). 없거나 비면 '도메인 없음' |
 | 대체 로그인 | AD가 답할 수 없을 때만 저장된 비밀번호 해시로 하는 로그인(AD 모드 전용) |
 | 앱 계정 로그인 | local 모드에서 저장된 해시로만 하는 로그인 |
 | 경고 단계 | 대체 로그인으로 넘어간 이유(`DirectoryWarningStage`, AU-R10 표) |
@@ -48,14 +51,14 @@
 - `login_failures`: `key`(PK, HMAC-SHA256 hex), `failures`, `window_started_at`, `locked_until`(NULL 가능). 도메인 `FailureCounter`·`FailurePolicy(max_failures, window, lock_duration)`.
 - `user_password_hashes`: `user_id`(PK, users FK CASCADE), `password_hash`(`PasswordHash`: 비어 있지 않음, NUL 없음, 512자 이하), 저장 시각. 사용자 삭제 시 함께 삭제(US).
 - `auth_settings`: 단일 행 `mode`(`ad`·`local`), `updated_at`. 쓰기는 SU.
-- `users`(US 소유)에서 AU가 쓰는 값: `login_id`, `role`, `display_name`, `email`, `last_login_at`, `deleted_at`.
+- `users`(US 소유)에서 AU가 쓰는 값: `login_id`, `role`, `display_name`, `email`, `phone`, `last_login_at`, `deleted_at`.
 
 값 객체·DTO:
 - `LoginId`: 정규화 뒤 `[a-z0-9][a-z0-9._-]{0,63}`(ASCII). `Password`: NUL 없음, 공백만이 아님, 256자 이하, strip하지 않음, repr은 `Password(***)`.
 - `Principal`: `user_id`, `subject`(로그인 아이디), `email`(소문자, 없으면 null), `name`(비면 subject, 200자로 자름), `role`.
 - `LoginOutcome`: `session`(`IssuedSession`: token, expires_at, principal), `directory_warning`(`DirectoryWarning(stage, message)` 또는 None).
 - `AuthStatus`: `directory_configured`, `storage_configured`, `needs_directory_setup`, `needs_storage_setup`, `needs_admin_setup`, `auth_mode`.
-- 설정(`APP_` 접두어): `session_ttl_hours`(기본 8), `login_max_failures_per_account`(5), `login_max_failures_per_ip`(30), `login_failure_window_minutes`(15), `login_lock_minutes`(15), 모두 1 이상. `cookie_secure`(PL-R28).
+- 설정(`APP_` 접두어): `session_ttl_hours`(기본 8), `login_max_failures_per_account`(5), `login_max_failures_per_ip`(30), `login_failure_window_minutes`(15), `login_lock_minutes`(15), 모두 1 이상. `cookie_secure`(PL-R28). `ad_login_domain`(`APP_AD_LOGIN_DOMAIN`, 선택, 기본 없음, 형식은 AU-R7a).
 - 프런트 `Me`: `{ id, loginId, name, role }`, `LoginResult`: `{ me, directoryWarning: { stage, message } | null }`, `AuthConfig`: `{ authMode: 'ad' | 'local' | null, needsSetup: boolean }`.
 
 ### 2.3 비즈니스 규칙
@@ -69,8 +72,20 @@
 - **AU-R6** effective mode(AU-R22)가 `local`이면 앱 계정 로그인(AU-R12), 그 밖(`ad` 또는 미선택)이면 AD 로그인(AU-R7)으로 처리한다. local 로그인은 성공·실패 모두 AD를 한 번도 부르지 않는다. ad 모드에서 AD가 응답하면 저장 해시가 맞아도 AD 판정을 따른다.
 
 AD 로그인과 대체 로그인
-- **AU-R7** AD 로그인은 매 로그인마다 DB의 현재 AD 설정(복호화한 바인드 비밀번호)과 저장된 Base DN으로 한다: 연결(+TLS) → 서비스 계정 바인드 → 사용자 필터의 `{login_id}` 자리에 이스케이프한 아이디를 넣어 Base DN 아래 검색(최대 2건) → 찾은 항목의 DN과 사용자 비밀번호로 새 연결 바인드. 아이디는 DN에 넣지 않는다. 서버 인증서는 검증하지 않는다(IN). 설정을 바꾸면 서버 재시작 없이 다음 로그인부터 새 설정을 쓴다.
-- **AU-R8** AD 인증이 성공하면 같은 아이디의 재직 사용자 행이 정확히 하나일 때만 로그인된다. 미등록·퇴사 → 공통 실패. 재직 행이 둘 이상 → 공통 실패, 어느 행도 바꾸지 않고 해시도 저장하지 않으며 경고 로그(건수와 아이디의 짧은 해시만)를 남긴다. 퇴사 행과 재직 행이 함께 있으면 재직 행으로 로그인한다. 성공하면 같은 트랜잭션에서 `last_login_at` = 지금, 표시 이름·이메일을 AD 값으로 덮어쓰고(이름: NUL 제거·trim, 비면 비움, 200자 초과면 200자로 자름 / 이메일: 비었거나 254자 초과거나 `@`가 없으면 비움), 그 비밀번호의 새 해시(새 솔트)를 저장한다(기존 해시 덮어씀). 역할은 users 행의 값이다. 실패한 로그인은 해시를 만들거나 바꾸지 않는다.
+- **AU-R7** AD 로그인은 매 로그인마다 DB의 현재 AD 설정(복호화한 바인드 비밀번호)과 저장된 Base DN으로 한다: 연결(+TLS) → 서비스 계정 바인드 → 사용자 필터의 `{login_id}` 자리에 이스케이프한 아이디를 넣어 Base DN 아래 검색(최대 2건, 이름·이메일·전화는 이 검색 결과에서 읽음) → 검색이 정확히 1건이면 새 연결에서 사용자 바인드 이름(AU-R7a)과 사용자 비밀번호로 바인드. 서비스 계정 바인드 이름(`bind_account`)은 도메인 설정과 무관하게 IN에서 저장한 값 그대로다. 아이디는 DN에 넣지 않는다. 서버 인증서는 검증하지 않는다(IN). AD 설정(DB)을 바꾸면 서버 재시작 없이 다음 로그인부터 새 설정을 쓴다.
+- **AU-R7a** 사용자 바인드 이름(2026-11-24): 환경변수 `APP_AD_LOGIN_DOMAIN`(선택, 모든 프로파일 같은 규칙)을 서버 기동 때 한 번 읽는다(값을 바꾸면 재시작해야 적용된다).
+  - 값 정리: 앞뒤 공백을 지우고 소문자로 바꾼다. 변수가 없거나 정리한 값이 빈 문자열이면 '도메인 없음'이다.
+  - 형식: 정리한 값은 ASCII 영문·숫자·`-`로 된 라벨(1~63자, `-`로 시작하거나 끝나지 않음)을 `.`으로 이은 253자 이하 문자열이어야 한다(예 `neoine.co.kr`, 라벨 하나인 `corp`도 허용). `@`로 시작(`@neoine.co.kr`)하거나 `@`를 포함, 중간 공백·제어문자, 빈 라벨(`neoine..co.kr`, 끝 `.`), 한글 등 비 ASCII, 254자 이상이면 기동이 실패한다. 오류 문구는 "ad_login_domain은 도메인 형식(예: neoine.co.kr)이어야 합니다"이고 입력값을 싣지 않는다.
+  - 도메인 없음: 사용자 바인드 이름 = 검색으로 찾은 항목의 DN(기존 동작).
+  - 받아들인 위험(2026-11-24 사용자 결정, 코드 리뷰 Major): 검색으로 찾은 항목과 `<아이디>@<도메인>`으로 바인드되는 AD 사용자가 같은 사람인지는 확인하지 않는다. AD에서 한 사람의 `sAMAccountName`(사용자 필터가 보는 값)과 다른 사람의 UPN 앞부분이 같으면 뒤쪽 사람이 자기 비밀번호로 그 아이디로 로그인해 앱의 그 계정(역할 포함)을 쓸 수 있다. 사용자는 "계정 이름은 유일하다"는 이유로 받아들였다 — AD 운영자는 `sAMAccountName`과 UPN 앞부분을 같게 관리해야 한다. 같은 사용자라도 UPN 접미사가 `APP_AD_LOGIN_DOMAIN`과 다른 별칭 사용자는 바인드가 거절되어 401이 된다.
+  - 받아들인 위험(잠금): 도메인 값이 실제 AD와 다르면 모든 AD 로그인이 401이 되고(대체 로그인·admin 경고 없음) 실패가 쌓여 계정이 429로 잠길 수 있다. 값을 바꾼 뒤에는 Admin 외부연동의 연결 테스트로 확인한다.
+  - 도메인 있음: 사용자 바인드 이름 = `<정규화한 로그인 아이디(AU-R2)>@<도메인>`(예: 아이디 `" KIM "`, 환경변수 `" NEOINE.co.kr "` → `kim@neoine.co.kr`). 검색 결과의 DN이나 속성(`userPrincipalName` 등)으로 만들지 않는다. 검색(필터·Base DN·최대 2건, 0건은 공통 실패, 2건 이상은 `search`)과 프로필 읽기(AU-R8·AU-R8a)는 도메인과 무관하게 같고, 검색이 정확히 1건일 때만 바인드한다.
+  - 아이디 형식(AU-R2 `[a-z0-9][a-z0-9._-]{0,63}`)이 `@`·`,`·`=`·`\`·공백을 허용하지 않으므로 바인드 이름에 다른 도메인이나 DN 조각을 끼워 넣을 수 없다. 바인드 이름은 LDAP 필터가 아니므로 필터 이스케이프를 하지 않는다.
+  - 바인드 결과 판정은 바인드 이름과 무관하게 같다: 거절 코드(49·50·53)는 공통 실패 401(AU-R9, 대체 로그인 없음), 그 밖의 결과 코드는 AD가 답할 수 없는 경우(AU-R10 `unknown`)다. 따라서 도메인 값이 실제 AD와 맞지 않으면 모든 AD 로그인이 401이 되고 대체 로그인·admin 경고도 없다(운영자는 Admin > 외부연동 연결 테스트의 `bind` 단계 실패로 확인, IN-R11).
+  - 같은 규칙을 로그인(AU-R7), 연결 테스트·AD 설정 저장의 현재 admin 확인(IN-R11 ②), 최초 설정의 AD 첫 admin 등록(SU-R11)이 모두 쓴다(모두 같은 `DirectoryAuthenticator.authenticate`). Base DN 탐색(IN-R11 ①)과 서비스 계정 바인드는 도메인과 무관하다.
+  - 바인드 이름은 응답·로그·예외 문구에 쓰지 않는다(로그의 아이디는 AU-R23의 짧은 해시만).
+- **AU-R8** AD 인증이 성공하면 같은 아이디의 재직 사용자 행이 정확히 하나일 때만 로그인된다. 미등록·퇴사 → 공통 실패. 재직 행이 둘 이상 → 공통 실패, 어느 행도 바꾸지 않고 해시도 저장하지 않으며 경고 로그(건수와 아이디의 짧은 해시만)를 남긴다. 퇴사 행과 재직 행이 함께 있으면 재직 행으로 로그인한다. 성공하면 같은 트랜잭션에서 `last_login_at` = 지금, 표시 이름·이메일을 AD 값으로 덮어쓰고(이름: NUL 제거·trim, 비면 비움, 200자 초과면 200자로 자름 / 이메일: 비었거나 254자 초과거나 `@`가 없으면 비움), AD에 전화번호가 있으면 전화번호도 덮어쓰며(AU-R8a), 그 비밀번호의 새 해시(새 솔트)를 저장한다(기존 해시 덮어씀). 역할은 users 행의 값이다. 실패한 로그인은 해시를 만들거나 바꾸지 않는다.
+- **AU-R8a** 전화번호의 AD 값(2026-11-24): AD 로그인의 사용자 검색은 `displayName`·`mail`과 함께 `mobile`·`telephoneNumber`를 읽는다(속성 값이 여럿이면 첫 값). 앞뒤 공백을 지운 `mobile`이 비어 있지 않으면 그 값을, 비었거나 없으면 `telephoneNumber`를 AD 전화번호로 쓴다(`mobile`이 있으면 형식과 무관하게 `mobile`). 고른 값은 NUL 문자를 지우고 앞뒤 공백을 지운 뒤 40자(`users.phone` 길이)를 넘으면 앞 40자로 자르고 끝 공백을 지워 저장한다. 앱의 전화번호 형식 규칙(ME-R6·US-R7의 `PhoneNumber`)으로 거르지 않으므로 숫자·기호 형식이 달라도 그대로 저장된다. 두 속성이 모두 없거나 비었으면(서비스 계정이 읽지 못한 경우 포함, NUL을 지운 뒤 비는 경우 포함) **기존 전화번호를 그대로 둔다**(이름·이메일의 "비면 비움"과 다름). AD 값이 있으면 앱에서 입력·수정해 둔 전화번호(ME-R7·US-R4·US-R14)도 그 로그인 때 AD 값으로 바뀐다. 대체 로그인(AU-R10)과 앱 계정 로그인(AU-R12)은 전화번호를 바꾸지 않는다.
 - **AU-R9** AD가 응답해 거절하면(사용자 비밀번호 바인드 거부, 검색 0건) 공통 실패 401이고 대체 로그인을 하지 않는다(저장 해시와 같은 비밀번호여도 401).
 - **AU-R10** 대체 로그인은 AD가 답할 수 없을 때만 한다. 경고 단계와 원래 오류:
 
@@ -85,7 +100,7 @@ AD 로그인과 대체 로그인
   | 저장된 바인드 비밀번호 복호화 실패 | `credential_unreadable` | 503 |
   | 그 밖의 통신 실패(단계 정보 없음) | `unknown` | 503 |
 
-  재직 사용자이고 저장 해시가 비밀번호와 맞으면 세션을 발급하고 `last_login_at`만 갱신한다(이름·이메일·해시는 그대로). 경고 로그 "AD 대체 로그인 stage=<단계> login_id_hash=<짧은 해시>"를 남긴다. 미등록·퇴사·해시 없음·불일치·재직 행 중복이면 위 표의 원래 오류로 응답하고(어느 경우든 같은 응답이라 아이디 존재·해시 보유 여부가 드러나지 않는다) 실패 1회로 센다. 사용자·해시가 없어도 같은 비용의 검증(더미 계산)을 한다. 503의 `detail`은 원인과 무관하게 고정 문구 "인증 서버(AD)에 연결할 수 없습니다. 잠시 후 다시 시도하세요"이고 원인은 응답에 없다(PL-R14).
+  재직 사용자이고 저장 해시가 비밀번호와 맞으면 세션을 발급하고 `last_login_at`만 갱신한다(이름·이메일·전화·해시는 그대로). 경고 로그 "AD 대체 로그인 stage=<단계> login_id_hash=<짧은 해시>"를 남긴다. 미등록·퇴사·해시 없음·불일치·재직 행 중복이면 위 표의 원래 오류로 응답하고(어느 경우든 같은 응답이라 아이디 존재·해시 보유 여부가 드러나지 않는다) 실패 1회로 센다. 사용자·해시가 없어도 같은 비용의 검증(더미 계산)을 한다. 503의 `detail`은 원인과 무관하게 고정 문구 "인증 서버(AD)에 연결할 수 없습니다. 잠시 후 다시 시도하세요"이고 원인은 응답에 없다(PL-R14).
 - **AU-R11** 대체 로그인으로 들어온 사용자가 admin이면 응답 `directory_warning` = `{stage, message}`(문구는 2.8 표), admin이 아니면 null이다. AD 로그인과 앱 계정 로그인은 항상 null이다.
 
 앱 계정(local) 로그인
@@ -200,7 +215,7 @@ admin 경고 문구(`directory_warning.message`):
 ### AU-UC1 AD 로그인
 - 행위자: 등록된 사용자(AD 계정 보유)
 - 사전 조건: effective mode가 `ad`(또는 미선택), AD 설정 저장됨, 계정이 잠기지 않음
-- 기본 흐름: 아이디·비밀번호 제출 → 형식 검사 → 시도 선점 → AD search-then-bind → 재직 행 확인 → 프로필·로그인 시각·해시 갱신 → 세션 발급·쿠키 → 200(AU-R1~R8, R14~R17)
+- 기본 흐름: 아이디·비밀번호 제출 → 형식 검사 → 시도 선점 → AD search-then-bind(사용자 바인드 이름 AU-R7a) → 재직 행 확인 → 프로필·로그인 시각·해시 갱신 → 세션 발급·쿠키 → 200(AU-R1~R8, R14~R17)
 - 대안: AD가 답하지 못하면 AU-UC2
 - 예외: 형식 오류·미등록·퇴사·AD 거절·중복 행·예약 아이디 → 401(AU-R4), 잠김 → 429
 - 결과: 세션 쿠키, 사용자 정보, `directory_warning` null
@@ -342,6 +357,18 @@ admin 경고 문구(`directory_warning.message`):
 | AU-086 | 게이트웨이: 로그인 실패 401은 unauthorized와 서버 문구다 | AU-R30, AU-UC8 | frontend | `gateway/http/auth.test.ts > shows the server message and the unauthorized kind for wrong credentials` |
 | AU-087 | 게이트웨이: 로그아웃은 204를 성공으로 보고 인증 설정은 설정 필요 여부와 방식으로 바뀐다 | AU-R30, AU-UC6, AU-UC7 | frontend | `gateway/http/auth.test.ts > logout posts to /auth/logout and accepts 204`<br>`gateway/http/auth.test.ts > config exposes only the setup state and auth mode, no quick login`<br>`gateway/http/auth.test.ts > config exposes auth_mode=%s as authMode`<br>`gateway/http/auth.test.ts > config treats a response without auth_mode as no choice yet` |
 | AU-088 | 로그인 전 내 정보 훅은 401이고 로그인 훅 성공 뒤 내 정보·권한이 갱신된다 | AU-R27, AU-R30, AU-UC8 | frontend | `data/hooks.test.tsx > 로그인 전에는 useMe가 401 ApiError, usePermissions는 모두 false다`<br>`data/hooks.test.tsx > useLogin 성공 후 useMe와 usePermissions가 갱신된다`<br>`data/hooks.test.tsx > useLogin은 비밀번호가 든 변수를 mutation 캐시에 남기지 않고, 실패는 ApiError로 reject한다` |
+| AU-089 | AD 로그인에 성공하면 앱에서 입력해 둔 전화번호를 AD의 mobile 값으로 형식과 무관하게 덮어쓴다 | AU-R8, AU-R8a, AU-UC1 | backend | `application/test_directory_login.py::test_login_overwrites_the_phone_with_the_directory_mobile` |
+| AU-090 | AD의 mobile이 없거나 비었으면 telephoneNumber로 덮어쓴다 | AU-R8a, AU-UC1 | backend | `application/test_login_input_rules.py::test_login_uses_the_telephone_number_when_the_mobile_is_blank`<br>`infra/test_ldap_authenticator_phone.py::test_directory_phone_is_mobile_then_telephone_number` |
+| AU-091 | AD에 전화번호가 없으면 저장된 전화번호를 그대로 둔다 | AU-R8a, AU-UC1 | backend | `application/test_directory_login.py::test_login_keeps_the_stored_phone_when_the_directory_has_none` |
+| AU-092 | AD 전화번호는 NUL·앞뒤 공백을 지우고 40자를 넘으면 40자로 자른다 | AU-R8a, AU-UC1 | backend | `application/test_login_input_rules.py::test_login_cleans_and_truncates_the_directory_phone` |
+| AU-093 | 도메인이 설정되어 있으면 사용자 비밀번호 바인드는 아이디@도메인으로 하고 검색·프로필은 그대로다 | AU-R7, AU-R7a, AU-UC1 | backend | `infra/test_ldap_authenticator_upn.py::test_user_bind_uses_login_id_at_domain_when_a_domain_is_set` |
+| AU-094 | 도메인 환경변수가 없거나 비어 있으면 찾은 항목의 DN으로 바인드한다 | AU-R7a, AU-UC1 | backend | `infra/test_ldap_authenticator_upn.py::test_user_bind_uses_the_found_dn_without_a_domain`<br>`test_settings_ad_login_domain.py::test_missing_or_blank_domain_means_no_domain` |
+| AU-095 | 도메인이 있어도 검색 0건은 사용자 바인드 없이 자격 증명 오류, 2건 이상은 search 단계 오류다 | AU-R7a, AU-R9, AU-R10, AU-UC1, AU-UC2 | backend | `infra/test_ldap_authenticator_upn.py::test_search_outcomes_are_unchanged_with_a_domain` |
+| AU-096 | 도메인 바인드를 AD가 거절하면 자격 증명 오류, 그 밖의 결과 코드는 AD 불가다 | AU-R7a, AU-R9, AU-R10, AU-UC1, AU-UC2 | backend | `infra/test_ldap_authenticator_upn.py::test_domain_bind_rejection_is_invalid_credentials_and_other_codes_are_unavailable` |
+| AU-097 | 바인드 이름은 정규화한 아이디와 공백 제거·소문자로 정리한 도메인으로 만든다 | AU-R2, AU-R7a, AU-UC1 | backend | `infra/test_ldap_authenticator_upn.py::test_domain_bind_name_uses_the_normalized_login_id`<br>`test_settings_ad_login_domain.py::test_domain_is_trimmed_and_lowercased` |
+| AU-098 | 도메인 형식이 틀리면 기동이 실패하고 오류에 값이 나오지 않는다 | AU-R7a | backend | `test_settings_ad_login_domain.py::test_malformed_domain_fails_startup_without_echoing_it`<br>`test_settings_ad_login_domain.py::test_well_formed_domains_are_accepted` |
+| AU-099 | 조립된 앱의 LDAP 어댑터는 설정의 도메인을 쓰고 로그인·AD 설정 확인·첫 admin 등록이 같은 어댑터를 쓴다 | AU-R7a, AU-UC1 | backend | `test_container_auth.py::test_container_builds_the_ldap_adapter_with_the_configured_login_domain` |
+| AU-100 | 도메인이 있어도 DN·도메인 주입을 노린 아이디로는 사용자 바인드를 하지 않는다 | AU-R7a, AU-R2, AU-UC1 | backend | `infra/test_ldap_authenticator_upn.py::test_hostile_login_id_never_reaches_a_domain_bind` |
 
 ### AU-001 등록된 사용자가 AD 비밀번호로 로그인하면 200과 HttpOnly·Lax 세션 쿠키를 받는다
 - Given kim(sales)이 재직 사용자로 등록되어 있고 AD 대역이 kim의 비밀번호를 받아들인다
@@ -466,9 +493,9 @@ admin 경고 문구(`directory_warning.message`):
 - Then 둘 다 200이고 `directory_warning`은 null이다
 
 ### AU-026 대체 로그인은 해시·프로필을 바꾸지 않고 로그인 시각과 경고 로그만 남긴다
-- Given kim의 이름 "김영업", 저장 해시 H, AD 대역 연결 실패, 시계 `2026-11-09T02:00:00Z`
+- Given kim의 이름 "김영업", 전화 "02-123-4567", 저장 해시 H, AD 대역 연결 실패, 시계 `2026-11-09T02:00:00Z`
 - When kim이 로그인한다
-- Then kim 행의 `last_login_at`만 `2026-11-09T02:00:00Z`로 바뀌고 이름·이메일·해시 H는 그대로다. 경고 로그 "AD 대체 로그인 stage=connect login_id_hash=…"가 하나 있고 "kim" 원문·비밀번호·해시 값은 없다
+- Then kim 행의 `last_login_at`만 `2026-11-09T02:00:00Z`로 바뀌고 이름·이메일·전화 "02-123-4567"·해시 H는 그대로다. 경고 로그 "AD 대체 로그인 stage=connect login_id_hash=…"가 하나 있고 "kim" 원문·비밀번호·해시 값은 없다
 
 ### AU-027 AD가 돌아오면 다음 로그인은 AD를 거치고 해시가 새로 저장된다
 - Given kim이 AD 장애 중 대체 로그인했다(해시 H)
@@ -770,8 +797,70 @@ admin 경고 문구(`directory_warning.message`):
 - When `useMe`·`usePermissions`를 읽고, `useLogin`으로 kim이 로그인한 뒤 다시 읽는다
 - Then 처음은 `useMe` 401 `ApiError`, 권한 role null·모두 false이고, 로그인 뒤 `useMe`는 kim, `canWrite` true·`isAdmin` false다. 실패한 `useLogin`은 `ApiError`로 reject한다
 
+### AU-089 AD 로그인에 성공하면 앱에서 입력해 둔 전화번호를 AD의 mobile 값으로 형식과 무관하게 덮어쓴다
+- Given 인증 방식 `ad`이고 kim 행의 전화가 "02-111-2222"(앱에서 입력)이다. AD 대역은 경우마다 (a) mobile " 010-1234-5678 "·telephoneNumber "02-123-4567", (b) mobile "010.1234.5678 내선 12"(앱 형식 규칙 밖)·telephoneNumber "02-123-4567"을 준다
+- When 경우마다 kim이 맞는 비밀번호로 로그인한다
+- Then 모두 200이고 kim 행의 전화는 (a) "010-1234-5678"(앞뒤 공백 제거), (b) "010.1234.5678 내선 12"다. 이름·이메일도 AD 값으로 바뀐다
+
+### AU-090 AD의 mobile이 없거나 비었으면 telephoneNumber로 덮어쓴다
+- Given kim 행의 전화가 "02-111-2222"이고, AD 대역이 경우마다 (a) mobile 없음·telephoneNumber "02-123-4567", (b) mobile "   "(공백만)·telephoneNumber "+82 2-123-4567"을 준다
+- When 경우마다 kim이 로그인한다
+- Then 모두 200이고 저장된 전화는 (a) "02-123-4567", (b) "+82 2-123-4567"이다
+
+### AU-091 AD에 전화번호가 없으면 저장된 전화번호를 그대로 둔다
+- Given kim 행의 전화가 "02-111-2222"(admin이 등록 때 넣은 값)이고, AD 대역이 경우마다 (a) 두 속성을 주지 않는다(서비스 계정이 읽지 못한 경우와 같음), (b) mobile ""·telephoneNumber "  "를 준다. 이름 "김영업"·이메일은 AD가 준다
+- When 경우마다 kim이 로그인한다
+- Then 모두 200이고 세션이 발급되며 kim 행의 전화는 "02-111-2222" 그대로이고, 이름·이메일은 AD 값으로 바뀐다. 전화가 비어 있던 사용자 lee는 같은 조건에서 계속 비어 있다(null)
+
+### AU-092 AD 전화번호는 NUL·앞뒤 공백을 지우고 40자를 넘으면 40자로 자른다
+- Given AD 대역이 mobile 없이 telephoneNumber로 경우마다 NUL이 섞인 "010-1234\u0000-5678", 정확히 40자인 값, 앞 40자의 끝이 공백인 45자 값을 준다
+- When 경우마다 kim이 로그인한다
+- Then 모두 200이고 저장된 전화는 NUL을 뺀 "010-1234-5678", 40자 값 그대로, 45자 값의 앞 40자에서 끝 공백을 지운 값이다
+
+### AU-093 도메인이 설정되어 있으면 사용자 비밀번호 바인드는 아이디@도메인으로 하고 검색·프로필은 그대로다
+- Given LDAP 어댑터가 도메인 `neoine.co.kr`로 만들어졌고, 모의 AD에 `cn=kim,ou=users,dc=corp,dc=test` 항목(sAMAccountName kim, 이름 "김영업", 메일 "kim@corp.test")이 있으며, `kim@neoine.co.kr` 바인드가 비밀번호 "Correct-Horse-1"을 받아들인다
+- When kim이 그 비밀번호로 인증한다
+- Then 결과는 아이디 "kim"·이름 "김영업"·메일 "kim@corp.test"인 사용자다. 연결은 두 번 만들어지는데 첫째는 서비스 계정(`bind_account`·바인드 비밀번호), 둘째는 `kim@neoine.co.kr`과 사용자 비밀번호이고, 검색은 서비스 계정 연결에서 저장된 Base DN·필터 값 kim으로 1번이다. 찾은 항목의 DN으로 바인드하지 않고 두 연결 모두 닫힌다
+
+### AU-094 도메인 환경변수가 없거나 비어 있으면 찾은 항목의 DN으로 바인드한다
+- Given 경우마다 `APP_AD_LOGIN_DOMAIN`이 (a) 없다, (b) 빈 문자열이다, (c) "   "(공백만)이다
+- When 설정을 읽고, 도메인 없이 만든 어댑터로 kim이 인증한다
+- Then 세 경우 모두 설정의 `ad_login_domain`은 없음(None)이고, 사용자 바인드 이름은 `cn=kim,ou=users,dc=corp,dc=test`이며 인증이 성공한다
+
+### AU-095 도메인이 있어도 검색 0건은 사용자 바인드 없이 자격 증명 오류, 2건 이상은 search 단계 오류다
+- Given 도메인 `neoine.co.kr`인 어댑터. (a) 아이디 nobody는 필터에 맞는 항목이 없다, (b) 필터가 `(|(cn={login_id})(objectClass=user))`라 항목이 2건 이상 걸린다
+- When 각각 인증한다
+- Then (a) `InvalidCredentialsError`(stage `search`)이고 (b) `DirectoryMisconfiguredError`(stage `search`)이며, 두 경우 모두 서비스 계정 연결 하나만 만들어지고 사용자 바인드(`…@neoine.co.kr`)는 없다. 로그인 결과는 (a) 공통 실패 401(AU-R9), (b) 대체 로그인 대상(AU-R10 `search`)이다
+
+### AU-096 도메인 바인드를 AD가 거절하면 자격 증명 오류, 그 밖의 결과 코드는 AD 불가다
+- Given 도메인 `neoine.co.kr`인 어댑터와 kim 항목. `kim@neoine.co.kr` 바인드 결과 코드가 경우마다 49, 50, 53, 51, 52이고 서비스 계정 바인드는 성공한다
+- When kim이 인증한다
+- Then 49·50·53은 `InvalidCredentialsError`(stage `bind`), 51·52는 `DirectoryUnavailableError`(stage `bind`)다. 어느 경우든 예외 문구에 바인드 이름·비밀번호가 없다
+
+### AU-097 바인드 이름은 정규화한 아이디와 공백 제거·소문자로 정리한 도메인으로 만든다
+- Given `APP_AD_LOGIN_DOMAIN` = "  NEOINE.Co.KR "
+- When 설정을 읽고, 그 값(`neoine.co.kr`)으로 만든 어댑터에 아이디 " KIM "으로 인증한다
+- Then 설정의 `ad_login_domain`은 "neoine.co.kr"이고 사용자 바인드 이름은 "kim@neoine.co.kr"이다
+
+### AU-098 도메인 형식이 틀리면 기동이 실패하고 오류에 값이 나오지 않는다
+- Given 프로파일 local·dev·product 각각에서 `APP_AD_LOGIN_DOMAIN`이 경우마다 "@neoine.co.kr", "kim@neoine.co.kr", "neoine .co.kr", "neoine..co.kr", "neoine.co.kr.", "-neoine.co.kr", "neoine-.co.kr", "네오인.kr", 제어문자가 든 "neo\u0001ine.kr", 64자 라벨이 든 값, 전체 254자 값이다
+- When 설정을 읽는다
+- Then 모두 검증 오류이고 문구에 "ad_login_domain은 도메인 형식(예: neoine.co.kr)이어야 합니다"가 있으며 오류 문자열에 입력값이 없다. 같은 조건에서 "neoine.co.kr", "corp", "a-b.example.com", 63자 라벨이 든 값, 전체 253자 값은 통과하고 정리한 값이 그대로 남는다
+
+### AU-099 조립된 앱의 LDAP 어댑터는 설정의 도메인을 쓰고 로그인·AD 설정 확인·첫 admin 등록이 같은 어댑터를 쓴다
+- Given `ad_login_domain`이 "neoine.co.kr"인 설정과 없는 설정
+- When 디렉터리를 주입하지 않고 `Container`를 각각 만든다
+- Then `container.directory`는 `LdapDirectoryAuthenticator`이고 사용자 바인드 도메인이 각각 "neoine.co.kr"·없음이다. 로그인·AD 설정 확인·첫 admin 등록 유스케이스가 받는 디렉터리 Port가 이 같은 객체다
+
+### AU-100 도메인이 있어도 DN·도메인 주입을 노린 아이디로는 사용자 바인드를 하지 않는다
+- Given 도메인 `neoine.co.kr`인 어댑터. `LoginId` 검증을 건너뛴 아이디가 경우마다 "x,ou=admins+cn=y", "kim@evil.test"다
+- When 그 아이디로 인증한다
+- Then 모두 `InvalidCredentialsError`이고 만들어진 연결은 서비스 계정 하나뿐이며 사용자 바인드는 없다(검색 필터에서 이스케이프된 값이 어느 항목에도 맞지 않음). 정상 경로에서는 AU-R2 형식 검사가 이런 아이디를 AD에 보내기 전에 막는다(AU-016)
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 로그인·세션·대체 로그인 동작을 정본 명세로 옮김. 규칙 AU-R1~R30, use case AU-UC1~UC8, BDD 케이스 AU-001~AU-088 | AU-001~AU-088(신규) |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): AD 로그인 때 AD 전화번호가 있으면 덮어씀(사용자 요청·결정 2026-11-24: `mobile`이 비지 않으면 형식과 무관하게 `mobile`, 아니면 `telephoneNumber`. 앱 형식 규칙으로 거르지 않음, NUL·앞뒤 공백 제거·40자 초과 자름. AD에 값이 없으면 기존 값 유지. 앱에서의 전화 수정은 그대로 허용). AU-R8 변경, AU-R8a 신설, AU-R10 문구(대체 로그인은 전화도 그대로), 2.2. 마이그레이션·API 변경 없음. AD 값이 있는 사용자는 앱에서 고친 전화번호가 다음 AD 로그인 때 AD 값으로 바뀜(사용자 수용) | 신규 AU-089~AU-092. 변경 AU-026(전화 그대로 단언 추가) |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): AD 사용자 비밀번호 바인드를 `<아이디>@<도메인>`으로(사용자 요청 2026-11-24, 결정: 서비스 계정 검색·프로필 읽기·사용자 필터·정확히 1건 확인은 그대로, 사용자 비밀번호 바인드 이름만 바꿈, 도메인 환경변수가 없거나 비면 기존 DN 바인드). 새 환경변수 `APP_AD_LOGIN_DOMAIN`(선택). AU-R7 변경, AU-R7a 신설, 1장 범위·2.1 용어·2.2 설정·AU-UC1 갱신. API·DB·마이그레이션 변경 없음. 도메인 값이 실제 AD와 맞지 않으면 모든 AD 로그인이 401(대체 로그인 없음) | 신규 AU-093~AU-100. 기존 케이스 변경 없음(도메인 없음이 기본값이라 AU-001~AU-092 그대로) |

@@ -39,6 +39,7 @@ backend/src/app/config/
 | `APP_ACCESS_TOKEN_TTL_MINUTES` | 액세스 토큰 수명(분, ≥1) | | 15 | | | |
 | `APP_REFRESH_TOKEN_TTL_DAYS` | 리프레시 토큰 수명(일, ≥1) | | 7 | | | |
 | `APP_SETTINGS_ENCRYPTION_KEY` | DB에 저장하는 설정 비밀(AD 바인드 비밀번호)을 암호화하는 Fernet 키(URL-safe base64, 32바이트, `Fernet.generate_key()`로 생성). 형식이 틀리면 기동 실패(값은 오류 메시지에 안 나옴). 서버는 `scripts/setup.sh --profile product`가 줄이 없을 때만 무작위로 만들어 `.env`에 넣으며(값 출력 없음, 있으면 보존), 코드 배포 전에 있어야 하고 **DB 백업과 분리 보관**. 분실·변경 시 저장된 바인드 비밀번호를 풀 수 없어 admin이 외부연동 설정에서 다시 입력(2026-10-29) | ● | **모든 프로파일 필수** | 개발용 키 | dev 전용 키 | product 전용 키(**`.env.example` 예시 키 거부**) |
+| `APP_AD_LOGIN_DOMAIN` | AD 사용자 비밀번호 바인드에 붙이는 도메인(UPN 접미사, 예 `neoine.co.kr`). 값이 있으면 서비스 계정으로 사용자를 검색한 뒤 `<로그인 아이디>@<도메인>`으로 바인드하고, 없거나 비면 검색한 항목의 DN으로 바인드한다(login-session.md AU-R7a). 앞뒤 공백 제거·소문자로 정리, 도메인 형식이 아니면 기동 실패(값은 오류에 안 나옴). 기동 때 한 번 읽으므로 바꾸면 재시작. 서비스 계정 `bind_account`(DB 저장)와 무관. 값이 실제 AD와 맞지 않으면 모든 AD 로그인이 401(대체 로그인 없음)이므로 외부연동 연결 테스트로 확인 (2026-11-24) | | 없음(선택). ASCII 라벨(1~63자)을 `.`으로 이음, 253자 이하, `@`·공백·비 ASCII 금지 | 필요 시 | 필요 시 | 필요 시(예 `neoine.co.kr`, 사람이 서버 `.env`에 추가) |
 | `APP_DATABASE_URL` | PostgreSQL URL(`postgresql+asyncpg://…`) | ● | 필수 | localhost | dev DB | compose db(`…@db:5432/…`, `setup.sh --profile product`가 `POSTGRES_*`로 없을 때만 조립) |
 | `APP_SCHEDULER_ENABLED` | 앱 내 스케줄러(월말 Forecast 스냅숏 확인) 켜기 | | true | **false**(기본) | true | true |
 | `APP_FORECAST_SNAPSHOT_CHECK_INTERVAL_SECONDS` | 스냅숏 확인 주기(초) | | 600, 30~3600 | | | |

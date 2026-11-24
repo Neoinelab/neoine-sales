@@ -1,4 +1,4 @@
-# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-23 사용자 확인))
+# 최초 설정   (feature 코드: SU, 상태: 확정(2026-11-24 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/auth_setup.py`, `web/schemas/{auth,auth_directory,storage,password_field}.py`, `web/error_handlers.py`, `application/auth/{auth_status,mode,messages,setup_auth_mode,setup_directory,setup_storage,setup_admin,setup_first_admin,setup_first_local_admin,credential_check}.py`, `application/directory/errors.py`, `application/storage/probe.py`, `domain/auth/{mode,credentials,password_policy}.py`, `domain/storage/path.py`, `domain/user/{profile,retired_login_ids}.py`, `frontend/src/features/setup/**`, `features/auth/LoginPage.tsx`, `data/setup.ts`, `gateway/http/setup.ts`, `shared/directory/{messages,directoryForm}.ts`)이며 문구·type·상태 코드는 서버 코드에서 그대로 옮겼습니다. 테스트용 Fake 게이트웨이(`frontend/src/test/fake/gateway/auth.ts`)가 서버와 다르게 동작하는 곳은 서버를 따랐습니다(계획 `artifacts/10-analysis/su-plan.md` 확인 필요 질문 Q1~Q3).
 
@@ -43,7 +43,7 @@
 | `auth_settings`(단일 행) | `mode`(`ad`·`local`), `updated_at`. 방식 선택·AD 설정 등록 때 덮어쓴다 |
 | `directory_settings`(단일 행, IN) | 접속 정보, 암호화한 바인드 비밀번호, 찾은 `base_dn`, `revision`(1부터 저장마다 +1), `updated_at`, `updated_by = NULL`(최초 설정이 저장) |
 | `storage_settings`(단일 행, IN) | 정규화한 `path`, `updated_at`, `updated_by = NULL` |
-| `users` | 첫 admin 1행: `role = admin`, 마지막 로그인 시각 기록. AD는 이름·이메일을 AD 값으로, local은 입력값(전화 포함)으로 |
+| `users` | 첫 admin 1행: `role = admin`, 마지막 로그인 시각 기록. AD는 이름·이메일을 AD 값으로, 전화는 AD 값이 있을 때만 AD 값으로(AU-R8a), local은 입력값(전화 포함)으로 |
 | `user_password_hashes` | 첫 admin 비밀번호의 scrypt 해시(AD·local 모두, 원문은 어디에도 저장하지 않음) |
 | `auth_sessions` | 첫 admin의 새 세션(AU) |
 
@@ -98,7 +98,7 @@
 - **SU-R11** AD 흐름(판정 순서): 웹 계층에서 비밀번호가 비었거나 공백뿐이거나 NUL이면 401 `unauthenticated` "아이디 또는 비밀번호가 올바르지 않습니다"(AD 호출·시도 제한 집계 없음) → 이름·이메일·전화 중 하나라도 보냈으면 422 `invalid-value` "AD 연동에서는 이름·이메일·전화번호를 입력하지 않습니다(AD 값을 씁니다)."(AD 호출 없음) → 아이디 형식 위반은 401 같은 문구(AD로 보내지 않음) → 예약 아이디 → 시도 제한 확인(초과면 429, AU) → 닫힘 → AD 설정 없음 409 `invalid-state` "먼저 AD 서버를 등록하세요" → 저장 위치 없음 409 "파일 저장 위치를 먼저 설정하세요." → 저장된 바인드 비밀번호 복호화 → AD 인증(서비스 계정 검색 후 사용자 바인드) → 해시 계산 → 방식이 local로 바뀌었으면 409 `invalid-state` "AD 연동 모드에서만 쓸 수 있습니다." → 닫힘 재확인 → 중복 아이디 → 등록.
   - 시도 제한 집계: 비밀번호가 틀리거나 사용자를 찾지 못하면(0건) 401 "아이디 또는 비밀번호가 올바르지 않습니다"이고 실패 1회로 남는다. 닫힘·선행 단계 409와 AD 장애·복호화 불가 503은 실패로 남지 않는다(선점 해제). 성공하면 그 계정·IP의 실패 횟수를 지운다.
   - AD 장애(연결·TLS·서비스 계정 바인드·Base DN·검색 2건 이상·알 수 없는 통신 실패)와 저장된 바인드 비밀번호 복호화 불가는 503 `directory-unavailable` "인증 서버(AD)에 연결할 수 없습니다. 잠시 후 다시 시도하세요"이며 원인 문구를 싣지 않는다. 최초 설정에서는 저장된 비밀번호 해시로 대신 인증하지 않는다(대체 로그인은 AU 로그인에만).
-  - 성공하면 이름·이메일은 AD가 준 값(`displayName`·`mail`)으로 저장하고, 입력한 비밀번호의 해시를 저장한다(이후 AU 대체 로그인에 쓰임). 비밀번호가 틀린 시도는 해시를 저장하지 않는다.
+  - 성공하면 이름·이메일은 AD가 준 값(`displayName`·`mail`)으로, 전화번호는 AD 값(`mobile`, 비었으면 `telephoneNumber`, 규칙 AU-R8a)이 있으면 그 값으로 저장하고(없으면 비어 있음), 입력한 비밀번호의 해시를 저장한다(이후 AU 대체 로그인에 쓰임). 비밀번호가 틀린 시도는 해시를 저장하지 않는다.
 - **SU-R12** 비밀번호 비노출: 첫 admin 비밀번호와 바인드 비밀번호는 어떤 응답 본문(성공·401·422, AD 연결 테스트 결과 포함)에도, 로그에도 나오지 않는다. 비밀번호 원문은 어느 테이블에도 저장하지 않는다.
 
 화면(frontend)
@@ -328,6 +328,7 @@ SU-R13~SU-R19.
 | SU-076 | 연결 테스트·등록 요청 중에는 두 버튼이 모두 꺼진다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > disables both buttons while the connection test is pending and enables them on success`<br>`features/setup/SetupFlow.cases.test.tsx > disables both buttons while the registration is pending` |
 | SU-077 | 연결 테스트에 성공하지 않았으면 Enter로 제출해도 요청이 없다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > sends no request when Enter is pressed before the connection test succeeded` |
 | SU-078 | 연결 테스트 응답을 기다리는 동안 입력을 바꾸면 늦게 온 성공이 등록 버튼을 켜지 않는다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > ignores a late success of the previous input after the input changed` |
+| SU-079 | AD 계정으로 확인된 첫 admin에는 AD의 전화번호가 있으면 저장된다 | SU-R11, SU-UC5 | backend | `application/test_setup_ad_admin_cases.py::test_the_first_ad_admin_gets_the_directory_phone` |
 
 ### SU-001 새 시스템은 방식 미선택이고 AD·저장 위치 단계가 필요하며 관리자 단계는 아직이다
 - Given 사용자·방식·AD 설정·저장 위치가 하나도 없다
@@ -711,6 +712,11 @@ SU-R13~SU-R19.
 - When 응답이 오기 전에 입력 칸 하나(예: 호스트)를 바꾸고, 그 뒤 예전 입력에 대한 성공 응답이 도착한다
 - Then 성공 알림과 Base DN이 보이지 않고 "AD 서버 등록"은 꺼진 채이며 "연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다." 안내가 보인다. 바뀐 입력으로 "연결 테스트"를 다시 눌러 성공해야 등록이 켜진다
 
+### SU-079 AD 계정으로 확인된 첫 admin에는 AD의 전화번호가 있으면 저장된다
+- Given AD 서버·저장 위치가 등록된 새 시스템이고, 경우마다 AD 계정 `kim`(mobile 없음, telephoneNumber "02-123-4567") 또는 `lee`(두 속성 모두 없음)가 있다
+- When 경우마다 `{login_id, password:<맞는 비밀번호>}`로 첫 admin을 등록한다
+- Then 둘 다 200이고 kim 행의 전화는 "02-123-4567", lee 행의 전화는 비어 있다(null)
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
@@ -718,3 +724,4 @@ SU-R13~SU-R19.
 | 2026-11-09 | 최초 작성(초안): 구현된 최초 설정 동작을 정본 명세로 옮김. 규칙 SU-R1~R19, use case SU-UC1~UC7, BDD 케이스 SU-001~SU-064. AD 칸 값·Base DN·암호화·경로·쓰기 확인 규칙은 IN 번호로 가리킴. Fake 게이트웨이와 서버가 다른 곳(AD 방식 기존 사용자 승격, 빈 아이디·비밀번호 문구, 중복·이름·비밀번호 문구)은 서버 기준으로 적고 확인 필요 질문으로 남김 | SU-001~SU-064(신규) |
 | 2026-11-13 | US 변경(users 등록자 컬럼 삭제, 2026-11-13 사용자 확인)에 맞춰 첫 admin의 `created_by` = 자기 자신 문구 삭제(데이터 모델 표·SU 규칙·SU-023). 동작은 등록자 기록이 없어지는 것 외 불변 | 변경: SU-023 |
 | 2026-11-23 | AD 서버 등록 전 연결 테스트(사용자 요청 2026-11-23, 확정 2026-11-23 사용자 확인: 최초 설정만 적용·호출 횟수 제한 없음): 새 공개 경로 `POST /auth/setup/directory/test`(저장 없음, Base DN 탐색까지, 결과는 IN-R18과 같은 200 `success` 모양) 규칙 SU-R20 추가, AD 폼은 연결 테스트 성공 뒤 입력이 그대로일 때만 등록 활성(SU-R17 교체, 공용 칸 참조를 IN-R30으로 정정), SU-R2·R12·R13·2.5·2.6·2.8·SU-UC3 갱신. 서버 PUT 규칙(SU-R6)은 불변 | 신규: SU-065~SU-077. 변경: SU-052·SU-053·SU-054. 절차 영향(테스트 코드만, 등록 전에 연결 테스트): SU-055·SU-059. 경로 목록 영향 확인: SU-042 |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): AD 첫 admin 등록 때 AD 전화번호(AU-R8a)가 있으면 저장(사용자 결정 2026-11-24). 2.2 users 행·SU-R11 하위 항목 변경. AD 방식에 프로필 필드를 보내면 422인 규칙은 그대로 | 신규 SU-079 |

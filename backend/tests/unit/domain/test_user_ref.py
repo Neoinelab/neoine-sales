@@ -46,7 +46,7 @@ def test_user_ref_of_an_active_user_uses_display_name() -> None:
     """
     # given: 표시 이름이 있는 hong
     user = make_user("hong")
-    user.record_login(later(1), display_name="홍길동", email=None)
+    user.record_login(later(1), display_name="홍길동", email=None, phone=None)
 
     # when: 참조로 바꾼다
     ref = user.to_ref()
@@ -115,7 +115,7 @@ def test_user_ref_of_a_resigned_user_is_flagged_and_labelled() -> None:
     """
     # given: 퇴사한 홍길동
     user = make_user("hong")
-    user.record_login(later(1), display_name="홍길동", email=None)
+    user.record_login(later(1), display_name="홍길동", email=None, phone=None)
     user.resign(later(2))
 
     # when: 참조로 바꾼다

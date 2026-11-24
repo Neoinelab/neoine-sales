@@ -11,7 +11,7 @@ from app.application.auth.messages import LOGIN_FAILED
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
-from tests.support.auth_seed import seed_directory, seed_user
+from tests.support.auth_seed import seed_directory, seed_user, set_user_phone
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -105,3 +105,91 @@ async def test_login_clears_a_malformed_directory_email(
     user = await uow.users.get_active_by_login_id(LoginId("kim"))
     assert user is not None
     assert user.email is None
+
+
+@pytest.mark.parametrize("telephone", ["02-123-4567", "+82 2-123-4567"])
+async def test_login_uses_the_telephone_number_when_the_mobile_is_blank(
+    auth: AuthStack,
+    directory: FakeDirectoryAuthenticator,
+    uow: FakeUnitOfWork,
+    uow_factory: UnitOfWorkFactory,
+    telephone: str,
+) -> None:
+    """AD의 mobile이 없거나 비었으면 어댑터가 고른 telephoneNumber 값으로 덮어쓴다.
+
+    테스트 코드: AU-090
+    """
+    # given: 앱에서 입력한 전화가 있는 kim, AD 어댑터가 mobile 대신 telephoneNumber를 고른 계정
+    #   (mobile 없음·공백 판정은 ldap 어댑터 단위 테스트가 검증한다)
+    await set_user_phone(uow_factory, "kim", "02-111-2222")
+    directory.add_account(
+        "kim", "pw-kim", display_name="김영업", email="kim@corp.test", phone=telephone
+    )
+
+    # when: kim이 로그인한다
+    await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+
+    # then: 저장된 전화는 telephoneNumber 값이다
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone == telephone
+
+
+@pytest.mark.parametrize(
+    ("directory_phone", "stored"),
+    [
+        ("010-1234\u0000-5678", "010-1234-5678"),
+        ("0" * 40, "0" * 40),
+        ("1" * 39 + "  " + "2" * 4, "1" * 39),
+        ("가" * 41, "가" * 40),
+    ],
+    ids=["nul-removed", "exactly-40", "trailing-space-after-cut", "41-chars-cut"],
+)
+async def test_login_cleans_and_truncates_the_directory_phone(
+    auth: AuthStack,
+    directory: FakeDirectoryAuthenticator,
+    uow: FakeUnitOfWork,
+    directory_phone: str,
+    stored: str,
+) -> None:
+    """AD 전화번호는 NUL·앞뒤 공백을 지우고 40자를 넘으면 앞 40자로 자르고 끝 공백을 지운다.
+
+    테스트 코드: AU-092
+    """
+    # given: 정리가 필요한 전화번호를 주는 AD 계정
+    directory.add_account(
+        "kim", "pw-kim", display_name="김영업", email="kim@corp.test", phone=directory_phone
+    )
+
+    # when: kim이 로그인한다
+    outcome = await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+
+    # then: 로그인은 성공하고 저장된 전화는 정리·자른 값이다
+    assert outcome.session.principal.subject == "kim"
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone == stored
+    assert len(stored) <= 40
+
+
+async def test_login_keeps_the_stored_phone_when_the_directory_phone_is_only_nul(
+    auth: AuthStack,
+    directory: FakeDirectoryAuthenticator,
+    uow: FakeUnitOfWork,
+    uow_factory: UnitOfWorkFactory,
+) -> None:
+    """NUL을 지운 뒤 비는 AD 전화번호는 값이 없는 것으로 보고 기존 전화번호를 유지한다.
+
+    테스트 코드: AU-092
+    """
+    # given: 앱에서 입력한 전화가 있는 kim과 NUL만 있는 AD 전화
+    await set_user_phone(uow_factory, "kim", "02-111-2222")
+    directory.add_account("kim", "pw-kim", display_name="김영업", phone="\u0000\u0000")
+
+    # when: kim이 로그인한다
+    await auth.login.execute(login_id="kim", password=Password("pw-kim"), client_ip=IP)
+
+    # then: 전화는 그대로다
+    user = await uow.users.get_active_by_login_id(LoginId("kim"))
+    assert user is not None
+    assert user.phone == "02-111-2222"

@@ -1,4 +1,4 @@
-# 내 정보   (feature 코드: ME, 상태: 확정(2026-11-09 사용자 확인))
+# 내 정보   (feature 코드: ME, 상태: 확정(2026-11-24 사용자 확인))
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-09). 근거는 작업 트리의 코드(`backend/src/app/web/routers/me.py`, `web/schemas/{me,profile_changes,password_field}.py`, `web/error_handlers.py`, `application/account/{get_my_profile,update_my_profile,change_my_password}.py`, `application/user/profile_edit.py`, `application/auth/{messages,throttle,mode}.py`, `domain/user/{profile,entities,messages}.py`, `domain/auth/{credentials,password_policy,errors}.py`, `domain/common/{contact,validation}.py`, `frontend/src/shared/ui/{UserMenu,Layout}.tsx`, `features/account/{MyProfilePage,ProfileForm,PasswordForm}.tsx`, `data/me.ts`, `gateway/http/{me.ts,mappers/user.ts}`)와 이전 계획 `artifacts/10-analysis/local-accounts-plan.md`(2026-11-02 사용자 결정 Q1~Q8)입니다. 문구·type·상태 코드는 코드에서 그대로 옮겼습니다. 코드와 Fake 게이트웨이 문구가 다른 곳은 코드(backend)를 따랐습니다(계획 `artifacts/10-analysis/me-plan.md`의 확인 필요 질문 참고).
 
@@ -67,7 +67,7 @@
   - 이름(`display_name`, local 모드에서만 고칠 수 있음): 앞뒤 공백을 지운다. 비울 수 없다(`""`·공백만·`null` 모두 "이름은(는) 비어 있을 수 없습니다"). 최대 200자("이름은(는) 200자를 넘을 수 없습니다"). NUL 문자는 "이름에는 NUL 문자를 쓸 수 없습니다".
   - 이메일(`email`): `null`·빈 문자열·공백만은 비움(NULL). 앞뒤 공백을 지우고 소문자로 바꾼다. 형식(`로컬@도메인.최상위`, 공백 없음, 최대 254자)이 틀리면 "이메일 형식이 올바르지 않습니다.". NUL 문자는 "이메일에는 NUL 문자를 쓸 수 없습니다".
   - 전화(`phone`): `null`·빈 문자열·공백만은 비움(NULL). 앞뒤 공백을 지운다. 숫자·`+`·`-`·공백·괄호만, 최대 40자, 숫자 7~15개가 아니면 "전화번호 형식이 올바르지 않습니다.". NUL 문자는 "전화번호에는 NUL 문자를 쓸 수 없습니다".
-- **ME-R7** AD 모드에서는 이름·이메일이 AD 값이라 고칠 수 없다. 본문에 `display_name`이나 `email` 키가 있으면(값이 `null`이어도, 지금 값과 같아도) 값 검증보다 먼저 409 `invalid-state` "AD 연동 사용자의 이름·이메일은 AD에서 관리합니다."이고 아무것도 바뀌지 않는다. `phone`만 보내면 ME-R6 규칙으로 고친다.
+- **ME-R7** AD 모드에서는 이름·이메일이 AD 값이라 고칠 수 없다. 본문에 `display_name`이나 `email` 키가 있으면(값이 `null`이어도, 지금 값과 같아도) 값 검증보다 먼저 409 `invalid-state` "AD 연동 사용자의 이름·이메일은 AD에서 관리합니다."이고 아무것도 바뀌지 않는다. `phone`만 보내면 ME-R6 규칙으로 고친다. 단 AD에 그 사용자의 전화번호가 있으면 다음 AD 로그인 때 AD 값으로 덮어써진다(AU-R8a, AD에 값이 없으면 앱에서 고친 값이 남는다).
 - **ME-R8** 수정 대상은 요청자 자신의 행뿐이다. 다른 사용자의 행, 요청자의 아이디·역할은 바뀌지 않는다. 대상 행이 퇴사 처리된 상태면 409 `invalid-state` "이미 퇴사 처리된 사용자입니다"다(판정 순서: 본문 형식 422 → AD 모드 409 → 퇴사 409 → 값 검증 422). 바뀐 이름은 다음 요청의 `/auth/me` 이름부터 보인다(이름 표시 규칙은 AU).
 
 비밀번호 변경
@@ -542,3 +542,4 @@ ME-R1, ME-R16~ME-R19. 라우트 `/me`는 `RequireAuth` 안에 있다(PL-R29·PL-
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
 | 2026-11-09 | 최초 작성(초안): 구현된 내 정보 동작을 정본 명세로 옮김. 규칙 ME-R1~R19, use case ME-UC1~UC4, BDD 케이스 ME-001~ME-057 | ME-001~ME-057(신규) |
+| 2026-11-24 | 확정(2026-11-24 사용자 확인): ME-R7에 AD 전화번호 덮어쓰기 안내 추가(AU-R8a). 동작·API·화면 그대로 | 없음 |

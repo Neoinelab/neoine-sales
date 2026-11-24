@@ -103,9 +103,9 @@ async def test_get_refs_resolves_active_and_resigned_users_in_one_call(
     """재직자와 퇴사자 참조를 한 번에 풀어 주는지 확인한다."""
     # given: 재직 사용자와 퇴사 사용자가 저장되어 있다
     active = make_user("hong")
-    active.record_login(later(1), display_name="홍길동", email=None)
+    active.record_login(later(1), display_name="홍길동", email=None, phone=None)
     leaver = make_user("leaver")
-    leaver.record_login(later(1), display_name="이탈자", email=None)
+    leaver.record_login(later(1), display_name="이탈자", email=None, phone=None)
     leaver.resign(later(2))
     await repository.add(active)
     await repository.add(leaver)
@@ -151,11 +151,11 @@ async def test_search_refs_filters_by_keyword_and_resigned_flag(repository: User
     """키워드와 퇴사자 포함 여부로 사용자 검색이 걸러지는지 확인한다."""
     # given: 홍길동, 김영업, 퇴사한 홍이탈이 저장되어 있다
     hong = make_user("hong.gd", now=later(1))
-    hong.record_login(later(1), display_name="홍길동", email="hong@corp.test")
+    hong.record_login(later(1), display_name="홍길동", email="hong@corp.test", phone=None)
     kim = make_user("kim", now=later(2))
-    kim.record_login(later(2), display_name="김영업", email=None)
+    kim.record_login(later(2), display_name="김영업", email=None, phone=None)
     leaver = make_user("hong.old", now=later(3))
-    leaver.record_login(later(3), display_name="홍이탈", email=None)
+    leaver.record_login(later(3), display_name="홍이탈", email=None, phone=None)
     leaver.resign(later(4))
     for user in (hong, kim, leaver):
         await repository.add(user)
@@ -177,7 +177,7 @@ async def test_search_refs_matches_the_display_name_not_the_login_id(
     """검색이 표시 이름을 대상으로 하고 로그인 아이디는 보지 않는지 확인한다."""
     # given: 표시 이름과 로그인 아이디가 다른 사용자가 저장되어 있다
     hong = make_user("hong.gd", now=later(1))
-    hong.record_login(later(1), display_name="홍길동", email=None)
+    hong.record_login(later(1), display_name="홍길동", email=None, phone=None)
     await repository.add(hong)
 
     # when: 로그인 아이디로 검색한다

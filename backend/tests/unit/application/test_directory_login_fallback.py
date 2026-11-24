@@ -76,7 +76,12 @@ async def people(uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork) -> dict[st
     users: dict[str, User] = {}
     for login_id, role in (("kim", Role.SALES), ("boss", Role.ADMIN), ("viewer", Role.USER)):
         user = await seed_user(uow_factory, login_id, role)
-        user.record_login(NOW, display_name=f"{login_id} 이름", email=f"{login_id}@corp.test")
+        user.record_login(
+            NOW,
+            display_name=f"{login_id} 이름",
+            email=f"{login_id}@corp.test",
+            phone="02-123-4567",
+        )
         async with uow_factory() as active:
             await active.users.update(user)
             await active.commit()
@@ -114,7 +119,7 @@ async def test_fallback_login_succeeds_for_each_unavailable_stage(  # noqa: PLR0
     # when: kim이 저장된 비밀번호로 로그인한다
     outcome = await _login(auth)
 
-    # then: 로그인 시각만 갱신되고 이름·이메일·해시는 그대로이며 실패 횟수는 지워진다
+    # then: 로그인 시각만 갱신되고 이름·이메일·전화·해시는 그대로이며 실패 횟수는 지워진다
     assert outcome.session.principal.subject == "kim"
     assert outcome.session.principal.role is Role.SALES
     assert (await auth.authenticate.execute(outcome.session.token)).subject == "kim"
@@ -122,6 +127,7 @@ async def test_fallback_login_succeeds_for_each_unavailable_stage(  # noqa: PLR0
     assert user is not None
     assert user.last_login_at == clock.now()
     assert (user.display_name, user.email) == ("kim 이름", "kim@corp.test")  # 디렉터리 값이 없다
+    assert user.phone == "02-123-4567"  # 전화번호도 그대로
     assert uow.password_hashes._items == saved  # 해시는 그대로
     assert auth.hasher.hash_calls == 0
     assert account_key("kim") not in uow.login_failures._items  # 실패 카운터 초기화

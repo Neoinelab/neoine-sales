@@ -1,4 +1,4 @@
-"""ldap3 어댑터(MOCK_SYNC)의 사용자 바인드 이름(AU-R7a): 도메인이 있으면 `아이디@도메인`, 없으면 DN."""
+"""ldap3 어댑터(MOCK_SYNC) 사용자 바인드 이름(AU-R7a): 도메인이 있으면 UPN, 없으면 찾은 DN."""
 
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
@@ -26,7 +26,7 @@ KIM_UPN = f"kim@{DOMAIN}"
 
 
 def _bind_users(directory: MockDirectory) -> list[str | None]:
-    """만들어진 연결의 바인드 이름(서비스 계정 연결 다음부터가 사용자 바인드)."""
+    """만들어진 연결의 바인드 이름(첫째는 서비스 계정, 그 뒤가 사용자 바인드)."""
     return [user for _, user, _ in directory.factory_calls]
 
 
@@ -38,7 +38,7 @@ async def _authenticate(
     **overrides: Any,  # noqa: ANN401
 ) -> DirectoryUser:
     adapter = make_adapter(directory, user_bind_domain=domain)
-    typed = login_id if not isinstance(login_id, str) else LoginId(login_id)
+    typed = LoginId(login_id) if isinstance(login_id, str) else login_id
     return await adapter.authenticate(
         make_directory_settings(**overrides), BASE_DN, cast("LoginId", typed), Password(PASSWORD)
     )
@@ -58,33 +58,26 @@ async def test_user_bind_uses_login_id_at_domain_when_a_domain_is_set(
     user = await _authenticate(directory)
 
     # then: 프로필은 검색 결과에서 읽고, 연결은 서비스 계정, UPN 두 번이며 DN 바인드는 없다
-    assert (user.login_id, user.display_name, user.email) == (
-        "kim",
-        "김영업",
-        "kim@corp.test",
-    )
+    assert (user.login_id, user.display_name, user.email) == ("kim", "김영업", "kim@corp.test")
     assert directory.factory_calls[0][1:] == (BIND_ACCOUNT, BIND_PASSWORD)
     assert directory.factory_calls[1][1:] == (KIM_UPN, PASSWORD)
     assert len(directory.connections) == 2
     assert KIM_DN not in _bind_users(directory)
     searches = [a for c in directory.connections for a in c.search_args]
     assert len(searches) == 1
+    assert directory.connections[0].search_args == searches
     assert searches[0]["search_base"] == BASE_DN
     assert "kim" in str(searches[0]["search_filter"])
-    assert directory.connections[0].search_args == searches
     assert directory.calls.count("unbind") == 2
 
 
-@pytest.mark.parametrize("domain", [None], ids=["no-domain"])
-async def test_user_bind_uses_the_found_dn_without_a_domain(
-    directory: MockDirectory, domain: str | None
-) -> None:
+async def test_user_bind_uses_the_found_dn_without_a_domain(directory: MockDirectory) -> None:
     """도메인이 없으면 찾은 항목의 DN으로 바인드한다.
 
     테스트 코드: AU-094
     """
     # when: 도메인 없는 어댑터로 kim이 인증한다
-    user = await _authenticate(directory, domain=domain)
+    user = await _authenticate(directory, domain=None)
 
     # then: 성공하고 사용자 바인드 이름은 찾은 DN이다
     assert user.login_id == "kim"
@@ -112,7 +105,7 @@ async def test_search_outcomes_are_unchanged_with_a_domain(directory: MockDirect
 
     # when: 인증한다
     with pytest.raises(DirectoryMisconfiguredError) as multiple:
-        await _authenticate(many, user_filter="(objectClass=user)")
+        await _authenticate(many, user_filter="(|(cn={login_id})(objectClass=user))")
 
     # then: search 단계 설정 오류, 서비스 계정 연결 하나뿐이고 UPN 바인드는 없다
     assert multiple.value.stage is VerificationStage.SEARCH
@@ -140,9 +133,9 @@ async def test_domain_bind_rejection_is_invalid_credentials_and_other_codes_are_
 
     # then: bind 단계 오류이고 문구에 바인드 이름·비밀번호가 없다
     assert caught.value.stage is VerificationStage.BIND
+    assert (type(caught.value) is InvalidCredentialsError) == invalid
     assert KIM_UPN not in str(caught.value)
     assert PASSWORD not in str(caught.value)
-    assert (type(caught.value) is InvalidCredentialsError) == invalid
 
 
 async def test_domain_bind_name_uses_the_normalized_login_id(directory: MockDirectory) -> None:

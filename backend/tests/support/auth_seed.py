@@ -161,3 +161,15 @@ async def active_admin_logins(uow_factory: UnitOfWorkFactory) -> list[str]:
     async with uow_factory() as uow:
         users = await uow.users.list_users(limit=100)
     return sorted(u.login_id.value for u in users if u.role is Role.ADMIN)
+
+
+async def set_user_phone(uow_factory: UnitOfWorkFactory, login_id: str, phone: str | None) -> None:
+    """앱에서 입력해 둔 전화번호(ME-R7·US-R4)가 이미 저장된 상태를 만든다."""
+    from app.domain.auth.credentials import LoginId  # noqa: PLC0415
+
+    async with uow_factory() as uow:
+        user = await uow.users.get_active_by_login_id(LoginId(login_id))
+        assert user is not None
+        user.phone = phone
+        await uow.users.update(user)
+        await uow.commit()

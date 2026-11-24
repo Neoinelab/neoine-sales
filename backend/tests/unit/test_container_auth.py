@@ -127,3 +127,28 @@ async def test_container_accepts_an_injected_cipher_and_hasher() -> None:
         assert isinstance(built.directory_login(), DirectoryLogin)
     finally:
         await built.dispose()
+
+
+@pytest.mark.parametrize("domain", ["neoine.co.kr", None])
+async def test_container_builds_the_ldap_adapter_with_the_configured_login_domain(
+    domain: str | None,
+) -> None:
+    """조립한 LDAP 어댑터는 설정의 도메인을 쓰고 로그인·AD 확인·첫 admin 등록이 공유한다.
+
+    테스트 코드: AU-099
+    """
+    # given: ad_login_domain이 있는(또는 없는) 설정
+    built = Container(make_settings(UNUSED_DATABASE_URL, ad_login_domain=domain))
+
+    try:
+        # when: 디렉터리를 주입하지 않고 조립한다
+        directory = built.directory
+
+        # then: 설정의 도메인을 쓰는 LDAP 어댑터이고 세 유스케이스가 같은 객체를 받는다
+        assert isinstance(directory, LdapDirectoryAuthenticator)
+        assert directory.user_bind_domain == domain
+        assert built.directory_login()._deps.directory is directory
+        assert built.setup_first_admin()._deps.directory is directory
+        assert built.test_directory_settings()._verify._deps.directory is directory
+    finally:
+        await built.dispose()

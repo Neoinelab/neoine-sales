@@ -14,6 +14,7 @@ class DirectoryUser:
     login_id: str
     display_name: str
     email: str | None
+    phone: str | None = None
 
 
 class VerificationStage(StrEnum):

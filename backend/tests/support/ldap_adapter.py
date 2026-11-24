@@ -19,8 +19,12 @@ if TYPE_CHECKING:
 PASSWORD = "Correct-Horse-1"  # noqa: S105 - 테스트용 더미 값
 
 
-def make_adapter(directory: MockDirectory) -> LdapDirectoryAuthenticator:
-    return LdapDirectoryAuthenticator(directory.factory)
+def make_adapter(
+    directory: MockDirectory, *, user_bind_domain: str | None = None
+) -> LdapDirectoryAuthenticator:
+    if user_bind_domain is None:
+        return LdapDirectoryAuthenticator(directory.factory)
+    return LdapDirectoryAuthenticator(directory.factory, user_bind_domain=user_bind_domain)
 
 
 async def login(

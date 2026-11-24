@@ -19,7 +19,7 @@ async def _named(uow_factory: UnitOfWorkFactory, login: str, name: str, n: int, 
     user = await seed_user(uow_factory, login, Role.SALES, now=later(n))
     async with uow_factory() as uow:
         stored = await uow.users.get(user.id)
-        stored.record_login(later(n), display_name=name, email=f"{login}@corp.test")
+        stored.record_login(later(n), display_name=name, email=f"{login}@corp.test", phone=None)
         if kw.get("resigned"):
             stored.resign(later(n + 100))
         await uow.users.update(stored)
@@ -169,7 +169,7 @@ async def test_options_always_carry_login_id_for_every_role_and_resigned_users(
     await _named(uow_factory, "old", "박영업", 5, resigned=True)
     async with uow_factory() as uow:
         stored = await uow.users.get(root.id)
-        stored.record_login(later(3), display_name="관리자", email=None)
+        stored.record_login(later(3), display_name="관리자", email=None, phone=None)
         await uow.users.update(stored)
         await uow.commit()
 
