@@ -22,7 +22,7 @@ const COLUMNS: readonly Column[] = [
   { label: 'Expected Close', sort: 'revenueDate' },
   { label: '최종 업데이트', sort: 'lastUpdatedAt' },
   { label: 'Next Action' },
-  { label: 'Due' },
+  { label: 'Due Date' },
   { label: 'Next Action 상태' },
 ]
 

@@ -19,7 +19,7 @@ const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice
 
 /** 행을 눌러 상세 팝업을 열고 그 Action의 "Comment 목록" 글을 읽은 뒤 닫는다(표에는 Comment 글이 없다). Comment가 없으면 빈 문자열. */
 async function commentsInDetail(user: View['user'], table: HTMLElement, index: number): Promise<string> {
-  await user.click(bodyRows(table)[index]!)
+  await user.click(within(bodyRows(table)[index]!).getByRole('link'))
   const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
   const list = within(dialog).queryByRole('list', { name: 'Comment 목록' })
   const text = list?.textContent ?? ''

@@ -10,6 +10,7 @@ import { CommentBadge } from '../../../shared/ui/CommentBadge'
 import { RiskBadge, riskRowClass } from '../../../shared/ui/RiskBadge'
 import { InlineCell } from './InlineCell'
 import { QuickView } from './QuickView'
+import { NextActionDueDate } from './NextActionDueDate'
 
 export const COLUMN_COUNT = 13
 
@@ -19,7 +20,7 @@ interface DealRowItemProps {
   onSaved: (message: string) => void
 }
 
-function NextActionCells({ row, today }: { row: DealRow; today: string }) {
+function NextActionCells({ row, today, canWrite, onSaved }: { row: DealRow; today: string; canWrite: boolean; onSaved: (message: string) => void }) {
   const next = row.nextAction
   if (!next) {
     return (
@@ -36,7 +37,9 @@ function NextActionCells({ row, today }: { row: DealRow; today: string }) {
       <td className="next-action">
         <Link to={`/deals/${row.code}?tab=actions`}>{next.text}</Link>
       </td>
-      <td className={overdue ? 'due overdue' : 'due'}>{next.dueDate}</td>
+      <td className={overdue ? 'due overdue' : 'due'}>
+        <NextActionDueDate dealCode={row.code} next={next} canWrite={canWrite} onSaved={onSaved} />
+      </td>
       <td>{NEXT_ACTION_STATUS_LABEL[next.status]}</td>
     </>
   )
@@ -85,7 +88,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
             {lastUpdated}
           </time>
         </td>
-        <NextActionCells row={row} today={today} />
+        <NextActionCells row={row} today={today} canWrite={canWrite} onSaved={onSaved} />
       </tr>
       {open && (
         <tr className="quick-view-row">

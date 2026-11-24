@@ -207,7 +207,7 @@ describe('Action 추가 등록', () => {
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('계약 체결'))
     expect(bodyRows(table)[0]).not.toHaveTextContent('Won')
     // when: 그 행을 눌러 상세 팝업을 연다
-    await user.click(bodyRows(table)[0]!)
+    await user.click(within(bodyRows(table)[0]!).getByRole('link'))
     const detail = await screen.findByRole('dialog', { name: 'Action 상세' })
     // then: 등록 시점 Status·Forecast가 계약완료·Won이다
     const dt = Array.from(detail.querySelectorAll('dt')).find((el) => el.textContent === '등록 시점 Status·Forecast')

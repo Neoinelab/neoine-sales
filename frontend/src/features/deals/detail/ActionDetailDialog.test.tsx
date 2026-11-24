@@ -63,7 +63,7 @@ describe('행을 눌러 여는 상세 팝업의 내용', () => {
     const oldest = bodyRows(view.table).at(-1)!
 
     // when: 그 행을 누른다
-    await view.user.click(oldest)
+    await view.user.click(within(oldest).getByRole('link'))
     const dialog = await screen.findByRole('dialog', { name: DETAIL })
 
     // then: 등록 당시 Status가 보이고 Deal의 지금 Status는 아니다
@@ -122,15 +122,15 @@ describe('행을 눌러 여는 상세 팝업의 내용', () => {
 describe('키보드로 행 열기', () => {
   // Enter·Space가 상세 팝업을 열고 Esc로 닫으면 포커스가 그 행으로 돌아온다.
   // 테스트 코드: AC-133
-  it('opens with Enter and Space on a focused row and returns the focus to the row after Escape', async () => {
+  it('opens with Enter on the date link and returns focus to the link after Escape', async () => {
     // given: Actions 탭의 두 번째 행(Tab으로 닿는 행)
     const view = await openActionsTab()
     const row = bodyRows(view.table)[1]!
-    expect(row).toHaveAttribute('tabindex', '0')
+    const link = within(row).getByRole('link')
     const progress = '임원 보고용 ROI 자료 전달'
 
     // when: 행에 포커스를 두고 Enter를 누른다
-    act(() => row.focus())
+    act(() => link.focus())
     await view.user.keyboard('{Enter}')
     // then: 그 Action의 상세 팝업이 열린다
     expect(fieldValue(await screen.findByRole('dialog', { name: DETAIL }), '진행사항')).toHaveTextContent(progress)
@@ -139,26 +139,28 @@ describe('키보드로 행 열기', () => {
     await view.user.keyboard('{Escape}')
     // then: 팝업이 닫히고 포커스는 그 행에 있다
     await waitFor(() => expect(queryDetail()).not.toBeInTheDocument())
-    expect(row).toHaveFocus()
+    expect(link).toHaveFocus()
 
     // when: 다시 Space를 누른다
-    await view.user.keyboard(' ')
+    await view.user.keyboard('{Enter}')
     // then: 같은 Action의 상세 팝업이 다시 열린다
     expect(fieldValue(await screen.findByRole('dialog', { name: DETAIL }), '진행사항')).toHaveTextContent(progress)
   })
 
   // 행에서 Space를 눌러도 화면이 스크롤되지 않는다.
   // 테스트 코드: AC-133
-  it('prevents the page scroll when Space opens the row', async () => {
+  it('does not open a popup from keyboard events on the row itself', async () => {
     // given: Actions 탭의 행
     const view = await openActionsTab()
     const row = bodyRows(view.table)[0]!
 
     // when: 행에 Space 키 입력을 보낸다
-    const notPrevented = fireEvent.keyDown(row, { key: ' ' })
+    fireEvent.keyDown(row, { key: ' ' })
+    fireEvent.keyDown(row, { key: 'Enter' })
 
     // then: 기본 동작(스크롤)이 막혀 있다
-    expect(notPrevented).toBe(false)
+    expect(queryDetail()).not.toBeInTheDocument()
+    expect(row).not.toHaveAttribute('tabindex')
   })
 })
 

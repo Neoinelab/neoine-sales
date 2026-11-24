@@ -23,7 +23,7 @@ const HEADERS = [
   'Expected Close',
   '최종 업데이트',
   'Next Action',
-  'Due',
+  'Due Date',
   'Next Action 상태',
 ]
 
@@ -88,7 +88,7 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     await rowOf(/한빛은행 ITDR 도입/)
 
     // then: Next Action·Due·Next Action 상태 머리글에 정렬 버튼이 없다
-    for (const name of ['Next Action', 'Due', 'Next Action 상태']) {
+    for (const name of ['Next Action', 'Due Date', 'Next Action 상태']) {
       const header = screen.getByRole('columnheader', { name })
       expect(within(header).queryByRole('button')).not.toBeInTheDocument()
       expect(header).not.toHaveAttribute('aria-sort')
@@ -170,7 +170,7 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     const row = await rowOf(/한빛은행 ITDR 도입/)
 
     const action = cellOf(row, 'Next Action')
-    const due = cellOf(row, 'Due')
+    const due = cellOf(row, 'Due Date')
 
     // when: 목록을 연다
     const status = cellOf(row, 'Next Action 상태')
@@ -199,10 +199,10 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     const normalRow = await rowOf(/한빛은행 ITDR 도입/)
 
     // then: 기한초과 행의 Due 칸에만 기한초과 표시가 있다
-    const overdueDue = cellOf(overdueRow, 'Due')
+    const overdueDue = cellOf(overdueRow, 'Due Date')
     expect(overdueDue).toHaveTextContent(overdueDeal.nextAction.dueDate)
     expect(isOverdueMarked(overdueDue)).toBe(true)
-    expect(isOverdueMarked(cellOf(normalRow, 'Due'))).toBe(false)
+    expect(isOverdueMarked(cellOf(normalRow, 'Due Date'))).toBe(false)
     expect(isOverdueMarked(cellOf(overdueRow, 'Next Action'))).toBe(false)
   })
 
@@ -226,8 +226,8 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     const row = await rowOf(/한빛은행 ITDR 도입/)
     expect(within(row).getByText('기한초과')).toBeVisible()
     expect(cellOf(row, 'Next Action')).toHaveTextContent(/^예전 할 일$/)
-    expect(cellOf(row, 'Due')).toHaveTextContent('2000-01-01')
-    expect(isOverdueMarked(cellOf(row, 'Due'))).toBe(true)
+    expect(cellOf(row, 'Due Date')).toHaveTextContent('2000-01-01')
+    expect(isOverdueMarked(cellOf(row, 'Due Date'))).toBe(true)
     expect(cellOf(row, 'Next Action 상태')).toHaveTextContent(/^Open$/)
   })
 
@@ -246,9 +246,9 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     // then: 지난 Open 행을 보이지만 Due 강조·기한초과 배지·risk-overdue 클래스는 없다
     await waitFor(async () => expect(cellOf(await rowOf(/청명대학교 SSO\/MFA/), 'Next Action')).toHaveTextContent(/^후속 연락$/))
     const row = await rowOf(/청명대학교 SSO\/MFA/)
-    expect(cellOf(row, 'Due')).toHaveTextContent('2000-01-01')
+    expect(cellOf(row, 'Due Date')).toHaveTextContent('2000-01-01')
     expect(cellOf(row, 'Next Action 상태')).toHaveTextContent(/^Open$/)
-    expect(isOverdueMarked(cellOf(row, 'Due'))).toBe(false)
+    expect(isOverdueMarked(cellOf(row, 'Due Date'))).toBe(false)
     expect(within(row).queryByText('기한초과')).not.toBeInTheDocument()
     expect(row).not.toHaveClass('risk-overdue')
   })
@@ -273,7 +273,7 @@ describe('목록 열 정리: Next Action 세 칸 (AC3)', () => {
     // then: 그 라벨이 Next Action 상태 칸에만 보인다
     await waitFor(() => expect(cellOf(screen.getByRole('row', { name: /한빛은행 ITDR 도입/ }), 'Next Action 상태')).toHaveTextContent(new RegExp(`^${label.replace(/[()]/g, '\\$&')}$`)))
     const row = screen.getByRole('row', { name: /한빛은행 ITDR 도입/ })
-    expect(cellOf(row, 'Due')).not.toHaveTextContent(label)
+    expect(cellOf(row, 'Due Date')).not.toHaveTextContent(label)
     expect(cellOf(row, 'Next Action')).not.toHaveTextContent(label)
   })
 })
@@ -291,10 +291,10 @@ describe('목록 열 정리: Next Action 없음 (AC4)', () => {
     const row = await rowOf(/액션 없는 Deal/)
 
     // then: Next Action·Due·상태 칸이 모두 '—'다
-    for (const header of ['Next Action', 'Due', 'Next Action 상태']) {
+    for (const header of ['Next Action', 'Due Date', 'Next Action 상태']) {
       expect(cellOf(row, header)).toHaveTextContent(/^—$/)
     }
-    expect(isOverdueMarked(cellOf(row, 'Due'))).toBe(false)
+    expect(isOverdueMarked(cellOf(row, 'Due Date'))).toBe(false)
     expect(within(row).queryAllByRole('link').filter((a) => a.getAttribute('href')?.includes('tab=actions'))).toEqual([])
   })
 })

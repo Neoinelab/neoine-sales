@@ -19,7 +19,6 @@ interface ActionTableProps {
   me: Viewer | null
   sort: ActionSortState
   onSort: (key: ActionSortKey) => void
-  /** 행을 눌렀을 때(상세 팝업 열기). */
   onOpen: (action: DealAction) => void
   /** 없으면 상태 변경 버튼을 보이지 않는다. */
   onChangeStatus?: (action: DealAction, status: NextActionStatus) => void
@@ -40,9 +39,6 @@ function isOverdueAction(action: DealAction, deal: DealDetail, today: string): b
 
 const noop = () => undefined
 
-/** 행 안의 버튼·링크·입력에서 온 이벤트는 행을 여는 동작으로 보지 않는다. */
-const isInner = (target: EventTarget) => target instanceof Element && target.closest('button, a, input, select, textarea, .dd-inline-wrap') !== null
-
 /** Comment 열의 아이콘 버튼: 쓰기 권한자는 "Comment 추가", user는 "Comment 보기". 읽지 않은 수가 있으면 이름 끝에 붙고 배지로도 보인다. */
 function CommentButton({ unread, canWrite, onClick }: { unread: number; canWrite: boolean; onClick: () => void }) {
   const badge = badgeText(unread)
@@ -57,7 +53,6 @@ function CommentButton({ unread, canWrite, onClick }: { unread: number; canWrite
   )
 }
 
-/** Actions 목록 표: 수행일 / 유형 / 진행사항 / Next Action / Due Date / 상태 / Comment. 행을 누르면(Enter·Space 포함) 상세 팝업이 열린다. */
 export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, onChangeStatus, statusBusy = false, commentCounts, onOpenComment, onSave, saving = false }: ActionTableProps) {
   const header = (label: string, key: ActionSortKey) => (
     <SortableHeader label={label} active={sort.sort === key} order={sort.order} onSort={() => onSort(key)} />
@@ -80,20 +75,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
         </thead>
         <tbody>
           {actions.map((a) => (
-            // 행 전체가 "Action 상세" 팝업을 여는 버튼처럼 동작한다(키보드: Tab으로 닿고 Enter·Space로 연다).
-            <tr
-              key={a.id}
-              className="dd-action-row"
-              tabIndex={0}
-              onClick={(e) => {
-                if (!isInner(e.target)) onOpen(a)
-              }}
-              onKeyDown={(e) => {
-                if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
-                e.preventDefault()
-                onOpen(a)
-              }}
-            >
+            <tr key={a.id} className="dd-action-row">
               <td className="dd-col-short">
                 <a href={`?tab=actions&action=${a.id}`} onClick={(event) => { event.preventDefault(); onOpen(a) }}>{a.actedOn}</a>
               </td>

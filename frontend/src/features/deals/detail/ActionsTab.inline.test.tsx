@@ -15,6 +15,26 @@ async function setup() {
 }
 
 describe('Actions 목록 인라인 수정', () => {
+  it('does not open the popup from row or non-date cells', async () => {
+    const { user, row } = await setup()
+    await user.click(row)
+    expect(screen.queryByRole('dialog', { name: DETAIL })).not.toBeInTheDocument()
+    await user.click(within(row).getByRole('cell', { name: '미팅' }))
+    expect(screen.queryByRole('dialog', { name: DETAIL })).not.toBeInTheDocument()
+  })
+
+  it('does not allow Due Date editing or open a popup when Next Action is absent', async () => {
+    const view = await openActionsTab()
+    await addAction(view, { progress: '날짜 없는 Action' })
+    const row = rowWith(view.table, '날짜 없는 Action')
+    expect(within(row).queryByRole('button', { name: 'Due Date 수정' })).not.toBeInTheDocument()
+    const dueCell = within(row).getAllByRole('cell').at(4)
+    if (!dueCell) throw new Error('Due Date cell is missing')
+    await view.user.click(dueCell)
+    expect(within(row).queryByLabelText('Due Date')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: DETAIL })).not.toBeInTheDocument()
+  })
+
   it('opens Action 추가 from inside the search region', async () => {
     const view = await openActionsTab()
     const search = screen.getByRole('search', { name: 'Action 검색' })

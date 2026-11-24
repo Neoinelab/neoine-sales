@@ -6,7 +6,7 @@ import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
 /** 정렬 버튼이 있는 10개 머리글(Next Action·Due·Next Action 상태 제외). */
 const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트']
-const NOT_SORTABLE = ['Next Action', 'Due', 'Next Action 상태']
+const NOT_SORTABLE = ['Next Action', 'Due Date', 'Next Action 상태']
 
 /** 새로 정렬할 수 있게 된 5개 열: 머리글, URL sort 값. */
 const NEW_COLUMNS = [

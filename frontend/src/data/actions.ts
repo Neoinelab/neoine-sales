@@ -43,6 +43,24 @@ export function useUpdateAction(): Mutation<{ dealCode: string; actionId: number
   })
 }
 
+export function useUpdateActionDueDate(): Mutation<{ dealCode: string; actionId: number; dueDate: string }, DealAction> {
+  const invalidate = useInvalidateAction()
+  return useMutation<DealAction, ApiError, { dealCode: string; actionId: number; dueDate: string }>({
+    mutationFn: async ({ dealCode, actionId, dueDate }) => {
+      const action = (await gateway.actions.list(dealCode, {})).find((item) => item.id === actionId)
+      if (!action) throw new Error('Action을 찾을 수 없습니다.')
+      if (!action.nextAction) throw new Error('Next Action 없이 Due Date를 입력할 수 없습니다.')
+      return gateway.actions.update(actionId, {
+        type: { id: action.typeId },
+        progress: action.progress ?? '',
+        nextAction: action.nextAction,
+        dueDate,
+      })
+    },
+    onSuccess: (_action, { dealCode }) => invalidate(dealCode),
+  })
+}
+
 /** gateway.actions.remove(actionId). 성공 무효화는 create와 같다. */
 export function useRemoveAction(): Mutation<{ dealCode: string; actionId: number }> {
   const invalidate = useInvalidateAction()

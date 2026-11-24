@@ -55,9 +55,8 @@ export const A_INPUT: Partial<ActionInput> = {
   actedOn: '2026-11-10',
 }
 
-/** 행을 눌러 "Action 상세" 팝업을 연다. */
 export async function openDetail(view: DetailView, text: string) {
-  await view.user.click(rowWith(view.table, text))
+  await view.user.click(within(rowWith(view.table, text)).getByRole('link'))
   return await screen.findByRole('dialog', { name: DETAIL })
 }
 
