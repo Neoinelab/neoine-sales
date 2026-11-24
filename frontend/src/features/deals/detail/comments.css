@@ -8,7 +8,7 @@
 .cm-mark { padding: 0 8px; border-radius: 999px; background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
 .cm-mark--new { background: var(--ui-info-bg); color: var(--ui-info-fg); }
 .cm-deal-mark { color: var(--muted); }
-.cm-action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 10px; border-left: 3px solid var(--line-strong); background: var(--accent-soft); border-radius: var(--radius); overflow-wrap: anywhere; }
+.cm-action { justify-self: start; }
 .cm-composer { display: grid; gap: 6px; }
 .cm-composer textarea { width: 100%; box-sizing: border-box; }
 .cm-section { display: grid; gap: 8px; }

@@ -93,12 +93,10 @@ describe('상세 팝업의 Comment 영역', () => {
     expect(within(rowWith(view.table, '킥오프 미팅')).getByText('2')).toBeVisible()
     expect(within(screen.getByRole('tab', { name: /^Comments/ })).getByText('2')).toBeVisible()
     await view.user.click(screen.getByRole('tab', { name: /^Comments/ }))
-    // then: 그 항목 상자에 A의 수행일·진행사항·Next Action이 있다
     const mine = commentItems().find((li) => li.textContent?.includes('견적서 초안 공유함')) as HTMLElement
-    const box = within(mine).getByRole('group', { name: '연결된 Action' })
-    expect(box).toHaveTextContent('2026-11-10')
-    expect(box).toHaveTextContent('킥오프 미팅')
-    expect(box).toHaveTextContent('요구사항 문서 전달')
+    expect(within(mine).getByRole('button', { name: 'Action 보기' })).toBeVisible()
+    expect(mine).not.toHaveTextContent('킥오프 미팅')
+    expect(mine).not.toHaveTextContent('요구사항 문서 전달')
   })
 })
 

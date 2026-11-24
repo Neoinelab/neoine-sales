@@ -47,9 +47,8 @@ describe('Comments 탭의 목록', () => {
     expect(screen.queryByRole('button', { name: '수정' })).not.toBeInTheDocument()
   })
 
-  // Action Comment는 연결 Action의 수행일·진행사항·Next Action을, Deal Comment는 "Deal Comment" 표시를 보인다.
   // 테스트 코드: CM-061
-  it('shows the linked action box with date, progress and next action, and a Deal Comment mark for deal comments', async () => {
+  it('shows the user comment before the action button and hides action content', async () => {
     // given: Action A(수행일 2026-11-10)에 연결된 Comment, 진행사항만 있는 Action P에 연결된 Comment, Deal Comment
     const view = await openActionsTab({ role: 'admin' })
     const a = await addAction(view, A_INPUT, USER_ID.kim, USER_ID.root)
@@ -63,22 +62,23 @@ describe('Comments 탭의 목록', () => {
     await view.user.click(screen.getByRole('tab', { name: /^Comments/ }))
     await screen.findByRole('list', { name: 'Comment 목록' })
 
-    // then: A Comment 위 "연결된 Action"에 수행일·진행사항·Next Action과 "Action 보기"가 있다
     const items = commentItems()
     const byBody = (text: string) => items.find((li) => li.textContent?.includes(text)) as HTMLElement
-    const aBox = within(byBody('자료 전달')).getByRole('group', { name: '연결된 Action' })
-    expect(aBox).toHaveTextContent('2026-11-10')
-    expect(aBox).toHaveTextContent('킥오프 미팅')
-    expect(aBox).toHaveTextContent('요구사항 문서 전달')
-    expect(within(aBox).getByRole('button', { name: 'Action 보기' })).toBeVisible()
-    // then: P Comment 상자에는 P 수행일, 진행사항, 빈 Next Action의 "—"가 있다
-    const pBox = within(byBody('점검 결과 공유')).getByRole('group', { name: '연결된 Action' })
-    expect(pBox).toHaveTextContent('2026-11-11')
-    expect(pBox).toHaveTextContent('현장 점검')
-    expect(pBox).toHaveTextContent('—')
+    for (const body of ['자료 전달', '점검 결과 공유']) {
+      const item = byBody(body)
+      const button = within(item).getByRole('button', { name: 'Action 보기' })
+      const comment = within(item).getByText(new RegExp(body))
+      expect(button).toBeVisible()
+      expect(comment.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    expect(commentList()).not.toHaveTextContent('수행일 2026-11-10')
+    expect(commentList()).not.toHaveTextContent('킥오프 미팅')
+    expect(commentList()).not.toHaveTextContent('요구사항 문서 전달')
+    expect(commentList()).not.toHaveTextContent('현장 점검')
     // then: Deal Comment에는 "Deal Comment" 표시가 있고 상자가 없다
     const dealItem = byBody('예산 회의 예정')
     expect(within(dealItem).getByText('Deal Comment')).toBeVisible()
+    expect(within(dealItem).queryByRole('button', { name: 'Action 보기' })).not.toBeInTheDocument()
     expect(within(dealItem).queryByRole('group', { name: '연결된 Action' })).not.toBeInTheDocument()
   })
 

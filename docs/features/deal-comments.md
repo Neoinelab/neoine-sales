@@ -234,9 +234,9 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
   - 처음 읽는 동안은 "불러오는 중…", 0건이면 "등록된 Comment가 없습니다.", 읽기 오류는 오류 배너(PL-R37, 서버 문구)다.
   - "수정" 버튼은 없다(CM-R10).
 - **CM-R34** 연결 Action 표시(Comments 탭만):
-  - `action`이 있는 항목은 본문 위 상자(이름 "연결된 Action")에 응답의 `action.acted_on`·`action.action`(진행사항)·`action.next_action`을 "수행일 · 진행사항 · Next Action" 순으로 보인다. 빈 값은 "—"다.
-  - 상자 안에 버튼 "Action 보기"가 있고, 누르면 CM-R37로 그 Action 상세 팝업으로 간다.
-  - `action`이 null인 항목은 상자 대신 작은 표시 "Deal Comment"를 보인다.
+  - 사용자 Comment 본문을 먼저 표시하며 Action의 수행일·진행사항·Next Action은 목록에 표시하지 않는다.
+  - `action_id`가 있는 항목은 본문 아래에 "Action 보기" 버튼만 표시하고, 누르면 CM-R37로 그 Action 상세 팝업으로 간다.
+  - `action_id`가 null인 Deal Comment는 "Action 보기" 버튼 없이 작은 표시 "Deal Comment"를 보인다.
   - 탭의 입력 칸에는 Action 선택이 없다.
 - **CM-R35** 입력 칸(탭·팝업 공통, `canWrite`(sales·admin)에게만): 목록 **아래**에 기본으로 펼쳐진 여러 줄 칸 하나(접근 이름 "Comment 입력", placeholder "Comment를 입력하세요")가 있다. **"저장" 버튼은 없다**(2026-11-19 사용자 결정: Enter로만 저장, 탭·팝업 모두). 칸 아래 안내 "Enter로 저장, Shift+Enter로 줄 바꿈"을 보인다.
   - 칸 안에서 Enter(Shift 없이, 한글 조합 중이 아님)를 누르면 저장한다. Shift+Enter는 줄을 바꾼다. 저장하는 방법은 Enter뿐이다.
@@ -393,7 +393,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 
 ### CM-UC11 Comments 탭에서 보기·쓰기·지우기
 - 행위자: 보기는 모든 역할, 쓰기는 sales·admin, 삭제는 작성자 sales·admin
-- 기본 흐름: "Comments" 탭을 연다. 최근순 목록을 본다(Action Comment는 연결 Action 요약과 "Action 보기"). 목록 아래 입력 칸에 쓰고 Enter를 누른다. Deal Comment가 목록 맨 위에 생긴다(CM-R32~R36).
+- 기본 흐름: "Comments" 탭을 연다. 최근순 목록에서 사용자 멘트를 보고 Action Comment의 "Action 보기" 버튼으로 상세를 연다. 목록 아래 입력 칸에 쓰고 Enter를 누르면 Deal Comment가 목록 맨 위에 생긴다(CM-R32~R36).
 - 대안: "Action 보기"를 누르면 Actions 탭으로 가서 그 Action 상세 팝업이 열린다(CM-R37). "삭제"는 확인을 거친다.
 
 ### CM-UC12 Action에서 Comment 보기·쓰기
@@ -472,7 +472,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | CM-058 | 마이그레이션은 read_at을 추가하고 기존 Comment를 작성 시각으로 채우며 행을 지우지 않는다 | CM-R31 | backend | `infra/schema/test_deal_comment_read_at_migration.py`, `infra/schema/test_deal_comment_schema.py`, `infra/schema/test_revision_graph.py` |
 | CM-059 | OpenAPI 계약: read_at·action 필드, 읽음 처리·읽지 않은 수 경로, PUT 없음 | CM-R9, CM-R28, CM-R29, 2.6 | backend | `web/test_deal_comment_openapi.py` |
 | CM-060 | 화면: Deal 상세 맨 오른쪽 Comments 탭이 모든 Comment를 최근순으로 작성자·시각·본문과 함께 보인다 | CM-R32, CM-R33, CM-UC11 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
-| CM-061 | 화면: Action Comment는 연결 Action의 수행일·진행사항·Next Action을, Deal Comment는 "Deal Comment" 표시를 보인다 | CM-R34, CM-UC11 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
+| CM-061 | 화면: 사용자 멘트 뒤에 Action Comment의 Action 보기 버튼만 표시하며 Action 내용은 숨긴다 | CM-R34, CM-UC11 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
 | CM-062 | 화면: "Action 보기"를 누르면 Actions 탭에서 그 Action 상세 팝업이 열리고 주소의 action이 지워진다 | CM-R37, CM-UC11 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
 | CM-063 | 화면: Comment가 없으면 안내 문구, 읽는 중·오류는 상태 문구·서버 문구다 | CM-R33 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
 | CM-064 | 화면: 목록 아래 입력 칸에서 Enter로 저장하면 Deal Comment가 목록 맨 위에 보이고 칸이 비며 Shift+Enter는 줄을 바꾼다 | CM-R35, CM-UC11 | frontend | `features/deals/detail/CommentsTab.test.tsx` |
@@ -767,10 +767,10 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - When ROOT가 D 상세의 "Comments" 탭을 누른다
 - Then 맨 오른쪽 탭이 "Comments"이고 주소는 `?tab=comments`다. "Comment 목록"에 위에서부터 "PARK(퇴사) · 2026-11-13 14:05"와 두 줄 본문, "KIM · 2026-11-12 09:30"과 "예산 회의 예정"이 보인다. 입력 칸은 목록 아래에 있고 "수정" 버튼은 없다
 
-### CM-061 화면: Action Comment는 연결 Action의 수행일·진행사항·Next Action을, Deal Comment는 "Deal Comment" 표시를 보인다
+### CM-061 화면: 멘트를 먼저 표시하고 Action 내용은 숨긴다
 - Given CM-060의 Comment들과 P에 연결된 Comment "점검 결과 공유"
 - When Comments 탭을 연다
-- Then A Comment 위 "연결된 Action"에 "2026-11-10", "킥오프 미팅", "요구사항 문서 전달"과 "Action 보기"가 있다. P Comment 상자에는 P 수행일, "현장 점검", "—"가 있다. Deal Comment에는 "Deal Comment" 표시가 있고 상자가 없다
+- Then 각 사용자 멘트 아래에 연결된 Action이 있을 때만 "Action 보기"가 있다. 수행일·진행사항·Next Action은 표시하지 않는다. Deal Comment에는 "Deal Comment" 표시만 있고 "Action 보기" 버튼은 없다
 
 ### CM-062 화면: "Action 보기"를 누르면 Actions 탭에서 그 Action 상세 팝업이 열리고 주소의 action이 지워진다
 - When ROOT가 A Comment의 "Action 보기"를 누르고, 다른 때 `?tab=actions&action=999999` 주소로 연다
@@ -837,7 +837,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 
 ### CM-076 화면: 다른 sales가 팝업에서 남의 Action에 Comment를 남기면 읽지 않음으로 생겨 배지가 늘고 Comments 탭에 연결 Action과 함께 보인다
 - When PARK이 KIM의 A 팝업 입력 칸에 "견적서 초안 공유함"을 쓰고 Enter를 누른 뒤, 팝업을 닫고 Comments 탭을 연다
-- Then 요청 본문은 `{"body": "견적서 초안 공유함", "action_id": <A id>}`다. 팝업 목록 맨 위에 "읽지 않음"과 함께 보이고 "Comment (n+1)"이 된다. A 행 배지와 탭 배지가 1씩 늘어 있다. Comments 탭의 그 항목 상자에 A의 수행일·진행사항·Next Action이 있다
+- Then 요청 본문은 `{"body": "견적서 초안 공유함", "action_id": <A id>}`다. 팝업 목록 맨 위에 "읽지 않음"과 함께 보이고 "Comment (n+1)"이 된다. A 행 배지와 탭 배지가 1씩 늘어 있다. Comments 탭에서는 멘트 아래에 "Action 보기"만 있고 A의 수행일·진행사항·Next Action은 숨긴다
 
 ### CM-077 화면: Owner가 팝업을 열면 그 Action의 Comment만 읽음 처리되어 그 행 배지와 탭 배지가 줄고 다른 Action 배지는 그대로다
 - Given A에 읽지 않은 Comment 2건, P에 읽지 않은 Comment 1건이 있다

@@ -16,11 +16,8 @@ interface CommentListProps {
   me: Viewer | null
   /** 이번 열람에서 읽음 처리된 Comment(Owner에게 "NEW"로 보인다). */
   fresh: ReadonlySet<number>
-  /** Comments 탭: 연결된 Action 상자("Action 보기")와 "Deal Comment" 표시를 보인다. */
   onViewAction?: (actionId: number) => void
 }
-
-const text = (value: string | null) => (value && value !== '' ? value : '—')
 
 /** Comment 목록(최근순)과 삭제. 읽는 중·빈 상태·읽기 오류를 보이고, 삭제 버튼은 본인 Comment의 sales와 admin에게만 있다. */
 export function CommentList({ dealCode, comments, me, fresh, onViewAction }: CommentListProps) {
@@ -62,20 +59,15 @@ export function CommentList({ dealCode, comments, me, fresh, onViewAction }: Com
                   </button>
                 )}
               </div>
+              <p className="cm-body">{c.body}</p>
               {showLinked &&
-                (c.action ? (
-                  <div className="cm-action" role="group" aria-label="연결된 Action">
-                    <span>수행일 {c.action.actedOn}</span>
-                    <span>진행사항 {text(c.action.progress)}</span>
-                    <span>Next Action {text(c.action.nextAction)}</span>
-                    <button type="button" className="dd-small" onClick={() => onViewAction(c.actionId ?? 0)}>
-                      Action 보기
-                    </button>
-                  </div>
+                (c.actionId !== null ? (
+                  <button type="button" className="dd-small cm-action" onClick={onViewAction.bind(null, c.actionId)}>
+                    Action 보기
+                  </button>
                 ) : (
                   <span className="cm-deal-mark">Deal Comment</span>
                 ))}
-              <p className="cm-body">{c.body}</p>
             </li>
           ))}
         </ul>
