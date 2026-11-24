@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { useActions, useChangeNextActionStatus, useRemoveAction } from '../../../data/actions'
+import { useActions, useChangeNextActionStatus, useRemoveAction, useUpdateAction } from '../../../data/actions'
+import type { ActionUpdateInput } from '../../../shared/model/inputs'
+import { updateBody } from './actionEdit'
 import { useCommentCounts, useComments } from '../../../data/comments'
 import type { Viewer } from '../../../shared/model/permissions'
 import type { ActionQuery, DealAction, DealDetail, NextActionStatus } from '../../../shared/model/types'
@@ -41,6 +43,7 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   // 기본 정렬로 조회해 조건 없는 목록과 쿼리 키를 맞춘다(같은 GET을 두 번 보내지 않는다).
   const all = useActions(deal.code, DEFAULT_ACTION_SORT)
   const remove = useRemoveAction()
+  const update = useUpdateAction()
   const changeStatus = useChangeNextActionStatus()
   const commentCounts = useCommentCounts(deal.code)
   // Comments 탭의 "Action 보기"로 들어오면(주소 `action`) 그 Action의 상세 팝업을 연다.
@@ -107,22 +110,20 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     onNotice(message)
   }
 
+  async function save(action: DealAction, patch: Partial<ActionUpdateInput>) {
+    await update.mutateAsync({ dealCode: deal.code, actionId: action.id, input: updateBody(action, patch) })
+    onNotice('Action이 수정되었습니다.')
+  }
+
   const linkedComments = targetComments.data?.length ?? 0
   const commentNote = linkedComments > 0 ? ` 연결된 Comment ${linkedComments}건도 함께 삭제됩니다.` : ''
 
   return (
     <div className="dd-page">
-      {canWrite && (
-        <div className="dd-row">
-          <button type="button" className="primary" onClick={() => setCreating(true)}>
-            Action 추가
-          </button>
-        </div>
-      )}
       {creating && (
         <ActionForm deal={deal} previous={basis} onDone={done} onCancel={() => setCreating(false)} />
       )}
-      <ActionSearchBar onSearch={setQuery} />
+      <ActionSearchBar onSearch={setQuery} onCreate={canWrite ? () => setCreating(true) : undefined} />
       {shown === null && <ErrorBanner error={error} format={messageOf} />}
       <ErrorBanner error={linkError} format={String} />
       <ErrorBanner error={list.error} format={messageOf} />
@@ -150,7 +151,9 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
             setOpened(action)
           }}
           onChangeStatus={requestStatus}
-          statusBusy={changeStatus.isPending}
+          statusBusy={changeStatus.isPending || update.isPending}
+          onSave={save}
+          saving={update.isPending}
         />
       )}
       {shown && (

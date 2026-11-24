@@ -2,10 +2,9 @@ import type { ActionUpdateInput } from '../../../shared/model/inputs'
 import type { NextActionStatus, DealAction } from '../../../shared/model/types'
 import { ForecastBadge, StatusBadge } from '../../../shared/ui/Badges'
 import { userLabel } from '../../../shared/model/period'
-import { ActionNextPairInput } from './ActionNextPairInput'
-import { ActionTextArea } from './ActionTextArea'
 import { ActionTypeInput } from './ActionTypeInput'
-import { actedOnPatch, encodePair, nextActionPatch, progressPatch, typePatch } from './actionEdit'
+import { actedOnPatch, typePatch } from './actionEdit'
+import { ActionInlineField } from './ActionInlineField'
 import { InlineEdit } from './InlineEdit'
 import { NextActionStatusCell } from './NextActionStatusCell'
 
@@ -26,7 +25,6 @@ interface ActionDetailFieldsProps {
 
 /** Action 상세 팝업의 항목 목록: 칸마다 값을 누르면 그 자리에서 고친다(담당자·등록 시점 Status·Forecast·상태는 고치지 않는다). */
 export function ActionDetailFields({ action, canEdit, today, registeredOn, types, statusBusy, saving, onChangeStatus, onSave }: ActionDetailFieldsProps) {
-  const text = (value: string | null) => (value && value !== '' ? value : '—')
   return (
     <dl className="dd-dl dd-action-dl">
       <dt>수행일</dt>
@@ -63,36 +61,14 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
       </dd>
       <dt>진행사항</dt>
       <dd className="dd-pre">
-        <InlineEdit
-          label="진행사항"
-          fill
-          saveButtons
-          otherSaving={saving}
-          kind="custom"
-          canEdit={canEdit}
-          display={text(action.progress)}
-          initial={action.progress ?? ''}
-          control={ActionTextArea}
-          onSave={(value) => onSave(progressPatch(action, value))}
-        />
+        <ActionInlineField action={action} field="progress" canEdit={canEdit} saving={saving} onSave={onSave} />
       </dd>
       <dt>Next Action</dt>
       <dd className="dd-pre">
-        <InlineEdit
-          label="Next Action · Due Date"
-          fill
-          saveButtons
-          otherSaving={saving}
-          kind="custom"
-          canEdit={canEdit}
-          display={text(action.nextAction)}
-          initial={encodePair(action.nextAction ?? '', action.dueDate ?? '')}
-          control={ActionNextPairInput}
-          onSave={(value) => onSave(nextActionPatch(action, value))}
-        />
+        <ActionInlineField action={action} field="nextAction" canEdit={canEdit} saving={saving} onSave={onSave} />
       </dd>
       <dt>Due Date</dt>
-      <dd>{text(action.dueDate)}</dd>
+      <dd><ActionInlineField action={action} field="dueDate" canEdit={canEdit} saving={saving} onSave={onSave} /></dd>
       <dt>Next Action 상태</dt>
       <dd>
         {action.nextActionStatus === null ? (

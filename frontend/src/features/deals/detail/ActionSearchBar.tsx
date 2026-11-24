@@ -13,6 +13,7 @@ import { parseId } from '../../../shared/model/ids'
 
 interface ActionSearchBarProps {
   onSearch: (query: ActionQuery) => void
+  onCreate?: () => void
 }
 
 interface Draft {
@@ -60,7 +61,7 @@ function toActionQuery(draft: Draft, presets: UpdatedPeriods | undefined): Actio
 }
 
 /** Actions 검색: 유형 / 담당자 / 키워드 / 수행일 / 기한 범위 / Next Action 상태. */
-export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
+export function ActionSearchBar({ onSearch, onCreate }: ActionSearchBarProps) {
   const types = useActionTypes().data ?? []
   const [draft, setDraft] = useState<Draft>(EMPTY)
   const periodsQuery = useUpdatedPeriods()
@@ -174,6 +175,7 @@ export function ActionSearchBar({ onSearch }: ActionSearchBarProps) {
           초기화
         </button>
       </div>
+      {onCreate && <button type="button" className="primary dd-action-add" onClick={onCreate}>Action 추가</button>}
     </form>
   )
 }

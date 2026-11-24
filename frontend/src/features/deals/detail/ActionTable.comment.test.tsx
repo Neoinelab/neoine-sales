@@ -114,14 +114,12 @@ describe('Comment 아이콘', () => {
     expect(within(dialog).queryByLabelText('Comment 입력')).not.toBeInTheDocument()
   })
 
-  // 행의 다른 곳(진행사항 칸)을 누르면 기존처럼 팝업이 열리고 포커스는 입력 칸에 가지 않는다.
   // 테스트 코드: CM-074
-  it('opens the popup as before from another cell of the row, without moving the focus to the comment box', async () => {
+  it('opens the popup from the acted date link without focusing the comment box', async () => {
     // given: 김영업(Owner·작성자)이 연 Actions 탭
     const { view } = await openWithAP({ userId: USER_ID.kim })
 
-    // when: A 행의 진행사항 칸을 누른다
-    await view.user.click(within(rowWith(view.table, '킥오프 미팅')).getByText('킥오프 미팅'))
+    await view.user.click(within(rowWith(view.table, '킥오프 미팅')).getByRole('link', { name: '2026-11-10' }))
 
     // then: 팝업이 열리고 포커스는 Comment 입력 칸이 아니다
     const dialog = await screen.findByRole('dialog', { name: DETAIL })

@@ -56,6 +56,14 @@ export function nextActionPatch(action: DealAction, value: string): Partial<Acti
   return { nextAction, dueDate: due }
 }
 
+export function dueDatePatch(action: DealAction, due: string): Partial<ActionUpdateInput> {
+  if (!action.nextAction) throw new Error('Next Action 없이 Due Date를 입력할 수 없습니다.')
+  if (due === '') throw new Error('Due Date를 입력하세요.')
+  const invalid = dateValueError(due)
+  if (invalid !== null) throw new Error(invalid)
+  return { dueDate: due }
+}
+
 /** 수행일: 비움·틀린 날짜·오늘 이후·Deal 등록일 이전은 막는다(이전 Next Action 수행일과는 비교하지 않는다). */
 export function actedOnPatch(text: string, today: string, registeredOn: string): Partial<ActionUpdateInput> {
   if (text === '') throw new Error('수행일을 입력하세요.')

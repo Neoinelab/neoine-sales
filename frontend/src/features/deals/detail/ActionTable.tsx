@@ -7,6 +7,8 @@ import './comments.css'
 import { RiskBadge } from '../../../shared/ui/RiskBadge'
 import { SortableHeader } from '../../../shared/ui/SortableHeader'
 import type { ActionSortState } from './actionSort'
+import type { ActionUpdateInput } from '../../../shared/model/inputs'
+import { ActionInlineField } from './ActionInlineField'
 import { NextActionStatusCell } from './NextActionStatusCell'
 import './detail.css'
 
@@ -26,6 +28,8 @@ interface ActionTableProps {
   commentCounts?: Readonly<Record<number, number>>
   /** 없으면 Comment 열의 아이콘 버튼을 보이지 않는다. 누르면 그 Action의 상세 팝업을 Comment 입력 칸에 포커스를 둔 채 연다. */
   onOpenComment?: (action: DealAction) => void
+  onSave?: (action: DealAction, patch: Partial<ActionUpdateInput>) => Promise<void>
+  saving?: boolean
 }
 
 /** 서버 risk가 기한초과이고, 이 행의 Next Action이 Open이며 Due가 앱 시계의 오늘보다 앞이면 true. */
@@ -37,7 +41,7 @@ function isOverdueAction(action: DealAction, deal: DealDetail, today: string): b
 const noop = () => undefined
 
 /** 행 안의 버튼·링크·입력에서 온 이벤트는 행을 여는 동작으로 보지 않는다. */
-const isInner = (target: EventTarget) => target instanceof Element && target.closest('button, a, input, select, textarea') !== null
+const isInner = (target: EventTarget) => target instanceof Element && target.closest('button, a, input, select, textarea, .dd-inline-wrap') !== null
 
 /** Comment 열의 아이콘 버튼: 쓰기 권한자는 "Comment 추가", user는 "Comment 보기". 읽지 않은 수가 있으면 이름 끝에 붙고 배지로도 보인다. */
 function CommentButton({ unread, canWrite, onClick }: { unread: number; canWrite: boolean; onClick: () => void }) {
@@ -54,7 +58,7 @@ function CommentButton({ unread, canWrite, onClick }: { unread: number; canWrite
 }
 
 /** Actions 목록 표: 수행일 / 유형 / 진행사항 / Next Action / Due Date / 상태 / Comment. 행을 누르면(Enter·Space 포함) 상세 팝업이 열린다. */
-export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, onChangeStatus, statusBusy = false, commentCounts, onOpenComment }: ActionTableProps) {
+export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, onChangeStatus, statusBusy = false, commentCounts, onOpenComment, onSave, saving = false }: ActionTableProps) {
   const header = (label: string, key: ActionSortKey) => (
     <SortableHeader label={label} active={sort.sort === key} order={sort.order} onSort={() => onSort(key)} />
   )
@@ -90,17 +94,21 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
                 onOpen(a)
               }}
             >
-              <td className="dd-col-short">{a.actedOn}</td>
+              <td className="dd-col-short">
+                <a href={`?tab=actions&action=${a.id}`} onClick={(event) => { event.preventDefault(); onOpen(a) }}>{a.actedOn}</a>
+              </td>
               <td className="dd-col-short">{a.type}</td>
-              <td className="dd-col-long">{a.progress ?? '—'}</td>
+              <td className="dd-col-long">
+                {onSave ? <ActionInlineField action={a} field="progress" canEdit={canEdit && own(a)} saving={saving} onSave={(patch) => onSave(a, patch)} /> : (a.progress ?? '—')}
+              </td>
               <td className="dd-col-long" id={`next-action-${a.id}`}>
-                {a.nextAction ?? '—'}
+                {onSave ? <ActionInlineField action={a} field="nextAction" canEdit={canEdit && own(a)} saving={saving} onSave={(patch) => onSave(a, patch)} /> : (a.nextAction ?? '—')}
               </td>
               <td className="dd-col-short">
-                <span className="dd-row">
-                  <span>{a.dueDate ?? '—'}</span>
+                <div className="dd-row">
+                  {onSave ? <ActionInlineField action={a} field="dueDate" canEdit={canEdit && own(a)} saving={saving} onSave={(patch) => onSave(a, patch)} /> : <span>{a.dueDate ?? '—'}</span>}
                   {isOverdueAction(a, deal, today) && <RiskBadge risk="overdue" />}
-                </span>
+                </div>
               </td>
               <td className="dd-col-short">
                 <NextActionStatusCell action={a} canChange={canEdit && own(a) && onChangeStatus !== undefined} busy={statusBusy} describedBy={`next-action-${a.id}`} onChange={onChangeStatus ?? noop} />

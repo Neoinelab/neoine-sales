@@ -69,6 +69,7 @@ button.dd-small { padding: 2px 8px; }
 .dd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .dd-search { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); }
 .dd-search .field { min-width: 8rem; }
+.dd-search .dd-action-add { margin-left: auto; white-space: nowrap; }
 
 /* Action 추가·수정 팝업(640px): 이전 Update 카드를 폼 위에 한 열로 쌓는다. 폼 박스의 테두리·그림자는 팝업이 대신한다. */
 .dd-action-popup { display: grid; gap: 12px; }
