@@ -9,11 +9,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:8000' },
-    // 외부 접속을 허용하려면 host 설정도 함께 필요
-    host: true,
-    allowedHosts: [
-      'salesx.neoine.co.kr', // 특정 도메인 허용
-    ],
   },
   test: {
     environment: 'jsdom',
