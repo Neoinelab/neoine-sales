@@ -23,9 +23,11 @@
 
 ### 2026-11-25 초기화 기준 변경 (사용자 요청 확정)
 
+- 추가 요청 SU-081: AD 방식 재초기화는 기존 관리자가 있어도 저장 위치 등록 후 AD 관리자 인증·등록 단계를 진행한다. 인증에 성공한 새 AD 계정은 users에 admin으로 추가하고, 재초기화 중 이미 등록된 활성 계정은 기존 ID·권한을 유지하며 AD 프로필과 비밀번호 해시를 갱신한다. 실패하면 등록·완료하지 않는다. 서비스 바인드 계정은 사용자로 등록하지 않는다.
+
 - `auth_settings` 행이 없으면 기존 관리자·AD·저장 위치 설정과 관계없이 인증 방식 선택부터 다시 시작한다. 관리자 권한과 업무 데이터는 변경하지 않는다.
 - 방식 선택 또는 AD 등록 시 `auth_settings.setup_pending=true`로 진행 상태를 보관하며, 저장 위치를 등록하면 false로 완료한다. 기존 행의 기본값은 false로 하여 배포만으로 재설정하지 않는다.
-- 기존 활성 관리자가 있으면 저장 위치 등록으로 재설정을 끝내고 로그인 화면으로 간다. 관리자가 없으면 기존의 첫 관리자 등록을 계속한다. 완료된 설정과 활성 관리자가 모두 있으면 공개 설정 API는 닫힌다.
+- local 방식에서 기존 활성 관리자가 있으면 저장 위치 등록으로 재설정을 끝낸다. AD 방식은 기존 관리자와 관계없이 AD 관리자 등록까지 진행한다. 완료된 설정과 활성 관리자가 모두 있으면 공개 설정 API는 닫힌다.
 - 인증 방식 미선택 상태를 AD로 추정하지 않으며, 이 상태에서는 AD 로그인 도메인 누락으로 기동을 막지 않는다. 아래 이전 명세의 관리자만으로 닫힘·AD 추정 규칙보다 본 변경을 우선한다.
 - BDD **SU-080**: 기존 관리자·AD·저장 위치가 있어도 인증 방식 행이 없으면 선택 화면을 요구한다. local·AD 중 하나를 다시 설정하고 저장 위치를 등록하면 기존 관리자·저장된 사용자 연결을 보존하며 종료하고, 이후 공개 설정 변경은 거부한다.
 - 테스트 위치: `backend/tests/unit/web/test_setup_reset.py`.
@@ -35,7 +37,7 @@
 | 용어 | 뜻 |
 | --- | --- |
 | 재직 admin | `role = admin`이고 퇴사 처리(`deleted_at`)되지 않은 사용자. 퇴사한 admin과 `sales`·`user`는 세지 않는다 |
-| 설정 닫힘 | 인증 방식 행이 있고 `setup_pending=false`이며 재직 admin이 1명 이상인 상태 |
+| 설정 닫힘 | 인증 방식 행이 있고 `setup_pending=false`, `admin_setup_pending=false`이며 재직 admin이 1명 이상인 상태 |
 | 인증 방식 | `ad`(회사 AD 계정으로 로그인) 또는 `local`(앱이 계정·비밀번호를 직접 관리). 시스템 전역에 하나(`auth_settings` 단일 행) |
 | 유효 인증 방식 | 저장된 방식, 없으면 SU-R3으로 정한 값(`ad` 또는 미선택 `null`) |
 | AD 단계 완료 | 유효 방식이 `local`이거나, `ad`이고 AD 설정 행(`directory_settings`)이 있음 |
@@ -49,7 +51,7 @@
 
 | 테이블 | 최초 설정이 쓰는 내용 |
 | --- | --- |
-| `auth_settings`(단일 행) | `mode`(`ad`·`local`), `updated_at`, `setup_pending`(기본값 false). 방식 선택·AD 등록은 true, 저장 위치 등록은 false로 저장한다 |
+| `auth_settings`(단일 행) | `mode`, `updated_at`, `setup_pending`(저장 위치 등록 대기), `admin_setup_pending`(AD 관리자 등록 대기). 두 플래그의 기존 행 기본값은 false이며 AD 방식 선택 시 둘 다 true, 저장 위치 등록 시 앞 플래그만 false, AD 계정 등록 시 모두 false로 저장한다 |
 | `directory_settings`(단일 행, IN) | 접속 정보, 암호화한 바인드 비밀번호, 찾은 `base_dn`, `revision`(1부터 저장마다 +1), `updated_at`, `updated_by = NULL`(최초 설정이 저장) |
 | `storage_settings`(단일 행, IN) | 정규화한 `path`, `updated_at`, `updated_by = NULL` |
 | `users` | 첫 admin 1행: `role = admin`, 마지막 로그인 시각 기록. AD는 이름·이메일을 AD 값으로, 전화는 AD 값이 있을 때만 AD 값으로(AU-R8a), local은 입력값(전화 포함)으로 |
@@ -71,11 +73,11 @@
 진행 상태
 - **SU-R4** `GET /auth/config`(로그인 없이, AU 소유 경로)의 진행 상태는 다음과 같다(admin = 재직 admin 있음).
   - `auth_mode` = 유효 인증 방식(`"ad"`·`"local"`·`null`)
-  - 설정 열림 = 인증 방식 행 없음 또는 `setup_pending=true` 또는 admin 없음
+  - 설정 열림 = 인증 방식 행 없음 또는 `setup_pending=true` 또는 `admin_setup_pending=true` 또는 admin 없음
   - `needs_directory_setup` = 설정 열림 그리고 AD 단계 미완료
   - `needs_storage_setup` = 설정 열림 그리고 (저장 위치 행 없음 또는 인증 방식 미선택 또는 `setup_pending=true`)
-  - `needs_admin_setup` = admin 없음 그리고 저장 위치 단계 완료 그리고 AD 단계 완료
-  - 기존 admin이 있으면 저장 위치 등록으로 종료하고 관리자 등록을 생략한다. 새 시스템은 `auth_mode: null, needs_directory_setup: true, needs_storage_setup: true, needs_admin_setup: false`다.
+  - `needs_admin_setup` = (admin 없음 또는 `admin_setup_pending=true`) 그리고 저장 위치 단계 완료 그리고 AD 단계 완료
+  - 기존 admin이 있으면 local만 저장 위치 등록으로 종료한다. AD는 계정 인증·등록 후 종료한다. 새 시스템은 `auth_mode: null, needs_directory_setup: true, needs_storage_setup: true, needs_admin_setup: false`다.
 
 ① 인증 방식
 - **SU-R5** `PUT /auth/setup/auth-mode` `{mode}`: 설정이 열려 있으면 방식을 저장(덮어쓰기)하고 204(본문 없음)다. `mode`는 `"ad"`·`"local"`만 받고 그 밖(대문자, 다른 값, 누락, 추가 필드)은 422 `request-validation`이며 방식은 바뀌지 않는다. `local`을 골라도 저장된 AD 설정 행은 지우지 않는다(쓰이지 않을 뿐). `ad`를 고르면 AD 설정 행이 있을 때만 AD 단계가 완료다. 닫혀 있으면 SU-R2.
@@ -340,6 +342,7 @@ SU-R13~SU-R19.
 | SU-078 | 연결 테스트 응답을 기다리는 동안 입력을 바꾸면 늦게 온 성공이 등록 버튼을 켜지 않는다 | SU-R17, SU-UC3 | frontend | `features/setup/SetupFlow.cases.test.tsx > ignores a late success of the previous input after the input changed` |
 | SU-079 | AD 계정으로 확인된 첫 admin에는 AD의 전화번호가 있으면 저장된다 | SU-R11, SU-UC5 | backend | `application/test_setup_ad_admin_cases.py::test_the_first_ad_admin_gets_the_directory_phone` |
 | SU-080 | 인증 방식 행이 없으면 기존 관리자를 보존하며 재설정한다 | SU-R2, SU-R3, SU-R4 | backend | `web/test_setup_reset.py::test_missing_auth_settings_reopens_setup_and_keeps_the_existing_admin` |
+| SU-081 | AD 재초기화에서 인증한 계정을 등록하고 기존 계정은 중복 생성하지 않는다 | SU-R9, SU-R11 | backend | `web/test_setup_reset.py::test_missing_auth_settings_reopens_setup_and_keeps_the_existing_admin` |
 
 ### SU-001 새 시스템은 방식 미선택이고 AD·저장 위치 단계가 필요하며 관리자 단계는 아직이다
 - Given 사용자·방식·AD 설정·저장 위치가 하나도 없다
@@ -732,6 +735,11 @@ SU-R13~SU-R19.
 - Given 기존 활성 관리자와 AD·파일 저장 위치가 있고 인증 방식 행만 없다
 - When local 또는 AD를 다시 선택하고 파일 저장 위치를 등록한다
 - Then 관리자 등록 없이 설정이 끝나며 기존 관리자 ID·아이디·권한이 보존되고 공개 설정 API는 다시 닫힌다
+
+### SU-081 AD 재초기화에서 인증한 계정을 등록한다
+- Given 기존 관리자가 있고 인증 방식 행을 삭제해 AD 재설정을 진행한다. 입력할 AD 계정은 미등록이거나 기존 활성 사용자다
+- When AD 서버와 저장 위치를 등록하고 해당 AD 계정으로 관리자 등록을 완료한다
+- Then AD 인증에 성공한 경우만 users에 새 admin을 생성하거나 기존 계정을 갱신한다. 기존 사용자의 ID·권한은 보존하고, 실패한 인증은 설정을 완료하지 않는다
 
 ## 5. 변경 이력
 

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 import pytest_asyncio
 
-from app.domain.auth.mode import AuthMode, AuthSettings
+from app.domain.auth.mode import AuthMode, AuthSettings, SetupProgress
 from app.infra.db.auth_settings_repository import SqlAuthSettingsRepository
 from tests.factories import NOW, later
 from tests.fakes.auth_settings_repository import FakeAuthSettingsRepository
@@ -45,16 +45,19 @@ async def test_auth_settings_get_without_row_is_none(repository: AuthSettingsRep
 
 
 @pytest.mark.parametrize("mode", list(AuthMode))
-@pytest.mark.parametrize("pending", [False, True])
+@pytest.mark.parametrize(
+    "progress",
+    [SetupProgress(), SetupProgress(True), SetupProgress(True, True), SetupProgress(False, True)],
+)
 async def test_auth_settings_save_then_get_round_trips(
-    repository: AuthSettingsRepository, mode: AuthMode, *, pending: bool
+    repository: AuthSettingsRepository, mode: AuthMode, progress: SetupProgress
 ) -> None:
     """저장한 인증 방식을 그대로 다시 읽는다."""
     # when: 인증 방식을 저장한다 (전제: Fake·SQL 저장소 공통)
-    saved = await repository.save(mode, now=NOW, setup_pending=pending)
+    saved = await repository.save(mode, now=NOW, progress=progress)
 
     # then: 저장 결과와 조회 결과가 같다
-    assert saved == AuthSettings(mode=mode, updated_at=NOW, setup_pending=pending)
+    assert saved == AuthSettings(mode=mode, updated_at=NOW, progress=progress)
     assert await repository.get() == saved
 
 

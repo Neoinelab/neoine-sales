@@ -20,7 +20,7 @@ async def ensure_setup_open(uow: UnitOfWork) -> None:
     stored = await uow.auth_settings.get()
     if (
         stored is not None
-        and not stored.setup_pending
+        and not stored.progress.pending
         and await uow.users.count_active_admins() > 0
     ):
         raise InvalidStateError(SETUP_CLOSED)

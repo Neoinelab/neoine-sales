@@ -53,7 +53,7 @@ class SetupFirstLocalAdmin:
             if (
                 await uow.storage_settings.get() is None
                 or settings is None
-                or settings.setup_pending
+                or settings.progress.storage_pending
             ):
                 raise InvalidStateError(STORAGE_FIRST)
         password_hash = await self._deps.hasher.hash(password)

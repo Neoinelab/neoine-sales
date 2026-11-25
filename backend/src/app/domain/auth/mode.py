@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from app.domain.common.validation import require_aware
 
@@ -16,12 +16,25 @@ class AuthMode(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class SetupProgress:
+    storage_pending: bool = False
+    admin_pending: bool = False
+
+    @property
+    def pending(self) -> bool:
+        return self.storage_pending or self.admin_pending
+
+
+SETUP_COMPLETE: Final = SetupProgress()
+
+
+@dataclass(frozen=True, slots=True)
 class AuthSettings:
     """최초 설정 1단계에서 고른 인증 방식(단일 행)."""
 
     mode: AuthMode
     updated_at: datetime
-    setup_pending: bool = False
+    progress: SetupProgress = SETUP_COMPLETE
 
     def __post_init__(self) -> None:
         require_aware(self.updated_at, "updated_at")

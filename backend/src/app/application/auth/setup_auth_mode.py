@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.mode import ensure_setup_open
+from app.domain.auth.mode import AuthMode, SetupProgress
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.unit_of_work import UnitOfWorkFactory
-    from app.domain.auth.mode import AuthMode, AuthSettings
+    from app.domain.auth.mode import AuthSettings
 
 
 class ChooseSetupAuthMode:
@@ -22,6 +23,10 @@ class ChooseSetupAuthMode:
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
             await ensure_setup_open(uow)
-            saved = await uow.auth_settings.save(mode, now=self._clock.now(), setup_pending=True)
+            saved = await uow.auth_settings.save(
+                mode,
+                now=self._clock.now(),
+                progress=SetupProgress(storage_pending=True, admin_pending=mode is AuthMode.AD),
+            )
             await uow.commit()
         return saved

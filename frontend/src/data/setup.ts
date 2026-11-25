@@ -62,7 +62,10 @@ export function useRegisterAdmin(): Mutation<RegisterAdminVariables, Me> {
     gcTime: 0,
     onSuccess: async (me) => {
       queryClient.setQueryData(keys.me, me)
-      await queryClient.invalidateQueries({ queryKey: keys.setup })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.setup }),
+        queryClient.invalidateQueries({ queryKey: keys.authConfig }),
+      ])
     },
   })
 }

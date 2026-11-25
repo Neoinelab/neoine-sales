@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id, verify_credentials
-from app.application.auth.messages import DIRECTORY_FIRST, SETUP_CLOSED, STORAGE_FIRST
-from app.application.auth.mode import ensure_directory_mode
+from app.application.auth.messages import DIRECTORY_FIRST, STORAGE_FIRST
+from app.application.auth.mode import ensure_directory_mode, ensure_setup_open
 from app.application.directory.credentials import unseal_settings
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ids import new_user_id
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
 from app.domain.user.entities import User
@@ -47,8 +48,7 @@ class SetupFirstAdmin:
 
     async def _load_settings(self) -> tuple[DirectorySettings, str]:
         async with self._deps.uow_factory() as uow:
-            if await uow.users.count_active_admins() > 0:
-                raise InvalidStateError(SETUP_CLOSED)
+            await ensure_setup_open(uow)
             stored = await uow.directory_settings.get()
             if stored is None:
                 raise InvalidStateError(DIRECTORY_FIRST)
@@ -56,7 +56,7 @@ class SetupFirstAdmin:
             if (
                 await uow.storage_settings.get() is None
                 or settings is None
-                or settings.setup_pending
+                or settings.progress.storage_pending
             ):
                 raise InvalidStateError(STORAGE_FIRST)
         return unseal_settings(self._deps.cipher, stored), stored.base_dn
@@ -68,22 +68,30 @@ class SetupFirstAdmin:
         async with self._deps.uow_factory() as uow:
             await uow.users.lock_roster()
             await ensure_directory_mode(uow)  # AD 인증 도중 local로 바뀐 경우 거절
-            if await uow.users.count_active_admins() > 0:
-                raise InvalidStateError(SETUP_CLOSED)
+            await ensure_setup_open(uow)
+            resetting = await uow.users.count_active_admins() > 0
             try:
-                exists = await uow.users.get_active_by_login_id(account) is not None
+                user = await uow.users.get_active_by_login_id(account)
             except AmbiguousLoginIdError:  # 이미 둘 이상 있다 = 중복이라는 같은 결론
-                exists = True
-            if exists:
+                raise AlreadyExistsError("사용자", account.value) from None
+            if user is not None and not resetting:
                 raise AlreadyExistsError("사용자", account.value)
-            user = User.register(account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now)
+            creating = user is None
+            if user is None:
+                user = User.register(
+                    account, Role.ADMIN, entity_id=await new_user_id(uow.ids), now=now
+                )
             user.record_login(
                 now,
                 display_name=profile.display_name,
                 email=profile.email,
                 phone=profile.phone,
             )
-            await uow.users.add(user)
+            if creating:
+                await uow.users.add(user)
+            else:
+                await uow.users.update(user)
             await uow.password_hashes.save(user.id, password_hash, now)
+            await uow.auth_settings.save(AuthMode.AD, now=now)
             await uow.commit()
         return user

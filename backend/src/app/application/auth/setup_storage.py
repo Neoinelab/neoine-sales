@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from app.application.auth.messages import AUTH_MODE_FIRST, DIRECTORY_FIRST
 from app.application.auth.mode import current_mode, ensure_setup_open
 from app.application.storage.probe import ensure_writable
-from app.domain.auth.mode import AuthMode
+from app.domain.auth.mode import AuthMode, SetupProgress
 from app.domain.common.errors import InvalidStateError
 from app.domain.storage.path import StoragePath
 
@@ -45,10 +45,14 @@ class RegisterSetupStorage:
             await ensure_setup_open(uow)
             await _ensure_prerequisites(uow)
             stored = await uow.storage_settings.save(path, updated_by=None, now=self._clock.now())
-            mode = await current_mode(uow)
-            if mode is None:
+            settings = await uow.auth_settings.get()
+            if settings is None:
                 raise InvalidStateError(AUTH_MODE_FIRST)
-            await uow.auth_settings.save(mode, now=self._clock.now())
+            await uow.auth_settings.save(
+                settings.mode,
+                now=self._clock.now(),
+                progress=SetupProgress(admin_pending=settings.progress.admin_pending),
+            )
             await uow.commit()
         return stored
 

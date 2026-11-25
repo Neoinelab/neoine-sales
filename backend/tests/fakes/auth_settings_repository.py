@@ -6,6 +6,8 @@
 
 from typing import TYPE_CHECKING
 
+from app.domain.auth.mode import SETUP_COMPLETE, SetupProgress
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -22,10 +24,10 @@ class FakeAuthSettingsRepository:
         return self._items.get(_ROW)
 
     async def save(
-        self, mode: AuthMode, *, now: datetime, setup_pending: bool = False
+        self, mode: AuthMode, *, now: datetime, progress: SetupProgress = SETUP_COMPLETE
     ) -> AuthSettings:
         from app.domain.auth.mode import AuthSettings  # noqa: PLC0415 - 구현 지연 import
 
-        stored = AuthSettings(mode=mode, updated_at=now, setup_pending=setup_pending)
+        stored = AuthSettings(mode=mode, updated_at=now, progress=progress)
         self._items[_ROW] = stored  # 단일 행 upsert
         return stored

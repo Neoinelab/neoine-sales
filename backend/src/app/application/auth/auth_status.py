@@ -30,14 +30,15 @@ class GetAuthStatus:
             has_admin = await uow.users.count_active_admins() > 0
             stored = await uow.auth_settings.get()
         mode = effective_mode(stored)
-        setup_open = stored is None or stored.setup_pending or not has_admin
-        storage_done = storage and stored is not None and not stored.setup_pending
+        setup_open = stored is None or stored.progress.pending or not has_admin
+        storage_done = storage and stored is not None and not stored.progress.storage_pending
+        admin_pending = not has_admin or (stored is not None and stored.progress.admin_pending)
         directory_step_done = mode is AuthMode.LOCAL or (mode is AuthMode.AD and directory)
         return AuthStatus(
             directory_configured=directory,
             storage_configured=storage,
             needs_directory_setup=setup_open and not directory_step_done,
             needs_storage_setup=setup_open and not storage_done,
-            needs_admin_setup=not has_admin and storage_done and directory_step_done,
+            needs_admin_setup=admin_pending and storage_done and directory_step_done,
             auth_mode=mode,
         )

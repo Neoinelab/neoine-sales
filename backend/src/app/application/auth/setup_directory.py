@@ -4,7 +4,7 @@ from app.application.auth.mode import ensure_setup_open
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.directory.test_settings import SUCCESS_MESSAGE, TestResult
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
-from app.domain.auth.mode import AuthMode
+from app.domain.auth.mode import AuthMode, SetupProgress
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -50,7 +50,11 @@ class RegisterSetupDirectory:
                 updated_by=None,
                 now=now,
             )
-            await uow.auth_settings.save(AuthMode.AD, now=now, setup_pending=True)
+            await uow.auth_settings.save(
+                AuthMode.AD,
+                now=now,
+                progress=SetupProgress(storage_pending=True, admin_pending=True),
+            )
             await uow.commit()
         return stored
 
