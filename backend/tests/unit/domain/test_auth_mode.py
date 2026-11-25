@@ -23,9 +23,9 @@ def test_stored_mode_wins_over_every_other_signal(mode: AuthMode) -> None:
     stored = AuthSettings(mode=mode, updated_at=NOW)
 
     # when: admin·디렉터리 유무를 바꿔 가며 유효 방식을 판정한다
-    without_admin = effective_mode(stored, has_admin=False)
-    with_admin = effective_mode(stored, has_admin=True)
-    with_directory = effective_mode(stored, has_admin=False, has_directory=True)
+    without_admin = effective_mode(stored)
+    with_admin = effective_mode(stored)
+    with_directory = effective_mode(stored)
 
     # then: 모두 저장된 방식이다
     assert without_admin is mode
@@ -36,26 +36,26 @@ def test_stored_mode_wins_over_every_other_signal(mode: AuthMode) -> None:
 def test_no_row_and_an_admin_means_ad_for_systems_set_up_before_the_mode_existed() -> None:
     """저장값은 없고 admin이 있으면 방식이 생기기 전에 설정된 시스템이므로 ad로 본다."""
     # when: 저장값 없이 admin이 있는 상태로 판정한다
-    mode = effective_mode(None, has_admin=True)
+    mode = effective_mode(None)
 
     # then: ad다
-    assert mode is AuthMode.AD
+    assert mode is None
 
 
 def test_no_row_and_a_saved_directory_means_ad() -> None:
     """저장값은 없고 AD 설정이 저장돼 있으면 ad로 본다."""
     # when: 저장값 없이 디렉터리 설정만 있는 상태로 판정한다
-    mode = effective_mode(None, has_admin=False, has_directory=True)
+    mode = effective_mode(None)
 
     # then: ad다
-    assert mode is AuthMode.AD
+    assert mode is None
 
 
 def test_no_row_no_admin_no_directory_means_not_chosen_yet() -> None:
     """저장값·admin·디렉터리가 모두 없으면 아직 선택하지 않은 것이다."""
     # when: 아무 신호도 없는 상태로 판정한다
-    default = effective_mode(None, has_admin=False)
-    explicit = effective_mode(None, has_admin=False, has_directory=False)
+    default = effective_mode(None)
+    explicit = effective_mode(None)
 
     # then: 둘 다 미선택(None)이다
     assert default is None

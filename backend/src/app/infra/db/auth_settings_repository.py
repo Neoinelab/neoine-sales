@@ -27,14 +27,16 @@ class SqlAuthSettingsRepository:
             .execution_options(populate_existing=True)
         )
         row = (await self._session.scalars(statement)).one_or_none()
-        return AuthSettings(AuthMode(row.mode), row.updated_at) if row else None
+        return AuthSettings(AuthMode(row.mode), row.updated_at, row.setup_pending) if row else None
 
-    async def save(self, mode: AuthMode, *, now: datetime) -> AuthSettings:
-        values = {"mode": mode.value, "updated_at": now}
+    async def save(
+        self, mode: AuthMode, *, now: datetime, setup_pending: bool = False
+    ) -> AuthSettings:
+        values = {"mode": mode.value, "updated_at": now, "setup_pending": setup_pending}
         statement = (
             insert(AuthSettingsRow)
             .values(id=_ROW_ID, **values)
             .on_conflict_do_update(index_elements=[AuthSettingsRow.id], set_=values)
         )
         await self._session.execute(statement)
-        return AuthSettings(mode, now)
+        return AuthSettings(mode, now, setup_pending)

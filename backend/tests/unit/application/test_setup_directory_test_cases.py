@@ -173,7 +173,8 @@ async def test_a_closed_setup_is_409_and_never_calls_the_directory(
 
     테스트 코드: SU-069
     """
-    # given: 재직 admin이 있다(AD 설정 행이 있거나 지워진 경우)
+    # given: 인증 방식이 저장된 재직 admin이 있다(AD 설정 행이 있거나 지워진 경우)
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     if with_settings:
         await seed_directory(uow_factory)
     await seed_user(uow_factory, "boss", Role.ADMIN)

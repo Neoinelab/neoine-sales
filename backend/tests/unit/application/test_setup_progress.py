@@ -81,10 +81,10 @@ async def test_ad_mode_needs_directory_until_directory_and_storage_exist(
     assert _flags(after) == (False, False, True)
 
 
-async def test_every_step_is_done_once_an_admin_exists_even_without_setting_rows(
+async def test_missing_auth_settings_reopens_setup_even_with_an_admin(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """재직 admin이 있으면 설정 행이 없어도 진행 상태는 모두 끝남이다.
+    """인증 방식 행이 없으면 기존 관리자와 관계없이 다시 설정한다.
 
     테스트 코드: SU-004
     """
@@ -95,8 +95,8 @@ async def test_every_step_is_done_once_an_admin_exists_even_without_setting_rows
     status = await auth.status.execute()
 
     # then: 셋 다 False, auth_mode는 ad, AD 설정은 없으므로 directory_configured도 False
-    assert _flags(status) == (False, False, False)
-    assert status.auth_mode is AuthMode.AD
+    assert _flags(status) == (True, True, False)
+    assert status.auth_mode is None
     assert status.directory_configured is False
 
 
@@ -121,10 +121,10 @@ async def test_resigned_admin_or_non_admins_leave_the_setup_open(
     assert saved.mode is AuthMode.LOCAL
 
 
-async def test_a_legacy_system_with_an_admin_and_no_mode_row_is_ad(
+async def test_an_admin_without_auth_settings_has_no_chosen_mode(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
-    """방식 행이 없고 재직 admin만 있는 기존 시스템은 ad다.
+    """방식 행이 없으면 재직 관리자만 있어도 미선택이다.
 
     테스트 코드: SU-006
     """
@@ -135,10 +135,10 @@ async def test_a_legacy_system_with_an_admin_and_no_mode_row_is_ad(
     status = await auth.status.execute()
 
     # then: auth_mode는 ad
-    assert status.auth_mode is AuthMode.AD
+    assert status.auth_mode is None
 
 
-async def test_a_legacy_system_with_only_a_directory_row_is_ad_and_needs_no_directory(
+async def test_a_directory_without_auth_settings_still_needs_a_mode(
     auth: AuthStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     """방식 행·admin 없이 AD 설정 행만 있으면 ad이고 AD 단계는 끝난 것으로 본다.
@@ -152,8 +152,8 @@ async def test_a_legacy_system_with_only_a_directory_row_is_ad_and_needs_no_dire
     status = await auth.status.execute()
 
     # then: auth_mode는 ad, needs_directory_setup은 False
-    assert status.auth_mode is AuthMode.AD
-    assert status.needs_directory_setup is False
+    assert status.auth_mode is None
+    assert status.needs_directory_setup is True
 
 
 async def test_stored_local_beats_a_leftover_directory_row(

@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
-from tests.support.auth_seed import seed_directory, seed_storage, seed_user
+from tests.support.auth_seed import seed_auth_mode, seed_directory, seed_storage, seed_user
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -40,6 +41,7 @@ async def test_auth_status_flags_follow_the_three_setup_conditions(
     # given: AD 설정·저장 위치·admin 있음/없음의 조합
     """AD 설정·저장 위치·admin 세 조건의 모든 조합에서 단계 플래그가 규칙대로다."""
     # given: 조합에 따라 AD 설정·저장 위치·admin을 둔다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     directory, storage, admin = conditions
     if directory:
         await seed_directory(uow_factory)

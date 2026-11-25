@@ -125,6 +125,7 @@ async def test_a_stored_directory_or_chosen_mode_is_left_as_it_was(*, chose_loca
     if chose_local:
         await use_cases.seed_auth_mode(AuthMode.LOCAL)
     else:
+        await use_cases.seed_auth_mode(AuthMode.AD)
         await use_cases.seed_directory()
     async with anonymous(use_cases) as http:
         before = (await http.get(CONFIG)).json()
@@ -212,6 +213,7 @@ async def test_a_malformed_body_is_422_even_when_setup_is_closed() -> None:
     """
     # given: 재직 admin이 있어 설정이 닫혀 있다
     use_cases = FakeUseCases()
+    await use_cases.seed_auth_mode(AuthMode.AD)
     await use_cases.seed_user("boss", Role.ADMIN)
     async with anonymous(use_cases) as http:
         # when: 형식이 틀린 본문으로 연결 테스트를 한다
@@ -229,6 +231,7 @@ async def test_a_closed_setup_is_409_and_the_directory_is_not_called() -> None:
     """
     # given: 재직 admin이 있고 로그아웃 상태다
     use_cases = FakeUseCases()
+    await use_cases.seed_auth_mode(AuthMode.AD)
     await use_cases.seed_user("boss", Role.ADMIN)
     async with anonymous(use_cases) as http:
         # when: 올바른 입력으로 연결 테스트를 한다

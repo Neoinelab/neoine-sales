@@ -52,7 +52,12 @@ class SetupFirstAdmin:
             stored = await uow.directory_settings.get()
             if stored is None:
                 raise InvalidStateError(DIRECTORY_FIRST)
-            if await uow.storage_settings.get() is None:
+            settings = await uow.auth_settings.get()
+            if (
+                await uow.storage_settings.get() is None
+                or settings is None
+                or settings.setup_pending
+            ):
                 raise InvalidStateError(STORAGE_FIRST)
         return unseal_settings(self._deps.cipher, stored), stored.base_dn
 

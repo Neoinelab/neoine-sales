@@ -1,22 +1,21 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.messages import SETUP_CLOSED
+from app.application.auth.mode import ensure_setup_open
 from app.application.directory.errors import DirectoryVerificationError
 from app.application.directory.test_settings import SUCCESS_MESSAGE, TestResult
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.mode import AuthMode
-from app.domain.common.errors import InvalidStateError
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
     from app.application.ports.directory import DirectoryAuthenticator
     from app.application.ports.secret_cipher import SecretCipher
-    from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
+    from app.application.ports.unit_of_work import UnitOfWorkFactory
     from app.domain.directory.settings import DirectorySettings, StoredDirectorySettings
 
 
 class RegisterSetupDirectory:
-    """최초 설정 1단계: admin이 생기기 전까지 AD 서버 설정을 등록(덮어쓰기)한다.
+    """설정이 열려 있는 동안 AD 서버 설정을 등록(덮어쓰기)한다.
 
     서비스 계정으로 바인드해 Base DN을 찾는 데까지만 확인하고, 비밀번호는 암호화해 저장한다.
     """
@@ -51,7 +50,7 @@ class RegisterSetupDirectory:
                 updated_by=None,
                 now=now,
             )
-            await uow.auth_settings.save(AuthMode.AD, now=now)  # 이 단계를 마치면 AD 방식이 된다
+            await uow.auth_settings.save(AuthMode.AD, now=now, setup_pending=True)
             await uow.commit()
         return stored
 
@@ -73,12 +72,6 @@ class TestSetupDirectory:
         except DirectoryVerificationError as error:
             return TestResult(success=False, stage=error.stage, message=error.message)
         return TestResult(success=True, stage=None, message=SUCCESS_MESSAGE, base_dn=base_dn)
-
-
-async def ensure_setup_open(uow: UnitOfWork) -> None:
-    """admin이 이미 있으면 최초 설정이 닫힌 것이다."""
-    if await uow.users.count_active_admins() > 0:
-        raise InvalidStateError(SETUP_CLOSED)
 
 
 async def discover_setup_base_dn(

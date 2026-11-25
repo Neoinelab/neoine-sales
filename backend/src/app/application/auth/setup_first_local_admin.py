@@ -49,7 +49,12 @@ class SetupFirstLocalAdmin:
         }
         async with self._deps.uow_factory() as uow:
             await self._ensure_open(uow)
-            if await uow.storage_settings.get() is None:
+            settings = await uow.auth_settings.get()
+            if (
+                await uow.storage_settings.get() is None
+                or settings is None
+                or settings.setup_pending
+            ):
                 raise InvalidStateError(STORAGE_FIRST)
         password_hash = await self._deps.hasher.hash(password)
         now = self._deps.clock.now()

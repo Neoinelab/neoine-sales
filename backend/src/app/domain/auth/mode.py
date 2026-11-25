@@ -21,17 +21,12 @@ class AuthSettings:
 
     mode: AuthMode
     updated_at: datetime
+    setup_pending: bool = False
 
     def __post_init__(self) -> None:
         require_aware(self.updated_at, "updated_at")
 
 
-def effective_mode(
-    stored: AuthSettings | None, *, has_admin: bool, has_directory: bool = False
-) -> AuthMode | None:
-    """저장값이 있으면 그 값. 없으면 admin이나 AD 설정이 있는 기존 시스템은 AD, 아니면 미선택."""
-    if stored is not None:
-        return stored.mode
-    if has_admin or has_directory:
-        return AuthMode.AD
-    return None
+def effective_mode(stored: AuthSettings | None) -> AuthMode | None:
+    """인증 설정 행이 없으면 기존 사용자와 관계없이 미선택이다."""
+    return None if stored is None else stored.mode

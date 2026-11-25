@@ -127,6 +127,9 @@ async def seed_storage(
 
 async def seed_setup_prerequisites(uow_factory: UnitOfWorkFactory) -> None:
     """최초 admin 지정 전 단계(AD 설정 + 저장 위치)를 모두 마친 상태."""
+    from app.domain.auth.mode import AuthMode  # noqa: PLC0415
+
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
     await seed_storage(uow_factory)
 

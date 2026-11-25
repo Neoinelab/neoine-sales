@@ -24,7 +24,7 @@ export function useSaveSetupDirectory(): Mutation<DirectorySettingsInput> {
   const invalidate = useInvalidate()
   return useMutation<void, ApiError, DirectorySettingsInput>({
     mutationFn: (input) => gateway.setup.saveDirectory(input),
-    onSuccess: () => invalidate(keys.setup),
+    onSuccess: () => invalidate(keys.setup, keys.authConfig),
   })
 }
 
@@ -38,7 +38,7 @@ export function useSaveSetupStorage(): Mutation<string> {
   const invalidate = useInvalidate()
   return useMutation<void, ApiError, string>({
     mutationFn: (path) => gateway.setup.saveStorage(path),
-    onSuccess: () => invalidate(keys.setup),
+    onSuccess: () => invalidate(keys.setup, keys.authConfig),
   })
 }
 

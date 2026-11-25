@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router'
-import { useMe } from '../../data/auth'
+import { useAuthConfig, useMe } from '../../data/auth'
 import { useServerTimeSync } from '../../data/time'
 import { ErrorBanner } from '../../shared/ui/ErrorBanner'
 import { Layout } from '../../shared/ui/Layout'
@@ -11,8 +11,10 @@ import { DirectoryWarningDialog } from './DirectoryWarningDialog'
  */
 export function RequireAuth() {
   const me = useMe()
+  const config = useAuthConfig()
   const time = useServerTimeSync(me.isSuccess)
-  if (me.isPending) return <p className="content">불러오는 중…</p>
+  if (me.isPending || config.isPending) return <p className="content">불러오는 중…</p>
+  if (config.data?.needsSetup) return <Navigate to="/setup" replace />
   if (me.error?.status === 401) return <Navigate to="/login" replace />
   if (me.isError) return <ErrorBanner error={me.error} />
   if (time.isPending) return <p className="content">불러오는 중…</p>

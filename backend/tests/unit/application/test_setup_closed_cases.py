@@ -95,7 +95,7 @@ async def test_every_setup_operation_is_closed_and_changes_nothing(
         assert await uow.directory_settings.get() == directory_before
         assert await uow.storage_settings.get() == storage_before
         assert await uow.users.get_active_by_login_id(LoginId("mallory")) is None
-        assert await uow.auth_settings.get() is None
+        assert await uow.auth_settings.get() is not None
     assert await active_admin_logins(uow_factory) == ["boss"]
     assert (await auth.status.execute()).needs_admin_setup is False
 
@@ -108,7 +108,8 @@ async def test_every_setup_operation_stays_closed_when_the_setting_rows_are_gone
 
     테스트 코드: SU-039
     """
-    # given: 재직 admin만 있고 AD 설정·저장 위치 행이 없다
+    # given: 인증 방식과 재직 admin은 있고 AD 설정·저장 위치 행이 없다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_user(uow_factory, "boss", Role.ADMIN)
 
     # when: 최초 설정 경로를 부른다

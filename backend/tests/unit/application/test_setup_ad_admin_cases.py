@@ -61,6 +61,7 @@ async def test_an_ad_verified_account_becomes_the_first_admin_and_is_signed_in(
     테스트 코드: SU-023
     """
     # given: AD 서버·저장 위치가 등록되었고 AD 계정 kim(김관리, kim@corp.test)이 있다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     stored = await seed_directory(uow_factory)
     await seed_storage(uow_factory)
     auth.directory.add_account("kim", "pw-kim", display_name="김관리", email="kim@corp.test")
@@ -166,6 +167,7 @@ async def test_a_directory_outage_is_raised_without_fallback_and_not_counted(
     # given: AD 서버·저장 위치가 등록되었고, AD 인증이 TLS 단계 장애로 실패하거나 저장된 바인드
     # 비밀번호를 복호화할 수 없다
     if isinstance(failure, DirectoryCredentialUnreadableError):
+        await seed_auth_mode(uow_factory, AuthMode.AD)
         await seed_directory(uow_factory, unreadable=True)
         await seed_storage(uow_factory)
     else:
@@ -229,6 +231,7 @@ async def test_a_missing_prerequisite_is_a_409_that_skips_the_directory_and_the_
     """
     # given: (가) 방식·AD 설정이 없다 / (나) 저장 위치만 있다 / (다) AD 설정만 있고 저장 위치가 없다
     if has_directory:
+        await seed_auth_mode(uow_factory, AuthMode.AD)
         await seed_directory(uow_factory)
     if has_storage:
         await seed_storage(uow_factory)
@@ -386,6 +389,7 @@ async def test_the_first_ad_admin_gets_the_directory_phone(  # noqa: PLR0913, PL
     테스트 코드: SU-079
     """
     # given: AD 서버·저장 위치가 등록된 새 시스템, 경우마다 전화가 있거나 없는 AD 계정
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
     await seed_storage(uow_factory)
     auth.directory.add_account(

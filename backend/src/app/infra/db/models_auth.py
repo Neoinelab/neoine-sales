@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -112,6 +113,7 @@ class AuthSettingsRow(Base):
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
     mode: Mapped[str] = mapped_column(String(16))
+    setup_pending: Mapped[bool] = mapped_column(Boolean, server_default="false")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (

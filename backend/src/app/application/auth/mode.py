@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from app.application.auth.messages import DIRECTORY_MODE_ONLY, LOCAL_MODE_ONLY
+from app.application.auth.messages import DIRECTORY_MODE_ONLY, LOCAL_MODE_ONLY, SETUP_CLOSED
 from app.domain.auth.mode import AuthMode, effective_mode
 from app.domain.common.errors import InvalidStateError
 
@@ -11,15 +11,19 @@ if TYPE_CHECKING:
 
 
 async def current_mode(uow: UnitOfWork) -> AuthMode | None:
-    """저장된 방식, 없으면 admin이나 AD 설정이 있는 기존 시스템은 AD, 아니면 None(미선택)."""
+    """설정 행이 없으면 미선택(None)이다."""
     stored = await uow.auth_settings.get()
-    if stored is not None:
-        return stored.mode
-    return effective_mode(
-        None,
-        has_admin=await uow.users.count_active_admins() > 0,
-        has_directory=await uow.directory_settings.get() is not None,
-    )
+    return effective_mode(stored)
+
+
+async def ensure_setup_open(uow: UnitOfWork) -> None:
+    stored = await uow.auth_settings.get()
+    if (
+        stored is not None
+        and not stored.setup_pending
+        and await uow.users.count_active_admins() > 0
+    ):
+        raise InvalidStateError(SETUP_CLOSED)
 
 
 async def ensure_directory_mode(uow: UnitOfWork) -> None:

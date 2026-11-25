@@ -17,7 +17,6 @@ export function LoginPage() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
 
-  if (me.data) return <Navigate to="/" replace />
   if (config.isPending) {
     return (
       <main className="login">
@@ -28,6 +27,7 @@ export function LoginPage() {
 
   // 최초 설정이 끝나지 않았으면 로그인할 수 없으므로 항상 설정 화면으로 보낸다.
   if (config.data?.needsSetup) return <Navigate to="/setup" replace />
+  if (me.data) return <Navigate to="/" replace />
 
   const submit = () => {
     login

@@ -8,6 +8,16 @@ afterEach(() => {
 })
 
 describe('로그인하지 않은 방문자의 보호 화면', () => {
+  it.each(['/login', '/deals'])('로그인된 관리자도 %s에서 재설정이 필요하면 설정 화면으로 간다', async (path) => {
+    const reset = mockControl.resetData.bind(mockControl)
+    vi.spyOn(mockControl, 'resetData').mockImplementation(() => {
+      reset()
+      mockControl.restartSetup()
+    })
+    const { location } = await renderAt(path, { role: 'admin' })
+    await waitFor(() => expect(location()).toBe('/setup'))
+  })
+
   it.each(['/deals', '/admin/users'])(
     '로그인하지 않은 방문자가 %s를 열면 최초 설정이 필요할 때 설정 화면으로 간다',
     async (path) => {

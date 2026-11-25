@@ -37,6 +37,7 @@ async def test_registering_normalizes_the_path_creates_it_and_leaves_no_probe_fi
     테스트 코드: SU-015
     """
     # given: AD 서버가 등록되었고 디렉터리는 아직 없다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
     assert not file_storage.dir_exists("/srv/su/new/nested")
 
@@ -59,6 +60,7 @@ async def test_a_failed_overwrite_keeps_the_previous_path(
     테스트 코드: SU-016
     """
     # given: 저장 위치 /data/first가 등록되었다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
     await storage.register_setup.execute("/data/first")
 
@@ -127,7 +129,7 @@ async def test_registering_in_local_mode_needs_no_directory(
     assert stored.path.value == "/data/x"
 
 
-async def test_registering_with_only_a_directory_row_works(
+async def test_registering_with_a_chosen_ad_mode_and_directory_works(
     storage: StorageStack, uow_factory: UnitOfWorkFactory
 ) -> None:
     """방식 행 없이 AD 설정만 있어도(유효 방식 ad) 저장 위치를 등록할 수 있다.
@@ -135,6 +137,7 @@ async def test_registering_with_only_a_directory_row_works(
     테스트 코드: SU-017
     """
     # given: (라) 방식 행 없이 AD 설정만 있다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
 
     # when: /data/x로 등록한다
@@ -167,6 +170,7 @@ async def test_a_malformed_path_is_invalid_value_and_never_touches_the_disk(
     테스트 코드: SU-018
     """
     # given: 저장 위치를 등록할 수 있는 상태다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
 
     # when: 형식이 틀린 경로로 등록한다
@@ -187,6 +191,7 @@ async def test_an_unwritable_location_has_a_fixed_message_and_saves_nothing(
     테스트 코드: SU-019
     """
     # given: 저장 위치를 등록할 수 있는 상태이고 쓰기 확인이 실패한다
+    await seed_auth_mode(uow_factory, AuthMode.AD)
     await seed_directory(uow_factory)
     file_storage.block("/secret")
 

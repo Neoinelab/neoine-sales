@@ -13,6 +13,8 @@ class AuthSettingsRepository(Protocol):
         """고른 적이 없으면 None."""
         ...
 
-    async def save(self, mode: AuthMode, *, now: datetime) -> AuthSettings:
+    async def save(
+        self, mode: AuthMode, *, now: datetime, setup_pending: bool = False
+    ) -> AuthSettings:
         """단일 행을 만들거나 덮어쓴다. 호출자는 roster 잠금 안에서 부른다(닫힘 확인과 직렬화)."""
         ...

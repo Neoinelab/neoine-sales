@@ -50,6 +50,7 @@ def _directory_body(**overrides: object) -> dict[str, object]:
 
 
 async def _ad_system(use_cases: FakeUseCases) -> None:
+    await use_cases.seed_auth_mode(AuthMode.AD)
     await use_cases.seed_directory()
     await use_cases.seed_storage()
 
@@ -75,8 +76,8 @@ async def test_config_of_a_new_system_is_unselected_with_directory_and_storage_n
     ) == (None, True, True, False)
 
 
-async def test_config_with_an_admin_and_no_setting_rows_is_all_done_and_ad() -> None:
-    """재직 admin이 있으면 설정 행이 없어도 진행 상태는 모두 끝남이다.
+async def test_config_with_an_admin_and_no_auth_settings_reopens_setup() -> None:
+    """인증 방식 행이 없으면 기존 관리자가 있어도 설정이 필요하다.
 
     테스트 코드: SU-004
     """
@@ -92,8 +93,8 @@ async def test_config_with_an_admin_and_no_setting_rows_is_all_done_and_ad() -> 
         body["needs_directory_setup"],
         body["needs_storage_setup"],
         body["needs_admin_setup"],
-    ) == (False, False, False)
-    assert (body["auth_mode"], body["directory_login"]) == ("ad", False)
+    ) == (True, True, False)
+    assert (body["auth_mode"], body["directory_login"]) == (None, False)
 
 
 @pytest.mark.parametrize(
@@ -350,7 +351,7 @@ async def test_neither_password_appears_in_any_response_or_log(
         )
         responses.append(await http.put(SETUP_DIRECTORY, json=_directory_body()))
         use_cases.directory.discover_fails_with = None
-        await use_cases.seed_storage()
+        await http.put(SETUP_STORAGE, json={"path": "/data/neoine-sales/files"})
         # when: 같은 비밀번호로 첫 admin 등록을 오답(401)·검증 오류(422)·성공(200)으로 보낸다
         wrong = await http.post(SETUP, json={"login_id": "ghost", "password": DUMMY_PASSWORD})
         invalid = await http.post(

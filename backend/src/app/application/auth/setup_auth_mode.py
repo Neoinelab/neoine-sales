@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.messages import SETUP_CLOSED
-from app.domain.common.errors import InvalidStateError
+from app.application.auth.mode import ensure_setup_open
 
 if TYPE_CHECKING:
     from app.application.ports.clock import Clock
@@ -10,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class ChooseSetupAuthMode:
-    """최초 설정 1단계: admin이 생기기 전까지 인증 방식(AD 연동/직접 관리)을 고른다(덮어쓰기).
+    """설정이 열려 있는 동안 인증 방식(AD 연동/직접 관리)을 고른다(덮어쓰기).
 
     저장된 AD 설정은 지우지 않는다(local이면 쓰이지 않는다).
     """
@@ -22,8 +21,7 @@ class ChooseSetupAuthMode:
     async def execute(self, mode: AuthMode) -> AuthSettings:
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
-            if await uow.users.count_active_admins() > 0:
-                raise InvalidStateError(SETUP_CLOSED)
-            saved = await uow.auth_settings.save(mode, now=self._clock.now())
+            await ensure_setup_open(uow)
+            saved = await uow.auth_settings.save(mode, now=self._clock.now(), setup_pending=True)
             await uow.commit()
         return saved

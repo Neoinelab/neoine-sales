@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
-from app.application.auth.messages import AUTH_MODE_FIRST, DIRECTORY_FIRST, SETUP_CLOSED
-from app.application.auth.mode import current_mode
+from app.application.auth.messages import AUTH_MODE_FIRST, DIRECTORY_FIRST
+from app.application.auth.mode import current_mode, ensure_setup_open
 from app.application.storage.probe import ensure_writable
 from app.domain.auth.mode import AuthMode
 from app.domain.common.errors import InvalidStateError
@@ -14,11 +14,6 @@ if TYPE_CHECKING:
     from app.domain.storage.settings import StoredStorageSettings
 
 
-async def _ensure_open(uow: UnitOfWork) -> None:
-    if await uow.users.count_active_admins() > 0:
-        raise InvalidStateError(SETUP_CLOSED)
-
-
 async def _ensure_prerequisites(uow: UnitOfWork) -> None:
     mode = await current_mode(uow)
     if mode is None:
@@ -28,7 +23,7 @@ async def _ensure_prerequisites(uow: UnitOfWork) -> None:
 
 
 class RegisterSetupStorage:
-    """최초 설정 2단계: admin이 생기기 전까지 파일 저장 위치를 등록(덮어쓰기)한다.
+    """설정이 열려 있는 동안 파일 저장 위치를 등록하고 재설정을 완료한다.
 
     판정 순서: 닫힘 -> 인증 방식 미선택 -> AD 방식인데 AD 설정 없음 -> 경로 형식 -> 쓰기 확인.
     앞에서 걸리면 디스크를 건드리지 않는다.
@@ -41,14 +36,19 @@ class RegisterSetupStorage:
 
     async def execute(self, raw_path: str) -> StoredStorageSettings:
         async with self._uow_factory() as uow:
-            await _ensure_open(uow)
+            await ensure_setup_open(uow)
             await _ensure_prerequisites(uow)
         path = StoragePath.parse(raw_path)
         await ensure_writable(self._storage, path)
         async with self._uow_factory() as uow:
             await uow.users.lock_roster()
-            await _ensure_open(uow)
+            await ensure_setup_open(uow)
+            await _ensure_prerequisites(uow)
             stored = await uow.storage_settings.save(path, updated_by=None, now=self._clock.now())
+            mode = await current_mode(uow)
+            if mode is None:
+                raise InvalidStateError(AUTH_MODE_FIRST)
+            await uow.auth_settings.save(mode, now=self._clock.now())
             await uow.commit()
         return stored
 
@@ -64,5 +64,5 @@ class TestSetupStorage:
 
     async def execute(self, raw_path: str) -> None:
         async with self._uow_factory() as uow:
-            await _ensure_open(uow)
+            await ensure_setup_open(uow)
         await ensure_writable(self._storage, StoragePath.parse(raw_path))
