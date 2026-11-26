@@ -27,15 +27,16 @@ export function Layout() {
     <>
       <header className="topbar">
         <span className="brand">
-          <strong className="brand-name">NEOINE</strong>
-          <span className="brand-sub">영업관리</span>
+          <a href="/" className="logo-link">
+            <img src="logo.png" alt="사이트 로고" className="logo-img"/>
+          </a>
         </span>
         <button
-          type="button"
-          className="topbar-toggle"
-          aria-label="메뉴 열기"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
+            type="button"
+            className="topbar-toggle"
+            aria-label="메뉴 열기"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
             <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
