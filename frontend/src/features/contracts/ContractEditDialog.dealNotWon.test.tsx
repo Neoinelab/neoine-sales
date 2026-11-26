@@ -34,9 +34,9 @@ async function openContractOfDeal12(leaveWon: boolean, role: 'admin' | 'sales' =
     await defaultMock.signInAs(role === 'admin' ? USER_ID.root : USER_ID.kim)
   }
   await screen.findByRole('table', { name: '계약 목록' }, LOAD)
-  const bar = within(screen.getByRole('search', { name: '계약 검색' }))
+  const bar = within(screen.getByLabelText('계약 검색'))
   await view.user.type(bar.getByRole('textbox', { name: '고객사명' }), '바른제약')
-  await view.user.click(bar.getByRole('button', { name: '검색' }))
+  await view.user.keyboard('{Enter}')
   const cell = await within(screen.getByRole('table', { name: '계약 목록' })).findByText('바른제약 PAM', undefined, LOAD)
   await view.user.click(cell.closest('tr')!.querySelectorAll('td')[1]!)
   return { ...view, dlg: await screen.findByRole('dialog', { name: /^계약 수정 - / }) }

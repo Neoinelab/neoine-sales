@@ -25,7 +25,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const bar = () => within(screen.getByRole('search', { name: '계약 검색' }))
+const bar = () => within(screen.getByLabelText('계약 검색'))
 const table = () => screen.getByRole('table', { name: '계약 목록' })
 const rows = () => within(table()).getAllByRole('row').slice(1)
 const codes = () => rows().map((row) => within(row).getAllByRole('cell')[0]?.textContent ?? '')
@@ -108,7 +108,7 @@ describe('목록 (AC2, AC19)', () => {
       expect(bar().getByRole('combobox', { name })).toBeVisible()
     }
     // then: 고객사명·제품명·Vendor·담당영업·상태·날짜 조건과 두 버튼이 보인다
-    expect(bar().getByRole('button', { name: '검색' })).toBeVisible()
+    expect(bar().queryByRole('button', { name: '검색' })).not.toBeInTheDocument()
     expect(bar().getByRole('button', { name: '초기화' })).toBeVisible()
   })
 
@@ -135,7 +135,7 @@ describe('고객사명·제품명 검색 (AC3, AC17)', () => {
 
     // when: 고객사명 칸에 앞뒤 공백이 붙은 값을 넣고 검색한다
     await user.type(bar().getByRole('textbox', { name: '고객사명' }), customer)
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // then: 공백이 지워진 조건이 서버로 가고 해당 건수가 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -176,7 +176,7 @@ describe('고객사명·제품명 검색 (AC3, AC17)', () => {
     const list = vi.spyOn(gateway.licenseContracts, 'list')
 
     await user.type(bar().getByRole('textbox', { name: '제품명' }), part)
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // when: 제품명 일부를 넣고 검색한다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -196,7 +196,6 @@ describe('상태 검색 (C2)', () => {
 
     // when: 상태를 고르고 검색한다
     await user.selectOptions(bar().getByRole('combobox', { name: '상태' }), STATUS_TEXT[status])
-    await user.click(bar().getByRole('button', { name: '검색' }))
 
     // then: 그 상태의 행만 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -232,7 +231,6 @@ describe('Vendor·담당영업 검색', () => {
 
     // when: Vendor를 고르고 검색한다
     await user.selectOptions(select, vendor.name)
-    await user.click(bar().getByRole('button', { name: '검색' }))
 
     // then: vendorId 조건으로 서버가 거른 결과가 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -252,7 +250,6 @@ describe('Vendor·담당영업 검색', () => {
 
     // when: 담당영업을 고르고 검색한다
     await user.selectOptions(select, owner.name)
-    await user.click(bar().getByRole('button', { name: '검색' }))
 
     // then: ownerId 조건으로 서버가 거른 결과가 보인다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -277,7 +274,7 @@ describe('라이선스 종료일 검색 (AC5, AC17)', () => {
     await user.selectOptions(bar().getByRole('combobox', { name: '라이선스 종료일' }), '직접 지정')
     await user.type(bar().getByRole('textbox', { name: '라이선스 종료일 시작' }), compact(from))
     await user.type(bar().getByRole('textbox', { name: '라이선스 종료일 끝' }), compact(to))
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // when: 종료일을 직접 지정해 검색한다
     await waitFor(() => expect(sorted(codes())).toEqual(sorted(codesOf(expected))))
@@ -294,14 +291,15 @@ describe('라이선스 종료일 검색 (AC5, AC17)', () => {
 
     await user.selectOptions(bar().getByRole('combobox', { name: '라이선스 종료일' }), '직접 지정')
     await user.type(bar().getByRole('textbox', { name: '라이선스 종료일 시작' }), '20270310')
+    await waitFor(() => expect(list).toHaveBeenCalled())
+    list.mockClear()
     await user.type(bar().getByRole('textbox', { name: '라이선스 종료일 끝' }), '20270301')
     // when: 검색을 누른다
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // then: 목록 요청이 가지 않고 범위 오류 문구가 보인다
     expect(await screen.findByText(/시작은 끝보다 늦을 수 없습니다/)).toBeVisible()
     expect(list).not.toHaveBeenCalled()
-    expect(rows()).toHaveLength(PAGE_SIZE)
   })
 
   // 시작일 범위도 같은 방식으로 서버 조건이 된다.
@@ -315,7 +313,7 @@ describe('라이선스 종료일 검색 (AC5, AC17)', () => {
 
     await user.selectOptions(bar().getByRole('combobox', { name: '라이선스 시작일' }), '직접 지정')
     await user.type(bar().getByRole('textbox', { name: '라이선스 시작일 시작' }), compact(from))
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // when: 시작일을 직접 지정해 검색한다
     await waitFor(() => expect(lastQuery(list)).toMatchObject({ startFrom: from }))
@@ -393,7 +391,7 @@ describe('빈 결과 (AC7)', () => {
 
     // when: 고객사명에 없는 값을 넣고 검색한다
     await user.type(bar().getByRole('textbox', { name: '고객사명' }), '존재하지않는고객사zzz')
-    await user.click(bar().getByRole('button', { name: '검색' }))
+    await user.keyboard('{Enter}')
 
     // then: 조건에 맞는 계약이 없습니다와 전체 0건이 보인다
     expect(await screen.findByText('조건에 맞는 계약이 없습니다.')).toBeVisible()

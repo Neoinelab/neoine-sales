@@ -407,7 +407,7 @@ describe('종료일 향후 기간 검색 (B7)', () => {
   it('offers upcoming presets on the end date only, not on the start date', async () => {
     // given: 계약 목록 화면
     await open()
-    const bar = within(screen.getByRole('search', { name: '계약 검색' }))
+    const bar = within(screen.getByLabelText('계약 검색'))
 
     // when: 시작일·종료일 기간 선택 상자를 본다
     const start = within(bar.getByRole('combobox', { name: '라이선스 시작일' })).getAllByRole('option').map((o) => o.textContent)
@@ -425,13 +425,12 @@ describe('종료일 향후 기간 검색 (B7)', () => {
     // given: 서버 시계 2027-03-15의 계약 목록 화면
     const list = vi.spyOn(gateway.licenseContracts, 'list')
     const { user } = await open()
-    const bar = within(screen.getByRole('search', { name: '계약 검색' }))
+    const bar = within(screen.getByLabelText('계약 검색'))
     const select = bar.getByRole('combobox', { name: '라이선스 종료일' })
     await waitFor(() => expect(within(select).getByRole('option', { name: label })).toBeEnabled())
 
     // when: 종료일에서 향후 프리셋을 고르고 검색한다
     await user.selectOptions(select, label)
-    await user.click(bar.getByRole('button', { name: '검색' }))
 
     // then: endFrom은 오늘, endTo는 오늘 + N개월로 서버에 간다
     const to = new Date('2027-03-15T00:00:00Z')

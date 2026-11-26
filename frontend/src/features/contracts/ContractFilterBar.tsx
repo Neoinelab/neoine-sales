@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState } from 'react'
 import { useFreshUpdatedPeriods, useUpdatedPeriods } from '../../data/deals'
 import { useVendors } from '../../data/vendors'
 import { dateValueError } from '../../shared/model/dateText'
@@ -40,7 +40,7 @@ function rangeErrors(range: DateRange, label: string): { from?: string; to?: str
   return {}
 }
 
-/** 계약 검색 조건. 텍스트 칸의 Enter 또는 검색 버튼으로 한 번에 적용한다. */
+/** 선택 조건은 즉시, 텍스트는 Enter로 검색한다. */
 export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilterBarProps) {
   const [draft, setDraft] = useState<ContractConditions>(applied)
   const [startChoice, setStartChoice] = useState<PastPeriodChoice>('')
@@ -54,12 +54,17 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
   const searchSeq = useRef(0)
   const set = (patch: Partial<ContractConditions>) => setDraft((prev) => ({ ...prev, ...patch }))
 
-  async function submit(event: FormEvent) {
-    event.preventDefault()
+  function select(patch: Partial<ContractConditions>) {
+    const next = { ...draft, ...patch }
+    setDraft(next)
+    void search(next)
+  }
+
+  async function search(next = draft, startValue = startChoice, endValue = endChoice) {
     const seq = ++searchSeq.current
     setRefreshError(null)
     let fresh: UpdatedPeriods | undefined
-    const needsFresh = [startChoice, endChoice].some((c) => c !== '' && c !== 'custom')
+    const needsFresh = [startValue, endValue].some((c) => c !== '' && c !== 'custom')
     if (needsFresh) {
       try {
         fresh = await fetchFresh()
@@ -69,8 +74,8 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
         return
       }
     }
-    const start = resolveRange(startChoice, { from: draft.startFrom, to: draft.startTo }, fresh)
-    const end = resolveRange(endChoice, { from: draft.endFrom, to: draft.endTo }, fresh)
+    const start = resolveRange(startValue, { from: next.startFrom, to: next.startTo }, fresh)
+    const end = resolveRange(endValue, { from: next.endFrom, to: next.endTo }, fresh)
     const startErrors = rangeErrors(start, '라이선스 시작일')
     const endErrors = rangeErrors(end, '라이선스 종료일')
     if (startErrors.from || startErrors.to || endErrors.from || endErrors.to) {
@@ -78,7 +83,7 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
       return
     }
     setErrors({})
-    onSearch({ ...draft, startFrom: start.from, startTo: start.to, endFrom: end.from, endTo: end.to })
+    onSearch({ ...next, startFrom: start.from, startTo: start.to, endFrom: end.from, endTo: end.to })
   }
 
   function reset() {
@@ -101,12 +106,17 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
       setEndChoice(value)
       if (value === '') set({ endFrom: '', endTo: '' })
     }
+    if (value !== 'custom') {
+      void search(draft, which === 'start' ? value as PastPeriodChoice : startChoice, which === 'end' ? value : endChoice)
+    }
   }
 
   return (
-    <form className="contract-filters" role="search" aria-label="계약 검색" onSubmit={(e) => void submit(e)}>
+    <search aria-label="계약 검색">
+    <form className="contract-filters" onSubmit={(e) => { e.preventDefault(); void search() }}>
+      <input type="submit" hidden />
       <TextField label="고객사명" name="customer" maxLength={200} value={draft.customer} onChange={(customer) => set({ customer })} />
-      <SelectField label="Vendor" name="vendor" value={draft.vendor} onChange={(vendor) => set({ vendor })}>
+      <SelectField label="Vendor" name="vendor" value={draft.vendor} onChange={(vendor) => select({ vendor })}>
         <option value="">전체</option>
         {(vendors.data ?? []).map((vendor) => (
           <option key={vendor.id} value={vendor.id}>
@@ -115,8 +125,8 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
         ))}
       </SelectField>
       <TextField label="제품명" name="product" maxLength={200} value={draft.product} onChange={(product) => set({ product })} />
-      <UserSelect label="담당영업" name="salesOwner" value={draft.salesOwner} onChange={(salesOwner) => set({ salesOwner })} includeResigned />
-      <SelectField label="상태" name="status" value={draft.status} onChange={(status) => set({ status: status as ContractConditions['status'] })}>
+      <UserSelect label="담당영업" name="salesOwner" value={draft.salesOwner} onChange={(salesOwner) => select({ salesOwner })} includeResigned />
+      <SelectField label="상태" name="status" value={draft.status} onChange={(status) => select({ status: status as ContractConditions['status'] })}>
         <option value="">전체</option>
         {STATUSES.map((status) => (
           <option key={status} value={status}>
@@ -131,8 +141,8 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
         presets={periodsQuery.data}
         from={draft.startFrom}
         to={draft.startTo}
-        onFromChange={(startFrom) => set({ startFrom })}
-        onToChange={(startTo) => set({ startTo })}
+        onFromChange={(startFrom) => select({ startFrom })}
+        onToChange={(startTo) => select({ startTo })}
         fromError={errors.startFrom}
         toError={errors.startTo}
       />
@@ -144,15 +154,12 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
         presets={periodsQuery.data}
         from={draft.endFrom}
         to={draft.endTo}
-        onFromChange={(endFrom) => set({ endFrom })}
-        onToChange={(endTo) => set({ endTo })}
+        onFromChange={(endFrom) => select({ endFrom })}
+        onToChange={(endTo) => select({ endTo })}
         fromError={errors.endFrom}
         toError={errors.endTo}
       />
       <div className="filter-buttons">
-        <button type="submit" className="primary">
-          검색
-        </button>
         <button type="button" onClick={reset}>
           초기화
         </button>
@@ -161,5 +168,6 @@ export function ContractFilterBar({ applied, onSearch, onReset }: ContractFilter
       {vendors.data === undefined && <ErrorBanner error={vendors.error} />}
       <ErrorBanner error={refreshError} />
     </form>
+    </search>
   )
 }
