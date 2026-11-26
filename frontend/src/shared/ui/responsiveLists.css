@@ -38,7 +38,7 @@
   max-width: 100%;
 }
 
-.content :is(table, table[class]) :is(td.wrap, .dd-col-long, .meeting-content, .contract-note) {
+.content :is(table, table[class]) :is(td.wrap, .dd-col-long, .meeting-content) {
   white-space: pre-wrap;
 }
 

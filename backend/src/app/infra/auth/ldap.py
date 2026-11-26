@@ -11,6 +11,7 @@ import anyio
 from ldap3 import BASE, SUBTREE, Connection
 from ldap3.utils.conv import escape_filter_chars
 
+from app.application.auth.log_ids import short_hash
 from app.application.ports.directory import (
     DirectoryMisconfiguredError,
     DirectoryUnavailableError,
@@ -35,7 +36,7 @@ from app.infra.auth.ldap_connection import (
     service_session,
     unbind,
 )
-from app.infra.auth.ldap_errors import MESSAGES, bind_failure, unavailable
+from app.infra.auth.ldap_errors import MESSAGES, bind_diagnostic, bind_failure, unavailable
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -70,8 +71,9 @@ def _entries(connection: Connection) -> list[dict[str, Any]]:
     return [e for e in (connection.response or []) if e.get("type") == "searchResEntry"]
 
 
-def _result_code(connection: Connection) -> object:
-    return (connection.result or {}).get("result")
+def _result_code(connection: Connection) -> int | None:
+    code: object = (connection.result or {}).get("result")
+    return code if type(code) is int else None
 
 
 def _misconfigured(stage: VerificationStage) -> DirectoryMisconfiguredError:
@@ -118,15 +120,28 @@ def _find_user(
         ),
     )
     code = _result_code(connection)
-    if code == _SIZE_LIMIT_EXCEEDED:  # 2건 이상과 같은 분류(필터가 한 명으로 좁혀지지 않는다)
+    entries = _entries(connection)
+    if code == _SIZE_LIMIT_EXCEEDED or (code == _SUCCESS and len(entries) > 1):
+        logger.warning(
+            "AD login failed stage=search reason=multiple_matches ldap_code=%s login_id_hash=%s",
+            code,
+            short_hash(login_id),
+        )
         raise _misconfigured(VerificationStage.SEARCH)
     if code != _SUCCESS:  # Base DN이 없거나 검색 권한이 없다
+        logger.warning(
+            "AD login failed stage=search reason=profile_lookup_failed "
+            "ldap_code=%s login_id_hash=%s",
+            code,
+            short_hash(login_id),
+        )
         raise _misconfigured(VerificationStage.BASE_DN)
-    entries = _entries(connection)
     if not entries:
+        logger.warning(
+            "AD login failed stage=search reason=no_matching_entry login_id_hash=%s",
+            short_hash(login_id),
+        )
         raise InvalidCredentialsError(_INVALID_CREDENTIALS, stage=VerificationStage.SEARCH)
-    if len(entries) > 1:
-        raise _misconfigured(VerificationStage.SEARCH)
     attributes = entries[0].get("attributes") or {}
     user = DirectoryUser(
         login_id=login_id,
@@ -182,6 +197,10 @@ class LdapDirectoryAuthenticator:
         secret = password.reveal()
         if not secret:
             # 빈 비밀번호는 익명 바인드로 통과될 수 있으므로 연결하지 않고 거부한다.
+            logger.warning(
+                "AD login failed stage=bind reason=empty_password login_id_hash=%s",
+                short_hash(login_id.value),
+            )
             raise InvalidCredentialsError(_INVALID_CREDENTIALS, stage=VerificationStage.BIND)
         return await anyio.to_thread.run_sync(
             _logged, self._authenticate, settings, base_dn, login_id.value, secret
@@ -203,12 +222,27 @@ class LdapDirectoryAuthenticator:
     def _authenticate(
         self, settings: DirectorySettings, base_dn: str, login_id: str, secret: str
     ) -> DirectoryUser:
-        bind_name = bind_account_name(login_id, self._user_bind_domain)
+        try:
+            bind_name = bind_account_name(login_id, self._user_bind_domain)
+        except DirectoryMisconfiguredError:
+            logger.warning(
+                "AD login failed stage=bind reason=missing_upn_domain login_id_hash=%s",
+                short_hash(login_id),
+            )
+            raise
         connection = self._connect(settings, bind_name, secret)
         try:
             open_secure(connection, settings)
             if not guarded(connection.bind):
-                raise bind_failure(_result_code(connection))
+                code = _result_code(connection)
+                message = (connection.result or {}).get("message")
+                logger.warning(
+                    "AD login failed stage=bind reason=%s ldap_code=%s login_id_hash=%s",
+                    bind_diagnostic(code, message if isinstance(message, str) else ""),
+                    code,
+                    short_hash(login_id),
+                )
+                raise bind_failure(code)
             _, user = _find_user(connection, settings, base_dn, login_id)
             return user
         finally:

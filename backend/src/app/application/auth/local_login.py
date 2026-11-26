@@ -1,8 +1,10 @@
 """local 모드 로그인: 저장된 비밀번호 해시로 인증한다. AD는 부르지 않는다."""
 
+import logging
 from typing import TYPE_CHECKING
 
 from app.application.auth.active_user import find_active_user
+from app.application.auth.log_ids import short_hash
 from app.application.auth.messages import LOGIN_FAILED
 from app.domain.auth.errors import AuthenticationError
 from app.domain.user.errors import UserNotFoundError
@@ -11,6 +13,8 @@ if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.auth.principal import Principal
+
+logger = logging.getLogger(__name__)
 
 
 class LocalLogin:
@@ -29,6 +33,11 @@ class LocalLogin:
             stored = None if user is None else await uow.password_hashes.get(user.id)
         matched = await self._deps.hasher.verify(password, stored)
         if user is None or not matched:
+            logger.warning(
+                "Password login failed stage=local reason=local_credentials_rejected "
+                "login_id_hash=%s",
+                short_hash(account.value),
+            )
             raise AuthenticationError(LOGIN_FAILED)
         async with self._deps.uow_factory() as uow:
             current = await find_active_user(uow.users, account, purpose="로그인")

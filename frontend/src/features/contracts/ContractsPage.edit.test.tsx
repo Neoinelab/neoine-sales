@@ -145,9 +145,15 @@ describe('계약 수정 저장 (B2, AC11)', () => {
     expect(update).toHaveBeenCalledWith(c.id, { techOwner: '새기술담당', inspection: 'monthly', note: '수정된 메모' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^계약 수정/ })).not.toBeInTheDocument())
     await waitFor(() => expect(cellsOf(c)[9]).toHaveTextContent('새기술담당'))
-    expect(cellsOf(c)[10]).toHaveTextContent(INSPECTION_LABELS.monthly)
-    expect(cellsOf(c)[11]).toHaveTextContent('수정된 메모')
     expect(cellsOf(c)[1]).toHaveTextContent(c.customer)
+
+    // when: 같은 계약의 수정 대화상자를 다시 연다
+    await user.click(rowOf(c))
+    const saved = within(await dialog(`계약 수정 - ${c.dealName}`))
+
+    // then: 저장한 점검주기와 Note가 대화상자에 표시된다
+    expect(saved.getByRole('combobox', { name: '점검주기' })).toHaveDisplayValue(INSPECTION_LABELS.monthly)
+    expect(saved.getByLabelText('Note')).toHaveValue('수정된 메모')
   })
 
   // 수정 요청에는 Deal 칸이 없고 Deal 칸을 요구하지도 않는다.

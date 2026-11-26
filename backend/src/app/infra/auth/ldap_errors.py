@@ -1,5 +1,6 @@
 """ldap3·소켓·TLS 예외를 디렉터리 Port의 오류와 단계로 바꾼다. 원인 상세는 메시지에 싣지 않는다."""
 
+import re
 import ssl
 
 from ldap3.core.exceptions import (
@@ -15,8 +16,38 @@ from app.application.ports.directory import (
     VerificationStage,
 )
 
-# LDAP 결과 코드: 49 invalidCredentials, 50 insufficientAccessRights, 53 unwillingToPerform
-CREDENTIAL_REJECTION_CODES = frozenset({49, 50, 53})
+_INVALID_CREDENTIALS_CODE = 49
+_BIND_REJECTION_REASONS = {
+    _INVALID_CREDENTIALS_CODE: "ad_invalid_credentials",
+    50: "ad_insufficient_access",
+    53: "ad_unwilling_to_perform",
+}
+CREDENTIAL_REJECTION_CODES = frozenset(_BIND_REJECTION_REASONS)
+_AD_DATA = re.compile(r"\bdata\s+([0-9a-f]{3,4})\b", re.IGNORECASE)
+_AD_BIND_REASONS = {
+    "525": "ad_user_not_found",
+    "52e": "ad_invalid_credentials",
+    "52f": "ad_account_restriction",
+    "530": "ad_logon_hours_restricted",
+    "531": "ad_workstation_restricted",
+    "532": "ad_password_expired",
+    "533": "ad_account_disabled",
+    "701": "ad_account_expired",
+    "773": "ad_password_change_required",
+    "775": "ad_account_locked",
+}
+
+
+def bind_diagnostic(code: int | None, message: str) -> str:
+    if code is None:
+        return "ldap_bind_failed"
+    reason = _BIND_REJECTION_REASONS.get(code, "ldap_bind_failed")
+    if code == _INVALID_CREDENTIALS_CODE:
+        match = _AD_DATA.search(message)
+        if match is not None:
+            return _AD_BIND_REASONS.get(match[1].lower(), reason)
+    return reason
+
 
 MESSAGES = {
     VerificationStage.CONNECT: "디렉터리 서버에 연결하지 못했습니다",

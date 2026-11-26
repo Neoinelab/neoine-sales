@@ -2,11 +2,30 @@
 .partner-activity-page { display: grid; gap: 12px; min-width: 0; }
 .meeting-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
 .meeting-filters .field input, .meeting-filters .field select { width: 100%; min-width: 0; }
-.meeting-table { min-width: 720px; }
-.meeting-table th { white-space: nowrap; }
-.meeting-table td.meeting-date { white-space: nowrap; }
-.meeting-table td.meeting-content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 240px; }
-.meeting-table td.meeting-actions { white-space: nowrap; display: flex; gap: 6px; border-bottom: none; }
+.meeting-table {
+  --meeting-cell-gutter: 24px;
+  --meeting-action-padding: 8px;
+  --meeting-action-gap: 6px;
+}
+.meeting-table th:nth-child(1) { width: min(calc(10ic + var(--meeting-cell-gutter)), 18%); }
+.meeting-table th:nth-child(2) { width: min(calc(10ch + var(--meeting-cell-gutter)), 17%); }
+.meeting-table th:nth-child(4) { width: min(calc(5ic + var(--meeting-cell-gutter)), 12%); }
+.meeting-table th:nth-child(5) {
+  width: min(calc(4ic + var(--meeting-action-padding) * 4 + 4px + var(--meeting-action-gap) + var(--meeting-cell-gutter)), 25%);
+}
+.meeting-table .meeting-date { font-variant-numeric: tabular-nums; }
+.content .meeting-table .meeting-actions > button {
+  padding-inline: var(--meeting-action-padding);
+  white-space: nowrap;
+}
+.meeting-table .meeting-actions > button + button { margin-inline-start: var(--meeting-action-gap); }
+
+@media (max-width: 900px) {
+  .meeting-table {
+    --meeting-cell-gutter: 8px;
+    --meeting-action-padding: 3px;
+  }
+}
 .meetings-empty { padding: 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; margin: 0; }
 .meetings-more { display: flex; justify-content: center; padding: 8px 0; }
 .meetings-end { text-align: center; margin: 0; }

@@ -1,7 +1,9 @@
 import hashlib
 import hmac
+import logging
 from typing import TYPE_CHECKING
 
+from app.application.auth.log_ids import short_hash
 from app.domain.auth.errors import TooManyAttemptsError
 from app.domain.auth.login_failure import FailureCounter
 
@@ -12,6 +14,7 @@ if TYPE_CHECKING:
     from app.domain.auth.login_failure import FailurePolicy
 
 TOO_MANY_ATTEMPTS = "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요"
+logger = logging.getLogger(__name__)
 
 
 class LoginThrottle:
@@ -53,10 +56,17 @@ class LoginThrottle:
         """
         now = self._clock.now()
         async with self._uow_factory() as uow:
-            for key, policy in self._counters(login_id, client_ip):
+            counters = self._counters(login_id, client_ip)
+            for scope, (key, policy) in zip(("account", "ip"), counters, strict=True):
                 counter = await uow.login_failures.get_for_update(key)
                 counter = counter or FailureCounter(key, 0, now)
                 if counter.is_locked(now):
+                    logger.warning(
+                        "Password login failed stage=throttle reason=too_many_attempts "
+                        "scope=%s login_id_hash=%s",
+                        scope,
+                        short_hash(login_id.value),
+                    )
                     raise TooManyAttemptsError(TOO_MANY_ATTEMPTS)
                 await uow.login_failures.save(counter.record_failure(now, policy))
             await uow.commit()

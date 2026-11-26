@@ -62,7 +62,11 @@ class RecordingConnection(Connection):  # type: ignore[misc]
             time.sleep(self._owner.delay)
         code = self._owner.bind_codes_by_user.get(str(self.user), self._owner.bind_code)
         if code is not None:
-            self.result = {"result": code, "description": "injected", "message": ""}
+            self.result = {
+                "result": code,
+                "description": "injected",
+                "message": self._owner.bind_diagnostic,
+            }
             return False
         expected = self._owner.upn_passwords.get(str(self.user))
         if (
@@ -131,6 +135,7 @@ class MockDirectory:
         self.bind_code: int | None = None  # 설정하면 모든 bind가 이 LDAP 결과 코드로 실패한다
         # 바인드 계정(DN)별 결과 코드. bind_code보다 우선한다(서비스 계정만/사용자만 실패시킬 때)
         self.bind_codes_by_user: dict[str, int] = {}
+        self.bind_diagnostic = ""
         # UPN 바인드 이름(`kim@neoine.co.kr`) -> 비밀번호. 이 이름의 바인드는 비밀번호를 비교한다
         self.upn_passwords: dict[str, str] = {}
         # 설정하면 사용자 검색이 이 결과 코드로 끝난다(항목은 그대로 응답에 남는다)

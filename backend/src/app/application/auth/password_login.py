@@ -1,8 +1,10 @@
+import logging
 from typing import TYPE_CHECKING
 
 from app.application.auth.credential_check import parse_login_id
 from app.application.auth.directory_login import DirectoryLogin, LoginOutcome
 from app.application.auth.local_login import LocalLogin
+from app.application.auth.log_ids import short_hash
 from app.application.auth.messages import LOGIN_FAILED
 from app.application.auth.mode import current_mode
 from app.domain.auth.credentials import LoginId
@@ -15,6 +17,8 @@ if TYPE_CHECKING:
     from app.application.auth.deps import AuthDeps
     from app.application.auth.issue_session import IssueSession
     from app.domain.auth.credentials import Password
+
+logger = logging.getLogger(__name__)
 
 
 class PasswordLogin:
@@ -52,4 +56,8 @@ class PasswordLogin:
             return  # 형식 오류는 기존 흐름이 같은 문구로 거부한다
         if is_retired_dev_login_id(account):
             await self._deps.throttle.ensure_allowed(account, client_ip)
+            logger.warning(
+                "Password login failed stage=input reason=retired_login_id login_id_hash=%s",
+                short_hash(account.value),
+            )
             raise AuthenticationError(LOGIN_FAILED)

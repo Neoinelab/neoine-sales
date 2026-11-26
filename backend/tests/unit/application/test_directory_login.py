@@ -499,7 +499,10 @@ async def test_failed_directory_login_saves_no_hash(auth: AuthStack, uow: FakeUn
 
 
 async def test_login_of_an_unregistered_user_saves_no_hash(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory, uow: FakeUnitOfWork
+    auth: AuthStack,
+    uow_factory: UnitOfWorkFactory,
+    uow: FakeUnitOfWork,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """AD에는 있지만 등록되지 않은 아이디는 401이고 해시를 만들지 않는다.
 
@@ -513,8 +516,10 @@ async def test_login_of_an_unregistered_user_saves_no_hash(
     with pytest.raises(AuthenticationError):
         await _login(auth, "newbie", "pw-newbie")
 
-    # then: 해시가 만들어지지 않는다
+    # then: 해시는 저장되지 않고 앱에 활성 사용자가 없다는 이유가 남는다
     assert uow.password_hashes._items == {}
+    assert "stage=app_user reason=no_active_app_user" in caplog.text
+    assert "newbie" not in caplog.text
 
 
 @pytest.mark.usefixtures("ready")

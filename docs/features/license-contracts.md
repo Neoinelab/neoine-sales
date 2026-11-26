@@ -108,7 +108,7 @@ Won 연동
 
 목록
 - **LC-R17** 목록 조건은 AND다. `customer`(고객사명)·`product`(제품명)는 Deal 값의 대소문자 무시 부분 일치이며 `%`·`_`·`\`는 글자 그대로다. 앞뒤 공백을 지우고 비면 조건이 아니다. 최대 200자. `vendor_id`는 Deal Vendor id, `owner_user_id`는 Deal Owner id(퇴사자 포함) 일치, `status`는 4값 중 하나. 날짜 범위 `start_from`·`start_to`(시작일), `end_from`·`end_to`(종료일)는 양끝 포함, 한쪽만 줄 수 있고, 날짜 조건이 있으면 그 날짜가 없는 계약은 빠진다. 범위가 거꾸로면 422 `invalid-value` "라이선스 시작일 범위의 시작은 끝보다 늦을 수 없습니다." / "라이선스 종료일 범위의 시작은 끝보다 늦을 수 없습니다."(같은 날은 허용). 날짜는 1900-01-01~2999-12-31.
-- **LC-R18** 정렬 `sort`는 12개(`deal_name`·`customer`·`vendor`·`product`·`partner`·`license_start`·`license_end`·`status`·`sales_owner`·`tech_owner`·`inspection`·`note`)로 화면 표의 12열과 같다. `deal_code`는 정렬 키가 아니다(2026-11-09 제거, 보내면 다른 잘못된 정렬 키와 같은 422 `request-validation`). `order`는 `asc`·`desc`, 기본은 `license_end` `asc`. 텍스트는 소문자 C 정렬, 상태 순서는 not_issued < issued_new < issued_renewal < ended, 점검주기 순서는 monthly < quarterly < semiannual < yearly < none, 담당영업은 Owner 표시 이름(없으면 login_id). 값 없는 칸(날짜 null, Vendor·파트너 없음, 빈 Deal명·제품명·기술담당·Note)은 방향과 무관하게 맨 뒤, 동률은 id 오름차순.
+- **LC-R18** 정렬 `sort`는 12개(`deal_name`·`customer`·`vendor`·`product`·`partner`·`license_start`·`license_end`·`status`·`sales_owner`·`tech_owner`·`inspection`·`note`)다. 목록의 정렬 머리글은 화면에 표시하는 10열에만 제공한다. `deal_code`는 정렬 키가 아니다(2026-11-09 제거, 보내면 다른 잘못된 정렬 키와 같은 422 `request-validation`). `order`는 `asc`·`desc`, 기본은 `license_end` `asc`. 텍스트는 소문자 C 정렬, 상태 순서는 not_issued < issued_new < issued_renewal < ended, 점검주기 순서는 monthly < quarterly < semiannual < yearly < none, 담당영업은 Owner 표시 이름(없으면 login_id). 값 없는 칸(날짜 null, Vendor·파트너 없음, 빈 Deal명·제품명·기술담당·Note)은 방향과 무관하게 맨 뒤, 동률은 id 오름차순.
 - **LC-R19** 페이지: `offset` 0 이상(기본 0), `limit` 1~200(기본 50). 응답은 `{items, total, offset, limit}`이며 `total`은 페이지와 무관한 조건 전체 건수다. 알 수 없는 쿼리 파라미터는 422 `request-validation`.
 - **LC-R20** Deal 쪽 표시값: Deal 목록 행·상세 응답의 `license_contract_count`(종료 포함 그 Deal의 계약 수)와 `has_issued_license_contract`(발급 상태 계약이 있을 때만 true), 계약 응답의 `deal_is_won`(Deal Forecast가 won일 때 true), `GET /deals/{code}/deletion-impact`의 `license_contract_count`. 계약 첨부는 Deal의 `attachment_count`에 세지 않는다.
 
@@ -126,7 +126,7 @@ Deal 삭제·권한·사용자
 - **LC-R29** 계약 등록·수정자, 계약 첨부 업로더는 users FK RESTRICT라 그 사용자는 물리 삭제 대신 퇴사 처리된다(사용자 관리 feature의 연결 탐지가 적용).
 
 화면(frontend)
-- **LC-R30** 계약 목록 화면: 열 12개(Deal명, 고객사명, Vendor, 제품명, 파트너사, 라이선스 시작일, 라이선스 종료일, 상태, 담당영업, 기술담당, 점검주기, Note), Deal명 칸의 title은 Deal 코드, 빈 값은 `-`, 상태 표시 `미발급`·`발급(신규)`·`발급(갱신)`·`종료`, 점검주기 표시 `월 1회`·`분기 1회`·`반기 1회`·`연 1회`·`없음`. 50건씩 읽고 끝이 화면에 들어오면(또는 `더 보기`) 다음 50건을 잇는다. 같은 id는 한 번만 보인다. `전체 N건`은 서버 `total`, 다 읽으면 `모두 불러왔습니다 (전체 N건)`, 결과가 없으면 `조건에 맞는 계약이 없습니다.`. 머리글을 누르면 그 열로 서버 정렬(같은 열은 방향 전환, 다른 열은 오름차순), 기본은 종료일 오름차순. 행 클릭 또는 행에 포커스 후 Enter·Space로 계약 수정 대화상자를 연다.
+- **LC-R30** 계약 목록 화면: 열 10개(Deal명, 고객사명, Vendor, 제품명, 파트너사, 라이선스 시작일, 라이선스 종료일, 상태, 담당영업, 기술담당), Deal명 칸의 title은 Deal 코드, 빈 값은 `-`, 상태 표시 `미발급`·`발급(신규)`·`발급(갱신)`·`종료`. Deal명에 가장 넓은 폭(한글 약 20자 기준)을 배정하고 좁은 화면에서는 줄바꿈한다. 점검주기와 Note는 계약 수정 대화상자에서 확인한다. 50건씩 읽고 끝이 화면에 들어오면(또는 `더 보기`) 다음 50건을 잇는다. 같은 id는 한 번만 보인다. `전체 N건`은 서버 `total`, 다 읽으면 `모두 불러왔습니다 (전체 N건)`, 결과가 없으면 `조건에 맞는 계약이 없습니다.`. 머리글을 누르면 그 열로 서버 정렬(같은 열은 방향 전환, 다른 열은 오름차순), 기본은 종료일 오름차순. 행 클릭 또는 행에 포커스 후 Enter·Space로 계약 수정 대화상자를 연다.
 - **LC-R31** 검색 바: 고객사명·제품명(텍스트, 200자, 앞뒤 공백 제거 뒤 비면 조건 아님), Vendor(Vendor 관리 목록, `전체`), 담당영업(사용자 선택, 퇴사자 포함), 상태(`전체` + 4개), 라이선스 시작일·종료일 기간 선택(Deals '최종 업데이트'와 같은 프리셋 + 직접 지정, 종료일에만 다가오는 기간 프리셋 2개). 텍스트 칸 Enter 또는 `검색`으로 적용, `초기화`로 모두 비움. 범위가 거꾸로면 검색하지 않고 그 칸에 서버와 같은 문구를 보인다.
 - **LC-R32** 만료 임박 색: 발급 상태 계약만, 종료일 < 오늘+1개월이면 위험(`만료 1개월 미만`, 지난 날 포함), 종료일 < 오늘+2개월이면 주의(`만료 2개월 미만`). 오늘+N개월은 같은 날이 없으면 그 달 말일. 오늘은 서버 시계 기준. 상태 칸은 발급 상태면 `status-issued`, 종료면 `status-ended`.
 - **LC-R33** 계약 수정 대화상자(제목 `계약 수정 - <Deal명>`): Deal 정보(고객사명·Vendor·제품명·파트너사·담당영업)는 읽기 전용, 기술담당·점검주기·Note는 sales·admin만 편집. 라이선스 발급·갱신 버튼을 누르면 시작일·종료일 칸이 활성화되고 시작일로 포커스한다. 신규 기본값은 오늘부터 1년, 갱신 기본값은 기존 종료일 다음 날부터 기존 기간이다. 두 날짜를 직접 변경할 수 있고 종료일 포함 유지 일수를 표시한다. 미발급의 두 날짜는 빈 비활성 칸이며 기존 계약은 저장된 두 날짜를 그대로 표시한다. `저장`은 버튼을 누르지 않았으면 계약 칸 수정, 눌렀으면 두 날짜로 발급·갱신한다. 빈 날짜, 잘못된 날짜, 종료일이 시작일보다 빠른 경우에는 저장하지 않고 오류를 표시한다. Deal이 Won이 아니면(`dealIsWon` false) 발급·갱신 버튼은 비활성이고 힌트 `Won인 Deal의 계약만 발급하거나 갱신할 수 있습니다.`를 보인다. 종료 계약에는 발급·갱신·계약 종료 버튼이 없다. 성공하면 대화상자를 닫고 목록 위 알림(`계약을 수정했습니다.`·`라이선스를 발급했습니다.`·`라이선스를 갱신했습니다.`·`계약을 종료했습니다.`·`계약을 삭제했습니다.`), 서버 거절(409·422 등)은 대화상자 안 `role="alert"`로 보이고 닫히지 않는다. `취소`는 입력을 버린다. user에게는 `저장` 버튼이 없고 칸이 비활성이다.
@@ -186,7 +186,7 @@ Deal 삭제·권한·사용자
 
 ### 2.7 화면 동작
 
-LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서버를 부르고, 계약 변경 성공 뒤 계약 목록을 처음부터 다시 읽고 Deal 쿼리도 무효화한다(Deal의 계약 건수·발급 여부 갱신). 종료일·만료 단계 계산은 미리보기용이며 서버 값이 정본이다. 화면의 정렬 키는 표 12열과 같아 `deal_code` 제거로 바뀌는 화면 동작은 없다.
+LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서버를 부르고, 계약 변경 성공 뒤 계약 목록을 처음부터 다시 읽고 Deal 쿼리도 무효화한다(Deal의 계약 건수·발급 여부 갱신). 종료일·만료 단계 계산은 미리보기용이며 서버 값이 정본이다. 화면의 정렬 키는 표시하는 10열과 같다.
 
 ### 2.8 오류와 메시지
 
@@ -324,7 +324,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-019 | 날짜 범위는 양끝을 포함하고 날짜 없는 계약은 뺀다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_same_day_range_and_one_sided_ranges_are_accepted`<br>`web/test_license_contract_openapi.py::test_list_query_parameters`<br>`repositories/test_license_contract_search_contract.py::test_search_start_range_is_inclusive_and_excludes_contracts_without_dates`<br>외 1건 |
 | LC-020 | 날짜 범위가 거꾸로면 422로 거절한다 | LC-R17, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_reversed_start_range_rejected`<br>`application/test_license_contract_query.py::test_query_reversed_end_range_rejected`<br>`web/test_license_contract_routes.py::test_list_with_a_reversed_range_is_422_invalid_value` |
 | LC-021 | 12개 정렬 키는 방향대로 정렬하고 값 없는 칸은 맨 뒤, 동률은 id 순이다 | LC-R18, LC-UC3 | backend | `application/test_license_contract_query.py::test_query_sort_keys_are_the_twelve_table_columns`<br>`web/test_license_contract_openapi.py::test_the_sort_status_and_order_parameters_list_their_values`<br>`repositories/test_license_contract_sort_contract.py::test_search_sort_each_column_asc_empty_last_tie_by_id`<br>외 2건 |
-| LC-022 | 화면: 계약관리를 열면 첫 50건과 전체 건수, 12개 머리글이 보인다 | LC-R30, LC-UC3 | frontend | `features/contracts/ContractsPage.test.tsx > shows the first fifty contracts with the server total and the 12 headers in order`<br>`features/contracts/ContractsPage.test.tsx > shows the values of the first server row in its cells and the four status labels`<br>`features/contracts/ContractsPage.test.tsx > has no mock-data notice any more`<br>외 1건 |
+| LC-022 | 화면: 계약관리를 열면 첫 50건과 전체 건수, 10개 머리글이 보인다 | LC-R30, LC-UC3 | frontend | `features/contracts/ContractsPage.test.tsx > shows the first fifty contracts with the server total and the 10 headers in order`<br>`features/contracts/ContractsPage.test.tsx > shows the values of the first server row in its cells and the four status labels`<br>`features/contracts/ContractsPage.test.tsx > has no mock-data notice any more`<br>외 1건 |
 | LC-023 | 화면: 목록 끝에 닿으면 다음 50건을 잇고 다 읽으면 끝을 알린다 | LC-R30, LC-UC3 | frontend | `features/contracts/ContractsPage.scroll.test.tsx > reads fifty at a time with the total from the server and appends the next page when the end scrolls into view`<br>`features/contracts/ContractsPage.scroll.test.tsx > observes a sentinel with a 200px root margin and says everything is loaded after the last page`<br>`features/contracts/ContractsPage.scroll.test.tsx > shows each contract once even if the list shifts between pages`<br>외 2건 |
 | LC-024 | 화면: 검색 조건이 서버 조건으로 가고 초기화하면 전체로 돌아온다 | LC-R31, LC-R30, LC-UC3 | frontend | `features/contracts/ContractsPage.test.tsx > sends the customer text to the server and restores the list on reset`<br>`features/contracts/ContractsPage.test.tsx > searches on Enter`<br>`features/contracts/ContractsPage.test.tsx > filters by part of the product name ignoring case, using the server`<br>외 6건 |
 | LC-025 | 화면: 날짜 범위가 거꾸로면 검색하지 않고 문구를 보인다 | LC-R31, LC-UC3 | frontend | `features/contracts/ContractsPage.test.tsx > does not search and shows the error when the start is later than the end` |
@@ -496,10 +496,10 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - When `sort`=12개 키(`deal_name`~`note`, LC-R18) 각각, `order`=`asc`·`desc`로 읽는다
 - Then 값이 있는 계약은 방향대로(상태·점검주기는 LC-R18의 순서, 텍스트는 대소문자 무시) 정렬되고 값 없는 계약은 두 방향 모두 맨 뒤, 같은 값은 id 오름차순이다
 
-### LC-022 화면: 계약관리를 열면 첫 50건과 전체 건수, 12개 머리글이 보인다
+### LC-022 화면: 계약관리를 열면 첫 50건과 전체 건수, 10개 머리글이 보인다
 - Given 서버에 계약이 50건보다 많다(모든 역할 각각)
 - When `/contracts`를 연다
-- Then `계약 목록` 표에 50행과 `전체 N건`(서버 `total`), 머리글 12개가 LC-R30의 순서로 보이고, 첫 행 칸에 서버 값(빈 값은 `-`, 상태·점검주기는 표시 이름)이 보인다. 시안 안내 문구는 없다
+- Then `계약 목록` 표에 50행과 `전체 N건`(서버 `total`), 머리글 10개가 LC-R30의 순서로 보이고, 첫 행 칸에 서버 값(빈 값은 `-`, 상태는 표시 이름)이 보인다. 시안 안내 문구는 없다
 
 ### LC-023 화면: 목록 끝에 닿으면 다음 50건을 잇고 다 읽으면 끝을 알린다
 - Given 서버에 계약 120건

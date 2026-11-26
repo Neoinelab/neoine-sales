@@ -4,7 +4,7 @@ import { userLabel } from '../../shared/model/period'
 import type { LicenseContract } from '../../shared/model/types'
 import { EXPIRY_TITLES, expiryLevel } from './contractExpiry'
 import type { ContractSort } from './contractFilter'
-import { INSPECTION_LABELS, STATUS_LABELS, isIssuedStatus } from './contractLabels'
+import { STATUS_LABELS, isIssuedStatus } from './contractLabels'
 
 const COLUMNS: readonly { label: string; sort: ContractSort }[] = [
   { label: 'Deal명', sort: 'dealName' },
@@ -17,8 +17,6 @@ const COLUMNS: readonly { label: string; sort: ContractSort }[] = [
   { label: '상태', sort: 'status' },
   { label: '담당영업', sort: 'salesOwner' },
   { label: '기술담당', sort: 'techOwner' },
-  { label: '점검주기', sort: 'inspection' },
-  { label: 'Note', sort: 'note' },
 ]
 
 interface ContractTableProps {
@@ -85,8 +83,6 @@ export function ContractTable({ rows, sort, order, onSort, today, onEdit }: Cont
                 </td>
                 <td>{userLabel(row.salesOwner)}</td>
                 <td>{dash(row.techOwner)}</td>
-                <td>{INSPECTION_LABELS[row.inspection]}</td>
-                <td className="contract-note">{dash(row.note)}</td>
               </tr>
             )
           })}

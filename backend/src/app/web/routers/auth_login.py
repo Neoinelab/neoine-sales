@@ -1,7 +1,10 @@
 """아이디·비밀번호 로그인(AD 또는 앱 자체 계정). 성공하면 HttpOnly 세션 쿠키를 준다."""
 
+import logging
+
 from fastapi import APIRouter, Depends, Request, Response
 
+from app.domain.auth.errors import AuthenticationError
 from app.web.dependencies import Provider
 from app.web.request_info import client_ip
 from app.web.routers.responses import PROBLEM
@@ -9,6 +12,7 @@ from app.web.schemas.auth import LoginRequest, LoginResponse
 from app.web.security import AUTH_PATH, Options, require_csrf_header, set_session_cookie
 
 router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -19,8 +23,13 @@ router = APIRouter(prefix=AUTH_PATH, tags=["auth"])
 async def login(
     body: LoginRequest, request: Request, response: Response, provider: Provider, options: Options
 ) -> LoginResponse:
+    try:
+        password = body.to_password()
+    except AuthenticationError:
+        logger.warning("Password login failed stage=input reason=invalid_password_format")
+        raise
     outcome = await provider.password_login().execute(
-        login_id=body.login_id, password=body.to_password(), client_ip=client_ip(request)
+        login_id=body.login_id, password=password, client_ip=client_ip(request)
     )
     set_session_cookie(response, outcome.session.token, options)
     return LoginResponse.from_outcome(outcome)

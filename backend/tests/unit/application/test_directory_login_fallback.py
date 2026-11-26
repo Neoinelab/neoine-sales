@@ -350,7 +350,11 @@ async def test_fallback_failure_returns_original_error_and_counts_failure(
 
 @pytest.mark.parametrize("case", ["unregistered", "no-hash"])
 async def test_fallback_without_hash_still_runs_verify(
-    auth: AuthStack, uow_factory: UnitOfWorkFactory, people: dict[str, User], case: str
+    auth: AuthStack,
+    uow_factory: UnitOfWorkFactory,
+    people: dict[str, User],
+    case: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """해시가 없어도 같은 비용의 더미 검증을 한다.
 
@@ -367,8 +371,10 @@ async def test_fallback_without_hash_still_runs_verify(
     with pytest.raises(DirectoryUnavailableError):
         await _login(auth, login_id, "pw-anything")
 
-    # then: 해시 없이 더미 검증을 한 번 했다
+    # then: 해시 없이 더미 검증을 한 번 하고 AD 장애 단계와 대체 로그인 실패 이유가 남는다
     assert auth.hasher.verify_calls == [None]
+    reason = "no_saved_password_hash" if case == "no-hash" else "no_active_app_user"
+    assert f"stage=fallback directory_stage=connect reason={reason}" in caplog.text
 
 
 async def test_fallback_login_is_blocked_while_locked(

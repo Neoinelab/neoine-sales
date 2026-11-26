@@ -11,7 +11,7 @@ import { pinClock, unpinClock } from '../../test/partnerMeetings'
  * 목록은 서버가 정렬·필터·쪽 나누기를 하고(50건씩) 화면의 `전체 N건`은 서버 total이다. 시계는 2027-03-15 고정.
  */
 const PAGE = '/contracts'
-const COLUMNS = ['Deal명', '고객사명', 'Vendor', '제품명', '파트너사', '라이선스 시작일', '라이선스 종료일', '상태', '담당영업', '기술담당', '점검주기', 'Note']
+const COLUMNS = ['Deal명', '고객사명', 'Vendor', '제품명', '파트너사', '라이선스 시작일', '라이선스 종료일', '상태', '담당영업', '기술담당']
 const LOAD = { timeout: 8000 }
 const PAGE_SIZE = 50
 
@@ -48,16 +48,15 @@ function fits(expected: readonly LicenseContract[]) {
 }
 
 describe('목록 (AC2, AC19)', () => {
-  // 계약관리를 열면 첫 50건과 서버 전체 건수, 12개 머리글이 순서대로 보인다.
   // 테스트 코드: LC-022
-  it('shows the first fifty contracts with the server total and the 12 headers in order', async () => {
+  it('shows the first fifty contracts with the server total and the 10 headers in order', async () => {
     // given: 서버에 계약이 50건보다 많다
     expect(contracts.length).toBeGreaterThan(PAGE_SIZE)
 
     // when: /contracts를 연다
     await open()
 
-    // then: 계약 목록 표에 50행, 전체 N건, 머리글 12개가 보인다
+    // then: 계약 목록 표에 50행, 전체 N건, 머리글 10개가 보인다
     expect(rows()).toHaveLength(PAGE_SIZE)
     expect(screen.getByText(`전체 ${contracts.length}건`)).toBeVisible()
     expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(COLUMNS)
@@ -76,6 +75,7 @@ describe('목록 (AC2, AC19)', () => {
     const cells = within(rows()[0]!).getAllByRole('cell')
 
     // then: 첫 행 칸이 서버 값이고 상태는 미발급·발급(신규)·발급(갱신)·종료로 보인다
+    expect(cells).toHaveLength(COLUMNS.length)
     expect(cells[0]).toHaveTextContent(first.dealName)
     expect(cells[1]).toHaveTextContent(first.customer)
     expect(cells[3]).toHaveTextContent(first.product)
@@ -364,8 +364,6 @@ describe('정렬 (AC6, AC18)', () => {
     ['상태', 'status'],
     ['담당영업', 'salesOwner'],
     ['기술담당', 'techOwner'],
-    ['점검주기', 'inspection'],
-    ['Note', 'note'],
     ['Deal명', 'dealName'],
   ] as const)('sorts by %s on the server when its header is clicked', async (label, sort) => {
     // given: 계약 목록 화면(처음 요청은 종료일 오름차순)

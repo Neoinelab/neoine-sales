@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from app.application.auth.messages import LOGIN_FAILED
@@ -12,12 +13,15 @@ if TYPE_CHECKING:
     from app.domain.auth.credentials import Password
     from app.domain.directory.settings import DirectorySettings
 
+logger = logging.getLogger(__name__)
+
 
 def parse_login_id(raw: str) -> LoginId:
     """형식이 잘못된 아이디도 다른 실패와 같은 문구로 거부한다(AD에 보내지 않는다)."""
     try:
         return LoginId(raw)
     except InvalidValueError:
+        logger.warning("Password login failed stage=input reason=invalid_login_id_format")
         raise AuthenticationError(LOGIN_FAILED) from None
 
 

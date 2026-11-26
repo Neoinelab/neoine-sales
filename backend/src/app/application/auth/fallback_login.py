@@ -70,6 +70,18 @@ class FallbackLogin:
         # 사용자·해시가 없어도 verify(None)으로 같은 비용을 쓴다
         matched = await self._deps.hasher.verify(password, stored)
         if user is None or not matched:
+            if user is None:
+                reason = "no_active_app_user"
+            elif stored is None:
+                reason = "no_saved_password_hash"
+            else:
+                reason = "saved_password_mismatch"
+            logger.warning(
+                "AD login failed stage=fallback directory_stage=%s reason=%s login_id_hash=%s",
+                stage.value,
+                reason,
+                short_hash(account.value),
+            )
             raise original
         async with self._deps.uow_factory() as uow:
             current = await find_active_user(uow.users, account, purpose="대체 로그인")

@@ -75,6 +75,11 @@ class DirectoryLogin:
                 raise AuthenticationError(LOGIN_FAILED) from None
             except DirectoryUnavailableError as error:
                 stage, failure = warning_stage_of(error), error
+                logger.warning(
+                    "AD authentication unavailable stage=%s login_id_hash=%s",
+                    error.stage.value if error.stage is not None else stage.value,
+                    short_hash(account.value),
+                )
             else:
                 password_hash = await self._deps.hasher.hash(password)
                 return await self._record_login(account, profile, password_hash), None
@@ -98,7 +103,8 @@ class DirectoryLogin:
                 user = await uow.users.get_active_by_login_id(account)
             except AmbiguousLoginIdError as error:
                 logger.warning(
-                    "재직 로그인 아이디 중복으로 로그인 거부 count=%d login_id_hash=%s",
+                    "AD login failed stage=app_user reason=duplicate_active_users "
+                    "count=%d login_id_hash=%s",
                     error.count,
                     short_hash(account.value),
                 )
@@ -117,6 +123,10 @@ class DirectoryLogin:
                     user = None
                 else:
                     await uow.commit()
-        if user is None:  # 미등록이거나 로그인 중 삭제됨. 선점한 시도가 실패 1회로 남는다
+        if user is None:
+            logger.warning(
+                "AD login failed stage=app_user reason=no_active_app_user login_id_hash=%s",
+                short_hash(account.value),
+            )
             raise AuthenticationError(LOGIN_FAILED)
         return user.to_principal()

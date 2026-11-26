@@ -151,6 +151,23 @@ async def test_domain_bind_name_uses_the_normalized_login_id(directory: MockDire
     assert _bind_users(directory)[0] == KIM_UPN
 
 
+async def test_rejected_upn_bind_logs_only_safe_ad_diagnostics(
+    directory: MockDirectory, caplog: pytest.LogCaptureFixture
+) -> None:
+    """AD 계정 잠금 사유만 기록하고 LDAP 원문과 자격증명은 숨긴다."""
+    # given: LDAP 49와 AD 잠금 코드가 포함된 바인드 거절 응답
+    directory.bind_codes_by_user[KIM_UPN] = 49
+    directory.bind_diagnostic = f"LDAP diagnostic data 775, {KIM_UPN} {PASSWORD}"
+
+    # when·then: 로그인은 거절되고 안전한 진단 값만 로그에 남는다
+    with pytest.raises(InvalidCredentialsError):
+        await _authenticate(directory)
+    assert "reason=ad_account_locked" in caplog.text
+    assert "ldap_code=49" in caplog.text
+    assert KIM_UPN not in caplog.text
+    assert PASSWORD not in caplog.text
+
+
 @pytest.mark.parametrize("hostile", ["x,ou=admins+cn=y", "kim@evil.test"])
 async def test_hostile_login_id_never_reaches_a_domain_bind(
     directory: MockDirectory, hostile: str
