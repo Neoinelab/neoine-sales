@@ -126,7 +126,7 @@ OpenAPI 계약
   | `/admin/users`, `/admin/deal`, `/admin/contacts`, `/admin/integrations` | RequireAuth + RequireAdmin | admin |
 
   화면 안의 버튼 노출·대상별 권한은 소유 feature 2.7이다.
-- **PL-R34** 상단 바: 브랜드("NEOINE" + "영업관리"), 주 메뉴(`navigation` 이름 "주 메뉴")는 모든 역할에 Deals(`/deals`, 실제 링크는 기억된 목록 주소 — DL), 계약관리(`/contracts`), 파트너 Activity(`/partner-activities`), Dashboard(`/dashboard`), Forecast(`/forecast`), Reports(`/reports`) 순서 6개이고 admin에게만 맨 끝에 Admin(`/admin`)을 더한다. 좁은 화면의 `메뉴 열기` 버튼은 메뉴를 펼치고(`aria-expanded`) 메뉴 항목을 고르면 닫힌다. 사용자 메뉴는 ME다.
+- **PL-R34** 상단 바: 브랜드는 프런트엔드 정적 자산 `frontend/public/images/salesX.png`를 웹 경로 `/images/salesX.png`로 표시하고 홈(`/`) 링크로 동작한다. OS 직접 실행 환경에서는 Nginx가 정적 파일을 따로 처리하지 않고 이 경로를 포함한 모든 프런트 요청을 Vite로 프록시하며, Vite가 `public` 자산을 응답한다. "NEOINE 영업관리" 문구는 표시하지 않는다. 주 메뉴(`navigation` 이름 "주 메뉴")는 모든 역할에 Deals(`/deals`, 실제 링크는 기억된 목록 주소 — DL), 계약관리(`/contracts`), 파트너 Activity(`/partner-activities`), Dashboard(`/dashboard`), Forecast(`/forecast`), Reports(`/reports`) 순서 6개이고 admin에게만 맨 끝에 Admin(`/admin`)을 더한다. 좁은 화면의 `메뉴 열기` 버튼은 메뉴를 펼치고(`aria-expanded`) 메뉴 항목을 고르면 닫힌다. 사용자 메뉴는 ME다.
 - **PL-R35** Admin 틀: 제목(h1) "Admin > Settings", 왼쪽 서브 메뉴(`navigation` 이름 "Admin 메뉴") 4개 — 사용자 관리(`/admin/users`), Deal 관리(`/admin/deal`), contacts 관리(`/admin/contacts`), 외부연동(`/admin/integrations`). 현재 화면의 서브 메뉴는 `aria-current="page"`이고 누르면 그 화면으로 간다.
 - **PL-R36** 화면의 역할 판단 함수(`shared/model/permissions.ts`): `canWrite` = admin·sales, `isAdmin`·`canAccessAdmin`·`canManageMasterData` = admin, `visibleMenu` = PL-R34 순서. 화면은 이 함수로 버튼·메뉴를 숨기지만 정본 판정은 서버다(화면이 숨겨도 서버가 PL-R6·R7로 거절한다). 대상별 판단 함수(`canDeleteDeal`, `canEditAction`, `canDeleteAttachment`, `canEditMeeting`, 리포트 함수, `canBeOwner`)는 소유 feature 규칙이다.
 - **PL-R37** 화면의 API 오류 문구(`ApiError`): Problem이면 `detail`을 그대로 쓰고, `errors`에 `loc` 배열이 있는 항목이 있으면 `<detail> — <loc의 첫 조각을 뺀 경로를 .으로 이음>: <msg>`(여러 개는 ", ")를 붙인다. `loc`가 없는 항목은 건너뛴다(오류를 던지지 않는다). Problem이 아닌 403은 "이 작업을 수행할 권한이 없습니다. 관리자에게 문의하세요.", 그 밖의 Problem이 아닌 실패는 "요청에 실패했습니다 (<상태>)"다. `ApiError`가 아닌 오류를 문구로 바꾸면 "네트워크 오류가 발생했습니다. 잠시 후 다시 시도하세요."다. `errorFields`는 `errors[].location`의 첫 조각(문자열)만 모은다(칸 강조용, 문구는 다시 만들지 않는다).
@@ -306,6 +306,7 @@ PL-R29~PL-R39. 화면은 `App.tsx`의 라우트와 세 가드만으로 접근을
 | PL-070 | 화면: 모양이 다른 오류 항목은 건너뛰고 칸 위치만 모은다 | PL-R37, PL-UC3 | frontend | `shared/api/problem.test.ts > ignores error items without loc instead of throwing`<br>`shared/api/problem.test.ts > still lists the items that do have loc next to ones that do not`<br>`shared/api/problem.test.ts > collects the first string part of each location and skips items of another shape` |
 | PL-071 | 화면: 서버 오류 종류를 화면 종류로 정규화한다 | PL-R39, PL-UC3 | frontend | `gateway/http/request.test.ts > maps %s to %s`<br>`gateway/http/request.test.ts > status %i %s becomes kind %s`<br>`gateway/http/request.test.ts > keeps the stage of a directory verification failure` |
 | PL-072 | 화면: 본문이 있어야 할 성공 응답에 본문이 없으면 해석 불가 오류다 | PL-R39, PL-UC3 | frontend | `gateway/http/request.test.ts > turns a success response without a body into an unreadable-response error`<br>`gateway/http/request.test.ts > resolves for a 204 without a body` |
+| PL-073 | 화면: 보호 화면 상단의 브랜드 문구를 salesX 로고 이미지로 대체한다 | PL-R34, PL-UC6 | frontend | `shared/ui/Layout.menu.test.tsx > 상단 브랜드는 salesX 로고 이미지로 홈에 연결된다` |
 
 ### PL-001 역할 3종은 정해진 권한 묶음만 가진다
 - When 역할 `admin`·`sales`·`user`마다 `read`·`write`·`administer` 권한을 물어본다
@@ -656,8 +657,15 @@ PL-R29~PL-R39. 화면은 `App.tsx`의 라우트와 세 가드만으로 접근을
 - When 게이트웨이가 결과를 푼다
 - Then 상태 502, 문구 "서버 응답을 해석할 수 없습니다."의 `ApiError`다. 본문 없는 204 요청은 성공으로 끝난다
 
+### PL-073 화면: 보호 화면 상단의 브랜드 문구를 salesX 로고 이미지로 대체한다
+- Given 로그인한 사용자가 보호 화면을 연다
+- When 상단 브랜드 영역을 본다
+- Then 접근 가능한 이름 "salesX"인 로고 이미지가 `/images/salesX.png`에서 로드되어 홈(`/`) 링크 안에 보이고 "NEOINE 영업관리" 문구는 없다
+
 ## 5. 변경 이력
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |
+| 2026-11-26 | 사용자 요청: 보호 화면 상단의 "NEOINE 영업관리" 문구를 salesX 로고 이미지로 대체 | PL-073(신규) |
+| 2026-11-26 | OS 직접 실행 환경의 Nginx → Vite 전체 프록시 구조와 salesX 정적 자산 제공 경로 명시 | PL-073 |
 | 2026-11-09 | 최초 작성(초안): 구현된 플랫폼 공통 동작을 정본 명세로 옮김. 규칙 PL-R1~R39, use case PL-UC1~UC6, BDD 케이스 PL-001~PL-072 | PL-001~PL-072(신규) |

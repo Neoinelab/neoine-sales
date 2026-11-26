@@ -67,6 +67,8 @@ corepack pnpm dev
 | http://localhost:8000/docs | API 문서 (local 프로파일에서만 열림) |
 | http://localhost:8000/readyz | 백엔드와 DB 연결 상태 |
 
+OS에 직접 설치한 서버에서 Nginx를 앞에 둘 때는 `/images/**` 같은 정적 파일을 포함한 모든 프런트 요청을 Vite(`http://127.0.0.1:5173`)로 프록시합니다. Vite가 `frontend/public`의 파일을 같은 경로로 제공하고 `/api/**`는 FastAPI(`http://localhost:8000`)로 다시 프록시하므로, Nginx에 정적 파일용 `alias`나 별도 `/images/` 규칙을 두지 않습니다. Nginx가 전달하는 서비스 도메인은 `frontend/vite.config.ts`의 `allowedHosts`에 등록되어 있어야 합니다.
+
 개발용 자동 로그인은 없습니다(2026-11-03 제거). 최초 설정이 안 된 DB로 접속하면 **반드시 `/setup`의 최초 설정**을 거칩니다. AD 서버 없이 로컬에서 개발하려면 인증 방식에서 **앱에서 직접 관리(local)**를 고르고 저장 위치 → admin 아이디·비밀번호를 등록하면 그 계정으로 자동 로그인됩니다. sales·user 계정은 admin이 사용자 관리에서 만듭니다(user는 조회만 가능하고, 사용자 관리·설정 메뉴는 admin에게만 보입니다). 예전 개발용 로그인 아이디 `dev-admin`·`dev-sales`·`dev-user`는 예약되어 등록할 수 없습니다.
 
 처음 접속하면 `/setup`에서 먼저 **인증 방식**(AD 연동 / 앱에서 직접 관리)을 고르고, AD 연동이면 **① AD 서버 등록 → ② 첨부 파일 저장 위치 → ③ admin 등록(AD 아이디·비밀번호)**, 앱에서 직접 관리하면 **저장 위치 → admin 아이디·비밀번호·이름 등록**을 차례로 하고, 성공하면 자동 로그인됩니다. AD 서버 정보는 환경변수가 아니라 DB에 저장되며 이후 admin이 설정 메뉴에서 바꿉니다. 로컬에서 실제 AD 로그인을 시험하려면 앱 서버에서 AD에 접근할 수 있어야 합니다.

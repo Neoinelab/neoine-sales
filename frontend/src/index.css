@@ -79,7 +79,10 @@ a { color: var(--accent-text); }
 
 /* 상단 바(portal 사이드바 항목 스타일: px-3 py-2 rounded-lg text-sm font-medium) */
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 20px; padding: 0 24px; height: var(--topbar-h); background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-md); }
-.brand { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.brand { display: flex; align-items: center; white-space: nowrap; }
+.logo-link { position: relative; display: flex; align-items: center; }
+.logo-link::before { content: ''; position: absolute; inset: -6px 0; }
+.logo-img { display: block; width: auto; height: 32px; }
 .brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-text); }
 .brand-sub { font-size: var(--font-base); color: var(--muted); }
 .topbar-menu { flex: 1; display: flex; align-items: center; gap: 16px; align-self: stretch; min-width: 0; }

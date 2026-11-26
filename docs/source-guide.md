@@ -19,6 +19,8 @@
 | CI/CD | Jenkins(Multibranch) → api·web 이미지를 사내 레지스트리에 push → SSH로 서버에 `infra/docker/deploy.sh` 실행 |
 | 서버 | on-prem Linux, docker compose(product 1대: postgres 18 `db`, `api`, nginx `web`(TLS·정적 파일·`/api` 프록시)) |
 
+현재 OS에 직접 설치해 실행하는 환경은 외부 Nginx가 `/images/**`를 포함한 모든 웹 요청을 Vite(5173)로 프록시한다. Vite는 `frontend/public`의 정적 자산을 같은 URL로 응답하고 `/api`만 FastAPI(8000)로 프록시한다. 아래 docker compose product 구성은 Nginx가 빌드된 `frontend/dist`를 직접 서빙하는 별도 배포 방식이다.
+
 최상위 구조:
 
 ```
@@ -274,6 +276,8 @@ cd frontend && corepack pnpm install && corepack pnpm dev        # 터미널 2 (
 ```
 
 처음 접속하면 최초 설정(인증 방식 선택 → AD 서버(AD 연동일 때) → 저장 위치 → admin)을 거칩니다. 개발용 빠른 로그인은 없으므로 로컬에서는 최초 설정에서 "앱에서 직접 관리"로 admin을 만들어 씁니다(2026-11-03). 프런트 개발 서버도 항상 실제 백엔드를 호출하므로(목업 모드 없음) 백엔드를 함께 띄웁니다. corepack 서명 오류가 나면 `COREPACK_INTEGRITY_KEYS=0`을 앞에 붙입니다.
+
+OS 직접 설치 서버에서 Nginx는 정적 파일 경로를 별도로 `alias`하지 않고 모든 프런트 요청을 `http://127.0.0.1:5173`으로 프록시한다. 따라서 `frontend/public/images/salesX.png`는 `/images/salesX.png`로 Vite가 제공한다. `/api/**`도 먼저 Vite에 도착하며 `vite.config.ts`의 프록시가 FastAPI `http://localhost:8000`으로 전달한다. Nginx는 원래 `Host`와 전달 헤더를 유지하고, Vite의 `allowedHosts`에는 서비스 도메인이 등록되어 있어야 한다.
 
 ### 5.2 검증(게이트)
 

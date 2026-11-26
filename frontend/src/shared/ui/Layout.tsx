@@ -28,7 +28,7 @@ export function Layout() {
       <header className="topbar">
         <span className="brand">
           <a href="/" className="logo-link">
-            <img src="logo.png" alt="사이트 로고" className="logo-img"/>
+            <img src="/images/salesX.png" alt="salesX" className="logo-img" />
           </a>
         </span>
         <button
