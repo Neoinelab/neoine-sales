@@ -8,16 +8,16 @@ interface NextActionStatusCellProps {
   busy: boolean
   /** 행의 Next Action 칸 id. 같은 이름의 버튼을 행별로 구분하도록 설명으로 연결한다(버튼 이름은 그대로). */
   describedBy?: string
-  /** 종료된 행에 종료일을 덧붙인다(상세 팝업). */
-  showClosedOn?: boolean
+  surface: 'table' | 'dialog'
   /** 종료(수행)·종료(미수행)(전환 포함)는 Comment 종료 대화상자를 거치고, Open으로는 바로 바꾼다. */
   onChange: (action: DealAction, status: NextActionStatus) => void
 }
 
 /** Actions 표의 상태 칸. Next Action이 없는 행은 상태도 버튼도 없다. */
-export function NextActionStatusCell({ action, canChange, busy, describedBy, showClosedOn = false, onChange }: NextActionStatusCellProps) {
+export function NextActionStatusCell({ action, canChange, busy, describedBy, surface, onChange }: NextActionStatusCellProps) {
   const status = action.nextActionStatus
   if (status === null) return <>—</>
+  const inDialog = surface === 'dialog'
   const button = (target: NextActionStatus, label: string) => (
     <button type="button" className="dd-small" disabled={busy} aria-describedby={describedBy} onClick={() => onChange(action, target)}>
       {label}
@@ -27,11 +27,11 @@ export function NextActionStatusCell({ action, canChange, busy, describedBy, sho
     <span className="dd-row dd-next-action-status">
       <span>
         {NEXT_ACTION_STATUS_LABEL[status]}
-        {showClosedOn && status !== 'open' && action.nextActionClosedOn ? ` · 종료일 ${action.nextActionClosedOn}` : ''}
+        {inDialog && status !== 'open' && action.nextActionClosedOn ? ` · 종료일 ${action.nextActionClosedOn}` : ''}
       </span>
-      {canChange && status !== 'done' && button('done', '종료(수행)')}
-      {canChange && status !== 'notDone' && button('notDone', '종료(미수행)')}
-      {canChange && status !== 'open' && button('open', 'Open으로')}
+      {canChange && (inDialog ? status !== 'done' : status === 'open') && button('done', '종료(수행)')}
+      {canChange && inDialog && status !== 'notDone' && button('notDone', '종료(미수행)')}
+      {canChange && inDialog && status !== 'open' && button('open', 'Open으로')}
     </span>
   )
 }

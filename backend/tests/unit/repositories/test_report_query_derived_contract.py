@@ -93,7 +93,7 @@ async def test_risk_status_days_and_last_updated_match_the_deal_list(
     expected = {}
     for item in listed:
         risk = compute_risk(
-            forecast_key=item.deal.sync.forecast_key,
+            sync=item.deal.sync,
             earliest_open_due=item.earliest_open_due,
             last_updated_on=item.last_updated_on,
             today=TODAY,

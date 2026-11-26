@@ -47,11 +47,10 @@ async function register(user: View['user'], form: HTMLElement) {
 
 const rowWith = (table: HTMLElement, text: string) => within(table).getAllByRole('row').find((r) => r.textContent?.includes(text)) as HTMLElement
 
-/** 기준 행의 상태 칸: Open이면 "종료(수행)" 버튼이 있고, 종료(수행)이면 "Open으로" 버튼이 있다. */
 const isStillOpen = (row: HTMLElement) =>
-  within(row).queryByRole('button', { name: '종료(수행)' }) !== null && within(row).queryByRole('button', { name: 'Open으로' }) === null
+  within(row).queryByRole('button', { name: '종료(수행)' }) !== null
 const isClosedAsDone = (row: HTMLElement) =>
-  within(row).queryByRole('button', { name: '종료(수행)' }) === null && within(row).queryByRole('button', { name: 'Open으로' }) !== null
+  within(row).getAllByRole('cell')[5]?.textContent === '종료(수행)'
 
 describe('채우기 버튼과 종료 체크박스', () => {
   // 채우기 버튼을 누르기 전에는 종료 체크박스가 없다.

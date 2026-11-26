@@ -21,10 +21,11 @@ import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
  * gateway.deals.list(query). 키 keys.dealList(query). 화면은 URL 쿼리를 DealListQuery로 만들어 넘긴다.
  * 조건·페이지가 바뀌는 동안 이전 결과를 유지한다(`keepPreviousData`): 표가 로딩 문구로 바뀌며 깜빡이지 않는다.
  */
-export function useDeals(query: DealListQuery): Query<Page<DealRow>> {
+export function useDeals(query: DealListQuery, enabled = true): Query<Page<DealRow>> {
   return useQuery<Page<DealRow>, ApiError>({
     queryKey: keys.dealList(query),
     queryFn: () => gateway.deals.list(query),
+    enabled,
     placeholderData: keepPreviousData,
     ...NO_RETRY,
   })

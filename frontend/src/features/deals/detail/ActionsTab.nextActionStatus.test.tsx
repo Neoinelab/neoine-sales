@@ -16,11 +16,16 @@ async function openActions(role: 'sales' | 'admin' | 'user' = 'sales', userId?: 
 }
 
 const bodyRows = (table: HTMLElement) => within(table).getAllByRole('row').slice(1)
+const firstStatus = (table: HTMLElement) => within(bodyRows(table)[0]!).getAllByRole('cell')[5]!
+
+async function openActionDetail(user: View['user'], row: HTMLElement) {
+  await user.click(within(row).getByRole('link'))
+  return screen.findByRole('dialog', { name: 'Action 상세' })
+}
 
 /** 행을 눌러 상세 팝업을 열고 그 Action의 "Comment 목록" 글을 읽은 뒤 닫는다(표에는 Comment 글이 없다). Comment가 없으면 빈 문자열. */
 async function commentsInDetail(user: View['user'], table: HTMLElement, index: number): Promise<string> {
-  await user.click(within(bodyRows(table)[index]!).getByRole('link'))
-  const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
+  const dialog = await openActionDetail(user, bodyRows(table)[index]!)
   const list = within(dialog).queryByRole('list', { name: 'Comment 목록' })
   const text = list?.textContent ?? ''
   await user.click(within(dialog).getByRole('button', { name: '닫기' }))
@@ -136,18 +141,16 @@ describe('Action 폼: 진행사항·Next Action 분리 입력', () => {
 })
 
 describe('Action 표: 상태 열과 상태 버튼', () => {
-  // Next Action이 Open인 행은 작성자에게 라벨과 종료(수행)·종료(미수행) 버튼 둘을 보인다.
   // 테스트 코드: NA-044
-  it('shows Open and both close buttons to the author on an Open Next Action', async () => {
+  it('shows Open and only the done button in the status cell', async () => {
     // given: 김영업이 작성한 Open Action이 있는 Deal의 Actions 탭을 작성자가 연다.
     const { table } = await openActions()
     // when: 표의 첫 행을 본다.
-    const first = bodyRows(table)[0]!
-
-    // then: 상태 칸에 Open 라벨과 종료 버튼 둘이 보인다.
-    expect(first).toHaveTextContent('Open')
-    expect(within(first).getByRole('button', { name: '종료(수행)' })).toBeVisible()
-    expect(within(first).getByRole('button', { name: '종료(미수행)' })).toBeVisible()
+    const cell = firstStatus(table)
+    expect(within(cell).getByText('Open')).toBeVisible()
+    const buttons = within(cell).getAllByRole('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]).toHaveAccessibleName('종료(수행)')
   })
 
   // 상태 버튼은 admin에게 보이고 다른 sales와 user에게는 라벨만 보인다.
@@ -202,10 +205,9 @@ describe('Next Action 종료 팝업', () => {
     await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '문서 전달 완료')
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
-    // then: 팝업이 닫히고 행이 종료(수행)을 보이며 "Open으로" 버튼이 생긴다.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
-    expect(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' })).toBeVisible()
+    await waitFor(() => expect(firstStatus(table)).toHaveTextContent(/^종료\(수행\)$/))
+    expect(within(firstStatus(table)).queryByRole('button')).not.toBeInTheDocument()
     // then: 행을 눌러 연 상세 팝업의 Comment 목록에 "문서 전달 완료"가 있다(표에는 Comment 글이 없다).
     expect(await commentsInDetail(user, table, 0)).toContain('문서 전달 완료')
   })
@@ -215,14 +217,14 @@ describe('Next Action 종료 팝업', () => {
   it('uses the not-done title and allows closing with an empty comment', async () => {
     // given: 작성자의 Open Action 행이 있다.
     const { user, table } = await openActions()
-    // when: "종료(미수행)"을 눌러 "Next Action 종료(미수행)" 팝업에서 Comment 없이 "종료"를 누른다.
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(미수행)' }))
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    await user.click(within(detail).getByRole('button', { name: '종료(미수행)' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
     await user.click(within(dialog).getByRole('button', { name: '종료' }))
 
     // then: 행이 종료(미수행)이 된다.
-    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(미수행)'))
+    await waitFor(() => expect(firstStatus(table)).toHaveTextContent(/^종료\(미수행\)$/))
   })
 
   // 팝업의 취소는 요청 없이 닫고 상태를 바꾸지 않으며 Comment도 만들지 않는다.
@@ -259,21 +261,19 @@ describe('Next Action 종료 팝업', () => {
     expect(bodyRows(table)[0]).toHaveTextContent('Open')
   })
 
-  // "Open으로"는 팝업 없이 바로 Open으로 되돌린다.
   // 테스트 코드: NA-049
-  it('reopens a closed Next Action without a dialog', async () => {
+  it('reopens a closed Next Action from the detail dialog', async () => {
     // given: 종료(수행)된 작성자의 Action 행이 있다.
     const { user, table } = await openActions()
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(수행)' }))
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '종료' }))
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
 
-    // when: "Open으로"를 누른다.
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' }))
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    await user.click(within(detail).getByRole('button', { name: 'Open으로' }))
 
-    // then: 팝업 없이 행이 Open이 된다.
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('Open'))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toEqual([detail])
   })
 })
 
@@ -372,22 +372,20 @@ describe('Next Action 종료 실패', () => {
     expect(within(screen.getByRole('dialog')).getByLabelText('Comment에 남길 내용(선택)')).toHaveValue('잃으면 안 되는 Comment')
   })
 
-  // "Open으로"가 거절되면 팝업이 없으므로 탭의 오류 배너에 서버 문구가 보인다.
   // 테스트 코드: NA-050
-  it('shows the server message in the tab banner when reopening is refused', async () => {
+  it('shows the server message in the detail dialog when reopening a stale action is refused', async () => {
     // given: 작성자가 Action을 종료(수행)했고, 화면이 모르는 사이 다른 경로에서 이미 Open으로 되돌렸다.
     const code = await dealCodeOf(1)
     const { user, table } = await openActions()
     await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(수행)' }))
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '종료' }))
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)'))
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    const reopen = await within(detail).findByRole('button', { name: 'Open으로' })
     const [first] = await gateway.actions.list(code, {})
     await gateway.actions.changeNextActionStatus(first!.id, { status: 'open', comment: '' })
-    // when: 화면에 남아 있는 "Open으로"를 누른다.
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: 'Open으로' }))
-    // then: 탭의 오류 배너에 "이미 Open 상태입니다."가 보이고 팝업은 열리지 않는다.
-    expect(await screen.findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await user.click(reopen)
+    expect(await within(detail).findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
   })
 
   // 성공한 종료만 팝업을 닫는다.
@@ -405,100 +403,74 @@ describe('Next Action 종료 실패', () => {
 })
 
 describe('종료 상태 간 직접 전환', () => {
-  async function closeFirst(user: View['user'], table: HTMLElement, label: '종료(수행)' | '종료(미수행)') {
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: label }))
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '종료' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  async function confirmClose(user: View['user'], label: string) {
+    const confirmation = await screen.findByRole('dialog', { name: `Next Action ${label}` })
+    await user.click(within(confirmation).getByRole('button', { name: '종료' }))
+    await waitFor(() => expect(confirmation).not.toBeInTheDocument())
   }
 
-  // 종료(수행) 행은 종료(미수행)과 "Open으로" 버튼만 보이고 종료(수행) 버튼은 없다.
-  // 테스트 코드: NA-046
-  it('offers the other closed status and "Open으로" on a done row, not the done button', async () => {
-    // given: 작성자의 Action을 종료(수행)으로 바꿨다.
+  async function closeFirst(user: View['user'], table: HTMLElement, label: '종료(수행)' | '종료(미수행)') {
+    const detail = label === '종료(미수행)' ? await openActionDetail(user, bodyRows(table)[0]!) : null
+    await user.click(within(detail ?? firstStatus(table)).getByRole('button', { name: label }))
+    await confirmClose(user, label)
+    if (detail) await user.click(within(detail).getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(firstStatus(table).textContent).toBe(label))
+  }
+
+  it.each([
+    ['종료(수행)', '종료(미수행)'],
+    ['종료(미수행)', '종료(수행)'],
+  ] as const)('shows only the %s label in the table and offers %s in the detail', async (label, other) => {
     const { user, table } = await openActions()
-    // when: 작성자가 표를 본다.
-    await closeFirst(user, table, '종료(수행)')
-
-    const row = bodyRows(table)[0]!
-    await waitFor(() => expect(within(row).getByRole('button', { name: 'Open으로' })).toBeVisible())
-
-    // then: "종료(미수행)"·"Open으로"만 있고 "종료(수행)"은 없다.
-    expect(within(row).getByRole('button', { name: '종료(미수행)' })).toBeVisible()
-    expect(within(row).queryByRole('button', { name: '종료(수행)' })).not.toBeInTheDocument()
+    await closeFirst(user, table, label)
+    expect(within(firstStatus(table)).queryByRole('button')).not.toBeInTheDocument()
+    const detail = within(await openActionDetail(user, bodyRows(table)[0]!))
+    expect(detail.getByRole('button', { name: other })).toBeVisible()
+    expect(detail.getByRole('button', { name: 'Open으로' })).toBeVisible()
+    expect(detail.queryByRole('button', { name: label })).not.toBeInTheDocument()
   })
 
-  // 종료(미수행) 행은 종료(수행)과 "Open으로" 버튼만 보이고 종료(미수행) 버튼은 없다.
-  // 테스트 코드: NA-046
-  it('offers 종료(수행) and "Open으로" on a not-done row, not the not-done button', async () => {
-    // given: 작성자의 Action을 종료(미수행)으로 바꿨다.
-    const { user, table } = await openActions()
-    // when: 작성자가 표를 본다.
-    await closeFirst(user, table, '종료(미수행)')
-
-    const row = bodyRows(table)[0]!
-    await waitFor(() => expect(within(row).getByRole('button', { name: 'Open으로' })).toBeVisible())
-
-    // then: "종료(수행)"·"Open으로"만 있고 "종료(미수행)"은 없다.
-    expect(within(row).getByRole('button', { name: '종료(수행)' })).toBeVisible()
-    expect(within(row).queryByRole('button', { name: '종료(미수행)' })).not.toBeInTheDocument()
-  })
-
-  // 종료(수행)에서 종료(미수행)으로 바로 전환할 때도 종료 대화상자를 거치고 Comment가 생긴다.
-  // 테스트 코드: NA-047
   it('switches done to not-done through the close dialog and creates the comment', async () => {
-    // given: 종료(수행)된 작성자의 Action 행이 있다.
     const { user, table } = await openActions()
     await closeFirst(user, table, '종료(수행)')
-    // when: "종료(미수행)"을 누르고 팝업에 "사실은 못 했음"을 써서 "종료"를 누른다.
-    await user.click(await within(bodyRows(table)[0]!).findByRole('button', { name: '종료(미수행)' }))
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    await user.click(await within(detail).findByRole('button', { name: '종료(미수행)' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
-    await user.type(within(dialog).getByLabelText('Comment에 남길 내용(선택)'), '사실은 못 했음')
-    await user.click(within(dialog).getByRole('button', { name: '종료' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
+    await user.type(within(confirmation).getByLabelText('Comment에 남길 내용(선택)'), '사실은 못 했음')
+    await confirmClose(user, '종료(미수행)')
 
-    // then: 행이 종료(미수행)이 되고 팝업이 닫히며 상세 팝업의 Comment 목록에 그 글이 생긴다.
-    await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('종료(미수행)'))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(await commentsInDetail(user, table, 0)).toContain('사실은 못 했음')
+    await waitFor(() => expect(firstStatus(table).textContent).toBe('종료(미수행)'))
+    const comments = await within(detail).findByRole('list', { name: 'Comment 목록' })
+    await waitFor(() => expect(comments).toHaveTextContent('사실은 못 했음'))
   })
 
-  // 종료(미수행)에서 종료(수행)으로 바로 전환할 때도 종료 대화상자를 거친다.
-  // 테스트 코드: NA-047
   it('switches not-done to done through the close dialog', async () => {
-    // given: 종료(미수행)된 작성자의 Action 행이 있다.
     const { user, table } = await openActions()
     await closeFirst(user, table, '종료(미수행)')
-    // when: "종료(수행)"을 누르고 팝업에서 Comment 없이 "종료"를 누른다.
-    await user.click(await within(bodyRows(table)[0]!).findByRole('button', { name: '종료(수행)' }))
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    await user.click(await within(detail).findByRole('button', { name: '종료(수행)' }))
+    await confirmClose(user, '종료(수행)')
 
-    const dialog = await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })
-    await user.click(within(dialog).getByRole('button', { name: '종료' }))
-
-    // then: 행이 종료(수행)이 되고 "종료(미수행)" 전환 버튼이 보인다.
-    await waitFor(() => expect(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(미수행)' })).toBeVisible())
-    expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)')
+    await waitFor(() => expect(firstStatus(table).textContent).toBe('종료(수행)'))
+    expect(within(detail).getByRole('button', { name: '종료(미수행)' })).toBeVisible()
   })
 
-  // 종료 상태 사이 전환 팝업도 취소와 Esc로 상태를 바꾸지 않는다.
-  // 테스트 코드: NA-048
   it('leaves the closed status on cancel and on Escape', async () => {
-    // given: 종료(수행)된 행이 있다.
     const { user, table } = await openActions()
     await closeFirst(user, table, '종료(수행)')
-    // when: "종료(미수행)" 팝업에서 "취소"를 누른다.
-    await user.click(await within(bodyRows(table)[0]!).findByRole('button', { name: '종료(미수행)' }))
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '취소' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    // then: 종료(수행) 상태 그대로다.
-    expect(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(미수행)' })).toBeVisible()
+    const detail = await openActionDetail(user, bodyRows(table)[0]!)
+    const change = await within(detail).findByRole('button', { name: '종료(미수행)' })
+    const confirmation = () => screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })
 
-    // when: 다시 팝업을 열고 Esc를 누른다.
-    await user.click(within(bodyRows(table)[0]!).getByRole('button', { name: '종료(미수행)' }))
-    fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' })
+    await user.click(change)
+    await user.click(within(await confirmation()).getByRole('button', { name: '취소' }))
+    expect(firstStatus(table).textContent).toBe('종료(수행)')
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    // then: 여전히 종료(수행) 상태라 "종료(수행)" 버튼이 없다.
-    expect(within(bodyRows(table)[0]!).queryByRole('button', { name: '종료(수행)' })).not.toBeInTheDocument()
+    await user.click(change)
+    fireEvent.keyDown(await confirmation(), { key: 'Escape' })
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toEqual([detail]))
+    expect(firstStatus(table).textContent).toBe('종료(수행)')
   })
 
   // 다른 sales에게는 종료된 행에도 전환 버튼이 없다.

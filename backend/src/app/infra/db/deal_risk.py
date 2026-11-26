@@ -6,9 +6,9 @@ compute_risk와 같은 판정: 종결(won·lost) Deal은 경고가 없고, 기�
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, and_, func, select
 
-from app.domain.deal.sync_state import CLOSED_FORECASTS
+from app.domain.deal.sync_state import CLOSED_FORECASTS, STATUS_CONTRACT_COMPLETED
 from app.domain.deal_action.next_action_status import NextActionStatus
 from app.infra.db.deal_derived import last_updated_scalar
 from app.infra.db.models import DealActionRow
@@ -51,4 +51,7 @@ def earliest_open_due_scalar() -> ColumnElement[date | None]:
 
 
 def stale_condition(stale_before: date) -> ColumnElement[bool]:
-    return last_updated_scalar() < stale_before
+    return and_(
+        DealRow.status_key != STATUS_CONTRACT_COMPLETED,
+        last_updated_scalar() < stale_before,
+    )

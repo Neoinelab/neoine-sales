@@ -95,7 +95,7 @@ Next Action 기준 행과 최종 업데이트
   - Due Date가 오늘이거나 미래면 아니다. Open Next Action 행이 없으면(Action 없음·진행사항만 Action·모두 종료) 아니다.
   - Action 수정으로 Due를 바꾸거나 Action을 지우면 남은 Open Next Action으로 다시 판정한다.
   - 저장된 데이터는 바꾸지 않는다(판정만 바뀜). 그래서 배포 시점부터, 이전 Next Action을 종료하지 않고 새 Action을 남긴 Deal은 예전 Open 행의 Due가 지났으면 기한초과가 되고, 기한이 지난 뒤 종료한 Deal은 기한초과에서 빠진다.
-- **RK-R5** 미업데이트(`stale`)는 `(오늘 − last_updated_on).days ≥ stale_days`일 때다.
+- **RK-R5** 미업데이트(`stale`)는 `(오늘 − last_updated_on).days ≥ stale_days`일 때다. Forecast가 `won` 또는 `lost`이거나 Status가 `contract_completed`이면 미업데이트에서 제외한다.
   - 날짜 단위로 세고 시각은 보지 않는다.
   - 예(기준 14): 마지막 갱신 후 13일째는 아니고 14일째부터 미업데이트다.
   - 예(기준 1): 어제 갱신이면 미업데이트, 오늘 갱신이면 아니다.
@@ -110,7 +110,7 @@ Next Action 기준 행과 최종 업데이트
   - `overdue`만 켜면 `risk ∈ {overdue, overdue_stale}`인 Deal, `stale`만 켜면 `risk ∈ {stale, overdue_stale}`인 Deal이다.
   - 둘 다 켜면 어느 하나라도 해당하는 Deal이다(OR).
   - 종결 Deal은 어느 필터에도 걸리지 않는다. `total`은 필터 결과 건수다.
-  - SQL의 미업데이트 조건은 `last_updated_on < 오늘 − (stale_days − 1)`(날짜 비교)이며 RK-R5와 같다.
+  - SQL도 RK-R5의 제외 조건과 `last_updated_on < 오늘 − (stale_days − 1)` 날짜 비교를 적용한다.
   - SQL의 기한초과 조건은 `EXISTS(deal_actions WHERE deal_id = Deal AND next_action_status = 'open' AND due_date < 오늘)`이며 RK-R4와 같다. Deals 목록 필터, Dashboard 기한초과 수(DSH-R9), Reports `deal.risk`(RQ-R24)가 이 한 식(`infra/db/deal_risk.py`)을 쓴다.
   - 다른 조건과의 AND, 쿼리 값 형식(422)은 DL이 맡는다.
 

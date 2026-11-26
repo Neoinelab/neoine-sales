@@ -100,7 +100,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
         <>
           {isAdmin && (
             <button type="button" className="danger contract-delete-button" disabled={busy} onClick={() => setConfirming('remove')}>
-              삭제
+              계약삭제
             </button>
           )}
           <button type="button" onClick={onClose}>

@@ -9,6 +9,7 @@ from datetime import date
 import pytest
 
 from app.domain.deal.risk import Risk, compute_risk, is_closed_forecast
+from app.domain.deal.sync_state import SyncState
 
 TODAY = date(2026, 10, 20)
 STALE_DAYS = 14
@@ -27,7 +28,7 @@ def _risk(
     stale_days: int = STALE_DAYS,
 ) -> Risk | None:
     return compute_risk(
-        forecast_key=forecast_key,
+        sync=SyncState(status_key="prospecting", forecast_key=forecast_key),
         earliest_open_due=earliest_open_due,
         last_updated_on=last_updated_on,
         today=today,
@@ -177,6 +178,20 @@ def test_won_and_lost_have_no_risk(forecast_key: str) -> None:
 
     # then: risk가 없다
     assert risk is None
+
+
+@pytest.mark.parametrize(("due", "expected"), [(None, None), (LONG_AGO, Risk.OVERDUE)])
+def test_contract_completed_cannot_be_stale_even_with_open_forecast(
+    due: date | None, expected: Risk | None
+) -> None:
+    risk = compute_risk(
+        sync=SyncState(status_key="contract_completed", forecast_key="pipeline"),
+        earliest_open_due=due,
+        last_updated_on=LONG_AGO,
+        today=TODAY,
+        stale_days=STALE_DAYS,
+    )
+    assert risk is expected
 
 
 @pytest.mark.parametrize("forecast_key", ["pipeline", "best", "commit", "upside"])

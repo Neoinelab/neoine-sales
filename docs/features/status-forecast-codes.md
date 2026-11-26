@@ -89,11 +89,11 @@
 화면(frontend, `/admin/deal`, 가드 PL-R31)
 - **CD-R17** Deal 관리 화면 틀: 제목(h2) "Deal 관리", 탭 목록(이름 "Deal 관리 항목") 6개 — "Status 코드", "Forecast 코드", "BANT Label", "Action 유형", "Vendor", "경고 기준" 순서. 주소 `?tab=`의 값(`status`·`forecast`·`label`·`action-type`·`vendor`·`alert`)으로 탭을 열고, 없거나 모르는 값이면 "Status 코드"다. 탭을 고르면 주소를 이력 교체로 바꾸며 Status 코드 탭은 `tab` 파라미터를 지운다. Status·Forecast 탭은 같은 코드 관리 화면(CD-R18~R23)을 종류만 바꿔 쓰고, 다른 탭 내용은 CL·RK다.
 - **CD-R18** 코드 표(표 이름 "Status 코드"·"Forecast 코드"): 위에 안내 "Won과 계약완료는 이름을 바꿔도 같은 의미로 동기화됩니다(CM-07). 이름과 순서를 바꾸면 목록·상세·필터에 바로 반영됩니다.". 머리글은 순서, 이름, 내부 코드, (Forecast만) 확률 참고, (Forecast만) 구분, 사용 중 Deal, 시스템, 작업. 칸 값: order, 이름, key, 확률 힌트(없으면 `-`), 구분 배지(`open`→"Open", `won`→"Won", `lost`→"Lost"), `usage_count`, 잠금이면 배지 "시스템 연결" 아니면 `-`. 행은 CD-R6 순서다. 읽는 동안 "불러오는 중…", 행이 없으면 "등록된 코드가 없습니다.", 읽기 실패는 오류 배너(PL-R37).
-- **CD-R19** 이름 수정: 행의 "이름 수정"을 누르면 이름 칸이 입력(접근 이름 "코드 이름", 현재 이름, 자동 포커스)과 "저장"·"취소"로 바뀐다(그 행의 "이름 수정"은 비활성). "저장" 또는 Enter는 입력값을 그대로 보내고(화면 검증 없음), 성공하면 입력을 닫고 새 이름을 보인다. 실패하면 서버 문구를 오류 배너에 보이고 입력과 값을 그대로 둔다. "취소"·Esc는 요청 없이 닫는다.
+- **CD-R19** 이름 수정: 표의 이름을 누르면 그 자리에서 현재 이름이 채워진 입력(접근 이름 "코드 이름")에 포커스한다. Enter는 입력값을 그대로 보내고(화면 검증 없음), 성공하면 입력을 닫고 새 이름을 보인다. 실패하면 서버 문구를 오류 배너에 보이고 입력과 값을 그대로 둔다. Esc를 누르거나 입력에서 포커스를 옮기면 저장하지 않고 닫는다.
 - **CD-R20** 순서 변경: 행마다 "↑"(접근 이름 "<이름> 위로 이동")·"↓"("<이름> 아래로 이동"). 첫 행의 ↑, 마지막 행의 ↓는 비활성이다. 누르면 이웃과 자리를 바꾼 **그 종류 전체 id 목록**을 보내고 성공하면 새 순서로 다시 그린다. 실패하면 오류 배너다.
 - **CD-R21** 추가: 표 아래 폼(이름 "<Status 코드|Forecast 코드> 추가")의 "새 코드 이름" 칸과 "추가" 버튼(요청 중 비활성), 안내 "내부 코드는 이름에서 자동으로 만들어지며 한 번 만들면 바뀌지 않습니다.". 화면 검증 없이 입력값을 보내며 확률 힌트 칸은 없다(항상 null 전송). 성공하면 입력을 비우고 목록을 다시 읽어 새 코드가 맨 끝에 사용 0으로 보인다. 실패하면 서버 문구를 오류 배너에 보이고 입력은 남긴다.
 - **CD-R22** 삭제: 잠금 행의 "삭제"는 비활성이고 접근 설명이 "시스템과 연결된 코드는 삭제할 수 없습니다. 이름과 순서는 변경할 수 있습니다."다. 다른 행의 "삭제"는 확인 대화상자(제목 "코드 삭제", 문구 "'<이름>' 코드를 삭제할까요? 사용 중인 코드는 삭제할 수 없습니다.", 위험 버튼 "삭제", "취소")를 연다. "삭제"를 누르면 요청하고 결과와 무관하게 대화상자를 닫으며, 거절되면 서버 문구를 오류 배너에 보이고 행은 남는다. "취소"는 요청 없이 닫는다.
-- **CD-R23** 공통: 요청 중에는 이동·저장·삭제 버튼이 비활성이다. 새 작업(추가·이름 수정 시작·저장·이동·삭제 확인)을 시작하면 이전 오류 배너를 지운다. 캐시 갱신: 추가·삭제 성공 뒤 코드 조회 전체(코드 목록·사용 현황)를, 이름 변경·순서 변경 성공 뒤 코드 조회 전체와 Deal·Forecast 조회를 다시 읽게 한다.
+- **CD-R23** 공통: 요청 중에는 이동·삭제 버튼과 이름 저장이 비활성이다. 새 작업(추가·이름 수정 시작·저장·이동·삭제 확인)을 시작하면 이전 오류 배너를 지운다. 캐시 갱신: 추가·삭제 성공 뒤 코드 조회 전체(코드 목록·사용 현황)를, 이름 변경·순서 변경 성공 뒤 코드 조회 전체와 Deal·Forecast 조회를 다시 읽게 한다.
 - **CD-R24** 게이트웨이(`gateway/http/codes.ts`): `all` = `GET /codes`, `list(kind)` = `GET /codes/usage?kind=`, `create` = `POST /codes` 본문 `{kind, name, probability_hint}`(힌트가 없으면 null), `rename` = `PATCH /codes/{id}` `{name}`, `reorder` = `PUT /codes/order` `{kind, ordered_ids}`, `remove` = `DELETE /codes/{id}`(204 성공). 응답의 `probability_hint`·`usage_count`는 `probabilityHint`·`usageCount`로 바꾼다. `outcome`이 `open`·`won`·`lost`가 아니면 502 "서버 응답을 해석할 수 없습니다."로 거절한다. 오류는 PL-R39로 바꾼다(409 → `conflict`, 422 → `validation`).
 
 ### 2.4 상태와 전이
@@ -179,7 +179,7 @@ CD-R17~CD-R24.
 
 ### CD-UC4 코드 이름 변경
 - 행위자: admin
-- 기본 흐름: 이름 수정 → 새 이름 → 저장(또는 Enter) → 200, 모든 화면에 새 이름(CD-R13, CD-R19)
+- 기본 흐름: 이름 클릭 → 새 이름 → Enter → 200, 모든 화면에 새 이름(CD-R13, CD-R19)
 - 대안: 잠금 코드도 바꾼다, Esc·취소로 그만둔다
 - 예외: 이름 오류 422, 중복 409, 없는 코드 404
 - 결과: key·순서·잠금·결과는 그대로이고 이름만 바뀐다
@@ -255,7 +255,7 @@ CD-R17~CD-R24.
 | CD-050 | 화면: Status 표는 7개를 순서대로 순서·이름·내부 코드·사용 건수와 함께 보인다 | CD-R18, CD-UC2 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
 | CD-051 | 화면: 잠금 행은 "시스템 연결" 배지와 이유가 붙은 비활성 삭제 버튼을 가진다 | CD-R18, CD-R22, CD-UC2 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
 | CD-052 | 화면: Forecast 표는 6개를 확률 참고·구분(Open/Won/Lost)과 함께 보인다 | CD-R18, CD-UC2 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
-| CD-053 | 화면: 이름을 표 안에서 바꾸면(저장·Enter) 새 이름이 보이고 잠금 코드도 key가 그대로다 | CD-R19, CD-UC4 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
+| CD-053 | 화면: 이름을 표 안에서 바꾸면(Enter) 새 이름이 보이고 잠금 코드도 key가 그대로다 | CD-R19, CD-UC4 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
 | CD-054 | 화면: Esc로 이름 수정을 그만두면 요청 없이 원래 이름이 남는다 | CD-R19, CD-UC4 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
 | CD-055 | 화면: 중복 이름이면 서버 문구를 보이고 입력을 유지한다 | CD-R19, CD-UC4 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
 | CD-056 | 화면: 빈 이름으로 저장하면 서버 문구를 보인다 | CD-R19, CD-UC4 | frontend | `features/admin/deal-management/CodeManager.test.tsx` |
@@ -503,12 +503,12 @@ CD-R17~CD-R24.
 - When Forecast 코드 탭을 연다
 - Then 이름이 Pipeline, Best, Most Likely, Commit, Won, Lost 순서이고 머리글 "확률 참고"·"구분"이 있으며 Pipeline 행에 `0–50`과 "Open", Lost 행에 "Lost" 배지가 보인다
 
-### CD-053 화면: 이름을 표 안에서 바꾸면(저장·Enter) 새 이름이 보이고 잠금 코드도 key가 그대로다
-- When 가격협상의 "이름 수정" → "가격 협의" → "저장", 계약완료의 "이름 수정" → "계약성사" → Enter
+### CD-053 화면: 이름을 표 안에서 바꾸면(Enter) 새 이름이 보이고 잠금 코드도 key가 그대로다
+- When 표의 "가격협상" → "가격 협의" → Enter, 표의 "계약완료" → "계약성사" → Enter
 - Then "가격 협의"·"계약성사" 행이 보이고 "가격협상" 행과 입력 칸은 사라지며 계약성사 행의 내부 코드는 `contract_completed`다
 
 ### CD-054 화면: Esc로 이름 수정을 그만두면 요청 없이 원래 이름이 남는다
-- When 가격협상의 "이름 수정" → 글자 추가 → Esc
+- When 표의 "가격협상" → 글자 추가 → Esc
 - Then 입력 칸이 사라지고 "가격협상" 행이 그대로다
 
 ### CD-055 화면: 중복 이름이면 서버 문구를 보이고 입력을 유지한다
@@ -559,7 +559,7 @@ CD-R17~CD-R24.
 
 ### CD-066 화면: 새 작업을 시작하면 이전 오류 배너가 사라진다
 - Given 빈 이름으로 추가해 오류 알림 "이름을 입력하세요."가 보인다
-- When 다른 행의 "이름 수정"을 누르거나 "↓"로 이동한다
+- When 다른 행의 이름을 누르거나 "↓"로 이동한다
 - Then 오류 알림이 사라진다(이동이 성공하면 다시 생기지 않는다)
 
 ### CD-067 화면: 이름·순서를 바꾸면 Deal·Forecast 조회를 다시 읽게 한다

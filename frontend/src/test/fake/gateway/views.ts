@@ -160,7 +160,7 @@ export function dealRow(ctx: MockContext, deal: Deal): DealRow {
     lastUpdatedOn,
     statusDays: statusDays(deal.statusChangedOn, now),
     risk: computeRisk(
-      { forecastKey: deal.forecastKey, earliestOpenDue: earliestOpenDue(data, deal.code), lastUpdatedOn },
+      { forecastKey: deal.forecastKey, statusKey: deal.statusKey, earliestOpenDue: earliestOpenDue(data, deal.code), lastUpdatedOn },
       now,
       data.alerts.staleDays,
     ),

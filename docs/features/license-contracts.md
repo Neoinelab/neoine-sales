@@ -130,7 +130,7 @@ Deal 삭제·권한·사용자
 - **LC-R31** 검색 바: 고객사명·제품명(텍스트, 200자, 앞뒤 공백 제거 뒤 비면 조건 아님), Vendor(Vendor 관리 목록, `전체`), 담당영업(사용자 선택, 퇴사자 포함), 상태(`전체` + 4개), 라이선스 시작일·종료일 기간 선택(Deals '최종 업데이트'와 같은 프리셋 + 직접 지정, 종료일에만 다가오는 기간 프리셋 2개). 텍스트 칸 Enter 또는 `검색`으로 적용, `초기화`로 모두 비움. 범위가 거꾸로면 검색하지 않고 그 칸에 서버와 같은 문구를 보인다.
 - **LC-R32** 만료 임박 색: 발급 상태 계약만, 종료일 < 오늘+1개월이면 위험(`만료 1개월 미만`, 지난 날 포함), 종료일 < 오늘+2개월이면 주의(`만료 2개월 미만`). 오늘+N개월은 같은 날이 없으면 그 달 말일. 오늘은 서버 시계 기준. 상태 칸은 발급 상태면 `status-issued`, 종료면 `status-ended`.
 - **LC-R33** 계약 수정 대화상자(제목 `계약 수정 - <Deal명>`): Deal 정보(고객사명·Vendor·제품명·파트너사·담당영업)는 읽기 전용, 기술담당·점검주기·Note는 sales·admin만 편집. 라이선스 발급·갱신 버튼을 누르면 시작일·종료일 칸이 활성화되고 시작일로 포커스한다. 신규 기본값은 오늘부터 1년, 갱신 기본값은 기존 종료일 다음 날부터 기존 기간이다. 두 날짜를 직접 변경할 수 있고 종료일 포함 유지 일수를 표시한다. 미발급의 두 날짜는 빈 비활성 칸이며 기존 계약은 저장된 두 날짜를 그대로 표시한다. `저장`은 버튼을 누르지 않았으면 계약 칸 수정, 눌렀으면 두 날짜로 발급·갱신한다. 빈 날짜, 잘못된 날짜, 종료일이 시작일보다 빠른 경우에는 저장하지 않고 오류를 표시한다. Deal이 Won이 아니면(`dealIsWon` false) 발급·갱신 버튼은 비활성이고 힌트 `Won인 Deal의 계약만 발급하거나 갱신할 수 있습니다.`를 보인다. 종료 계약에는 발급·갱신·계약 종료 버튼이 없다. 성공하면 대화상자를 닫고 목록 위 알림(`계약을 수정했습니다.`·`라이선스를 발급했습니다.`·`라이선스를 갱신했습니다.`·`계약을 종료했습니다.`·`계약을 삭제했습니다.`), 서버 거절(409·422 등)은 대화상자 안 `role="alert"`로 보이고 닫히지 않는다. `취소`는 입력을 버린다. user에게는 `저장` 버튼이 없고 칸이 비활성이다.
-- **LC-R34** `계약 종료`(종료가 아닌 계약, sales·admin)는 확인 대화상자(제목 `계약 종료 확인`, `Deal <Deal명>의 계약을 종료합니다. 종료한 계약은 다시 발급·갱신할 수 없습니다.`, 버튼 `종료`) 뒤에 요청한다. `삭제`(admin에게만, 모든 상태)는 확인 대화상자(제목 `계약 삭제`, `Deal <Deal명>의 계약과 첨부 파일을 삭제합니다. 삭제한 계약은 복구할 수 없습니다.`, 버튼 `삭제`) 뒤에 요청한다. 확인 대화상자에서 취소하면 아무것도 바뀌지 않는다.
+- **LC-R34** `계약 종료`(종료가 아닌 계약, sales·admin)는 확인 대화상자(제목 `계약 종료 확인`, `Deal <Deal명>의 계약을 종료합니다. 종료한 계약은 다시 발급·갱신할 수 없습니다.`, 버튼 `종료`) 뒤에 요청한다. `계약삭제`(admin에게만, 모든 상태)는 확인 대화상자(제목 `계약 삭제`, `Deal <Deal명>의 계약과 첨부 파일을 삭제합니다. 삭제한 계약은 복구할 수 없습니다.`, 버튼 `삭제`) 뒤에 요청한다. 확인 대화상자에서 취소하면 아무것도 바뀌지 않는다.
 - **LC-R35** 계약 첨부 영역(대화상자 안 `첨부 파일`): 목록(파일명·설명·크기·업로드한 사용자·업로드 시각), 파일명을 누르면 내려받기, 업로드 폼과 `관리` 열은 sales·admin에게만. 화면 규칙(파일 없음·차단 확장자·설명 100자)을 어기면 요청 없이 문구를 보인다. 409 `file-exists`면 `같은 이름의 파일` 확인(`교체`/`건너뛰기`, 교체 권한이 없으면 `교체` 비활성 + `본인이 올린 파일만 교체할 수 있습니다.`). 성공 알림 `업로드되었습니다: <이름>`·`교체되었습니다: <이름>`·`삭제되었습니다: <이름>`. 삭제는 확인(`첨부 파일 삭제`, `"<이름>" 파일을 삭제합니다.`) 뒤, 권한이 없는 행의 `삭제`는 비활성(title `본인이 올린 파일만 삭제할 수 있습니다.`). 서버 오류(503 등)는 서버 문구를 `role="alert"`로 보인다. 비었으면 `첨부된 파일이 없습니다.`.
 - **LC-R36** Won 이탈 확인(화면 4곳: Deal 폼 수정, 목록 인라인 편집, 상세 요약 바, Action 등록): 동기화 확인(Forecast/Status 선택) 뒤, 요청 전에 판정한다. Won 이탈이 아니면 묻지 않는다. Won 이탈이고 `hasIssuedLicenseContract`면 '확인' 버튼 하나뿐인 안내 대화상자(제목 `라이선스 계약 처리`, 본문 LC-R8 문구)를 띄우고 요청하지 않으며 값은 원래대로다. 발급 계약이 없고 `licenseContractCount` ≥ 1이면 `라이선스 계약 처리` 대화상자(`이 Deal의 라이선스 계약 N건도 삭제할까요?`, 버튼 `취소`·`유지`·`삭제`)를 띄운다: 삭제 → `deleteLicenseContracts: true`, 유지 → false로 요청, 취소 → 요청하지 않음. 계약이 0건이면 묻지 않고 요청한다. 화면 값이 오래되어 서버가 409를 주면 각 화면의 기존 오류 자리에 서버 문구를 보이고 편집 상태를 유지하며 Deal을 다시 읽어, 같은 변경을 다시 시도하면 안내 대화상자가 뜬다.
 - **LC-R37** Deal 삭제 확인 대화상자는 `라이선스 계약 N건`(0 포함)을 함께 지운다고 보여 준다.
@@ -363,7 +363,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-058 | admin은 어떤 상태의 계약이든 삭제하고 그 계약 폴더가 지워진다 | LC-R15, LC-R26, LC-UC9 | backend | `application/test_license_contract_end_update_delete.py::test_delete_by_admin_works_in_any_status`<br>`application/test_license_contract_end_update_delete.py::test_delete_contract_by_admin_removes_files_after_commit`<br>`application/test_license_contract_end_update_delete.py::test_delete_contract_keeps_other_contracts_and_the_deal_files`<br>외 6건 |
 | LC-059 | sales는 계약을 삭제할 수 없다 | LC-R15, LC-UC9 | backend | `application/test_license_contract_end_update_delete.py::test_delete_by_non_admin_is_forbidden_and_removes_nothing`<br>`application/test_license_contract_folders.py::test_admin_delete_by_a_forbidden_actor_keeps_the_folder`<br>`web/test_license_contract_route_permissions.py::test_delete_by_admin_is_204_and_by_sales_is_403_with_the_admin_only_message`<br>외 2건 |
 | LC-060 | 갱신 원본 계약을 지우면 후속 계약의 원본 연결이 비워진다 | LC-R15, LC-UC9 | backend | `application/test_license_contract_end_update_delete.py::test_deleting_the_renewed_row_clears_the_link_of_its_successor`<br>`repositories/test_license_contract_repository_contract.py::test_delete_clears_the_renewal_link_of_the_successor`<br>`infra/schema/test_license_contract_schema.py::test_deleting_the_origin_contract_sets_the_renewal_link_to_null` |
-| LC-061 | 화면: 계약 삭제 버튼은 admin에게만 보이고 확인 뒤 삭제한다 | LC-R34, LC-UC9 | frontend | `features/contracts/ContractsPage.actions.test.tsx > shows 삭제 to an admin for an %s contract and deletes it after confirmation`<br>`features/contracts/ContractsPage.actions.test.tsx > keeps the contract when the delete confirmation is cancelled`<br>`features/contracts/ContractsPage.actions.test.tsx > does not show 삭제 to a %s` |
+| LC-061 | 화면에서 `계약삭제` 버튼은 admin에게만 보이고 확인 뒤 삭제한다 | LC-R34, LC-UC9 | frontend | `features/contracts/ContractsPage.actions.test.tsx > shows 계약삭제 to an admin for an %s contract and deletes it after confirmation`<br>`features/contracts/ContractsPage.actions.test.tsx > keeps the contract when the delete confirmation is cancelled`<br>`features/contracts/ContractsPage.actions.test.tsx > does not show 계약삭제 to a %s` |
 | LC-062 | 저장 위치가 없거나 파일 정리가 실패해도 계약을 지우는 요청은 성공한다 | LC-R26, LC-UC2, LC-UC9, LC-UC13 | backend | `application/test_license_contract_end_update_delete.py::test_delete_contract_survives_a_file_cleanup_failure`<br>`application/test_license_contract_end_update_delete.py::test_delete_contract_without_storage_settings_still_removes_the_rows`<br>`application/test_license_contract_folders.py::test_admin_delete_with_a_failed_commit_keeps_the_folder`<br>외 10건 |
 | LC-063 | 계약 첨부를 올리면 계약 폴더에 저장되고 상태와 무관하게 올릴 수 있다 | LC-R21, LC-R25, LC-UC10 | backend | `application/test_license_contract_attachments.py::test_upload_new_file_stores_row_and_disk_file_in_the_contract_folder`<br>`application/test_license_contract_attachments.py::test_upload_is_allowed_on_an_ended_contract`<br>`application/test_license_contract_folders.py::test_upload_saves_the_file_under_the_contract_folder`<br>외 8건 |
 | LC-064 | 같은 이름을 기본(ask)으로 올리면 409 file-exists다 | LC-R22, LC-UC10 | backend | `application/test_license_contract_attachments.py::test_upload_same_name_ask_raises_file_exists`<br>`web/test_license_contract_attachment_routes.py::test_upload_of_a_taken_name_is_409_file_exists_by_default`<br>`repositories/test_license_contract_attachment_repository_contract.py::test_the_same_name_in_the_same_contract_is_rejected_and_the_session_stays_usable`<br>외 4건 |
@@ -579,7 +579,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 ### LC-038 화면: user에게는 계약 대화상자가 읽기 전용이다
 - Given user로 연 계약 목록
 - When 미발급 계약 행을 연다
-- Then `저장`·`라이선스 발급`·`계약 종료`·`삭제` 버튼이 없고 기술담당·점검주기·Note 칸은 비활성이며, 첨부 영역에 업로드 폼과 `관리` 열이 없다
+- Then `저장`·`라이선스 발급`·`계약 종료`·`계약삭제` 버튼이 없고 기술담당·점검주기·Note 칸은 비활성이며, 첨부 영역에 업로드 폼과 `관리` 열이 없다
 
 ### LC-039 Won Deal의 미발급 계약을 발급하면 발급(신규)가 된다
 - Given Won Deal의 미발급 계약
@@ -693,8 +693,8 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 
 ### LC-061 화면: 계약 삭제 버튼은 admin에게만 보이고 확인 뒤 삭제한다
 - Given admin으로 연 미발급·발급(신규)·종료 계약 대화상자(각각), sales·user로 연 대화상자
-- When admin이 `삭제` → 확인 대화상자 `취소`, 다시 `삭제` → `삭제`를 누른다
-- Then sales·user에게는 `삭제` 버튼이 없다. admin의 취소에는 요청이 없고 계약이 남는다. 확인 뒤 대화상자가 닫히고 `계약을 삭제했습니다.`와 함께 표에서 그 행이 사라진다
+- When admin이 `계약삭제` → 확인 대화상자 `취소`, 다시 `계약삭제` → `삭제`를 누른다
+- Then sales·user에게는 `계약삭제` 버튼이 없다. admin의 취소에는 요청이 없고 계약이 남는다. 확인 뒤 대화상자가 닫히고 `계약을 삭제했습니다.`와 함께 표에서 그 행이 사라진다
 
 ### LC-062 저장 위치가 없거나 파일 정리가 실패해도 계약을 지우는 요청은 성공한다
 - Given 첨부 파일이 있는 계약과 (a) 저장 위치 설정 없음 / (b) 폴더 삭제가 실패하는 저장소

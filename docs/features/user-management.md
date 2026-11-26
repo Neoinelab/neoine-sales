@@ -84,7 +84,7 @@
 - **US-R13** `PUT /users/{user_id}/role` 본문 `{role}`(admin 전용). 판정 순서: 없는 id 404 `not-found` "사용자을(를) 찾을 수 없습니다: <id>" → 퇴사자 409 `invalid-state` "이미 퇴사 처리된 사용자입니다" → 자기 자신 409 "자기 자신의 역할은 바꿀 수 없습니다." → 대상이 admin이고 새 역할이 admin이 아니며 재직 admin이 1명 이하면 409 "마지막 관리자의 역할은 바꿀 수 없습니다.". 지금과 같은 역할이면 200으로 대상을 그대로 돌려주고 저장하지 않는다(`updated_at` 그대로). 바뀌면 200 `UserResponse`이고 저장된 `updated_at`이 서버 시각이 된다. 대상의 세션은 유지되고 바뀐 역할은 그 사용자의 다음 요청부터 적용된다(요청마다 역할 재확인은 AU). 역할 변경 이력은 남기지 않는다. `role` 누락·3값 밖·모르는 필드는 422 `request-validation`.
 
 정보 수정
-- **US-R14** `PATCH /users/{user_id}` 본문 `{display_name?, email?, phone?}`(admin 전용, PATCH: 보낸 키만 바꾸고 null·빈 값은 비운다). 아이디·역할·비밀번호 등 다른 키는 422 `request-validation`. 판정 순서: AD 모드에서 `display_name`이나 `email` 키를 보내면(값과 무관) 409 `invalid-state` "AD 연동 사용자의 이름·이메일은 AD에서 관리합니다." → 없는 id 404 → 퇴사자 409 "이미 퇴사 처리된 사용자입니다" → 값 검증 422(US-R7, local은 이름을 비울 수 없음 "이름은(는) 비어 있을 수 없습니다"). 모든 값을 검증한 뒤에 적용한다. 바뀐 값이 없으면 저장하지 않고 200(`updated_at` 그대로). AD 모드는 전화만 고칠 수 있다(AD에 그 사용자의 전화번호가 있으면 다음 AD 로그인 때 AD 값으로 덮어써짐, AU-R8a). 대상이 요청자 자신이어도 API는 거절하지 않는다(화면은 본인 행에 버튼을 두지 않음, US-R23).
+- **US-R14** `PATCH /users/{user_id}` 본문 `{display_name?, email?, phone?}`(admin 전용, PATCH: 보낸 키만 바꾸고 null·빈 값은 비운다). 아이디·역할·비밀번호 등 다른 키는 422 `request-validation`. 판정 순서: AD 모드에서 `display_name`이나 `email` 키를 보내면(값과 무관) 409 `invalid-state` "AD 연동 사용자의 이름·이메일은 AD에서 관리합니다." → 없는 id 404 → 퇴사자 409 "이미 퇴사 처리된 사용자입니다" → 값 검증 422(US-R7, local은 이름을 비울 수 없음 "이름은(는) 비어 있을 수 없습니다"). 모든 값을 검증한 뒤에 적용한다. 바뀐 값이 없으면 저장하지 않고 200(`updated_at` 그대로). AD 모드는 전화만 고칠 수 있다(AD에 그 사용자의 전화번호가 있으면 다음 AD 로그인 때 AD 값으로 덮어써짐, AU-R8a). 관리자 본인도 같은 규칙으로 수정할 수 있다(US-R23).
 
 비밀번호 재설정
 - **US-R15** `PUT /users/{user_id}/password` 본문 `{password}`(admin 전용). 판정 순서: 비밀번호 빈 값·NUL 422(위치 `password`)·257자 이상 422 `request-validation` → local 모드가 아니면 409 `invalid-state` "앱에서 계정을 직접 관리할 때만 쓸 수 있습니다."(없는 id여도) → 없는 id 404 → 퇴사자 409 "이미 퇴사 처리된 사용자입니다" → 자기 자신 409 "자기 자신의 비밀번호는 내 정보에서 바꾸세요." → 정책 422(US-R6 ③④, 위치 `password`). 성공하면 204(본문 없음): 대상의 해시를 새 값으로 저장(없던 사용자도 새로 생김)하고 **대상의 세션을 모두 지운다**. 다른 사용자의 세션·해시는 그대로다. 다음 로그인 때 변경을 강제하지 않는다. 실패하면 해시·세션이 바뀌지 않는다.
@@ -107,7 +107,7 @@
 
 화면(frontend, `/admin/users`, 가드 PL-R31)
 - **US-R22** 화면 틀: 제목(h2) "사용자 관리", 인증 방식(`/auth/config`의 `auth_mode`)을 읽은 뒤 등록 폼(US-R24), "상태" 선택(재직·퇴사·전체, 기본 재직 — 고르면 그 `status`로 다시 조회), 사용자 표. 표 머리글 9칸: 아이디, 역할, 이름, 이메일, 전화번호, 등록일, 마지막 로그인, 퇴사 일시, 작업(화면 읽기 전용 이름). '등록자'·'퇴사 사유' 열은 없다(2026-11-13). 칸 값: 역할은 `admin`·`sales`·`user` 그대로, 이름은 퇴사자면 `이름(퇴사)`, 없는 값은 `-`, 시각은 TM 표기. 빈 목록 행은 9칸을 차지한다. 목록·설정을 읽는 동안 "불러오는 중…". 빈 목록이면 "등록된 사용자가 없습니다."(퇴사 필터는 "퇴사한 사용자가 없습니다.").
-- **US-R23** 행 작업 버튼은 **재직자이고 로그인한 admin 본인이 아닌 행**에만 있다: "정보 수정", (local 모드만) "재설정"(접근 이름 "비밀번호 재설정"), "역할 변경", "삭제". 퇴사 행·본인 행에는 버튼이 없다. AD 모드 화면에는 "비밀번호"라는 글자·칸·버튼이 없다.
+- **US-R23** 모든 재직 행에 "정보 수정"을 표시한다. 로그인한 관리자 외의 재직 행에는 "역할 변경"·"삭제"와 local 모드의 "재설정"(접근 이름 "비밀번호 재설정")도 표시한다. 퇴사 행에는 작업 버튼이 없다. AD 모드 화면에는 "비밀번호"라는 글자·칸·버튼이 없다.
 - **US-R24** 등록 폼(form 이름 "사용자 등록", 제목 "사용자 등록", 버튼 "추가"): 칸은 AD 모드 "AD 아이디"·이름·이메일·전화번호·역할, local 모드 "아이디"·비밀번호·비밀번호 확인·이름·이메일·전화번호·역할. 역할 기본값 sales. 요청 전 검사: 아이디나 이름이 비었으면(local은 비밀번호도) 요청 없이 "AD 아이디와 이름을 입력하세요."(AD)·"아이디, 비밀번호, 이름을 입력하세요."(local), local에서 비밀번호와 확인이 다르면 "비밀번호 확인이 일치하지 않습니다.". 아이디·이름·이메일·전화는 앞뒤 공백을 지워 보내고 빈 이메일·전화는 보내지 않는다. 성공하면 모든 칸을 비우고 목록을 다시 읽는다(별도 알림 없음). 서버가 거절하면 서버 문구를 폼 위에 보이고 비밀번호·확인 칸만 비운다(다른 입력은 유지). 오류 `errors[].location`의 첫 조각이 `login_id`·`password`·`display_name`·`email`·`phone`이면 그 칸을 오류로 표시한다. 입력한 비밀번호는 요청이 끝나면 요청 캐시에 남지 않는다.
 - **US-R25** 정보 수정 대화상자(제목 "정보 수정"): 안내 "<아이디> 사용자의 정보를 고칩니다. 아이디와 역할은 여기서 바꿀 수 없습니다.", 칸 이름·이메일·전화번호에 현재 값(없으면 빈 칸). AD 모드는 이름·이메일 칸을 비활성으로 두고 "이름·이메일은 AD에서 관리합니다. 전화번호만 고칠 수 있습니다."를 보인다. 바뀐 칸만 보내며(앞뒤 공백 제거, 비운 이메일·전화는 null) 바뀐 칸이 없으면 "저장"이 비활성이다. 성공하면 닫고 목록을 다시 읽는다. 실패하면 대화상자 안에 서버 문구를 보이고 열어 둔다. "취소"는 요청 없이 닫는다.
 - **US-R26** 비밀번호 재설정 대화상자(제목 "비밀번호 재설정", local 모드만): 안내 "<아이디> (<이름>) 사용자의 비밀번호를 새로 정합니다."·"재설정하면 그 사용자의 로그인이 모두 종료됩니다. 새 비밀번호는 직접 전달하세요.", 칸 "새 비밀번호"·"새 비밀번호 확인", 버튼 "재설정". 두 칸이 다르면 요청 없이 "새 비밀번호 확인이 일치하지 않습니다.". 성공하면 닫고 페이지 알림 "<아이디> 사용자의 비밀번호가 재설정되었습니다. 그 사용자의 로그인은 모두 종료됩니다.". 실패하면 서버 문구를 보이고 두 칸을 비우며 열어 둔다(`password` 위치 오류는 새 비밀번호 칸 표시). 비밀번호는 요청 캐시에 남지 않는다.
@@ -335,7 +335,7 @@ US-R22~US-R31.
 | US-080 | 화면: 퇴사 행은 "이름(퇴사)"·퇴사 일시를 보이고 작업 버튼이 없다 | US-R22, US-R23, US-UC1 | frontend | `features/admin/users/UsersPage.profile.test.tsx > does not offer 정보 수정 on a resigned user`<br>`features/admin/users/UsersPage.test.tsx > shows a resigned row with 이름(퇴사), the resignation time, and no delete button`<br>`features/admin/users/UsersPage.test.tsx > shows 역할 변경 only on active rows other than the signed-in admin` |
 | US-081 | 화면: 사용자가 없으면 빈 메시지를 보인다 | US-R22, US-UC1 | frontend | `features/admin/users/UsersPage.test.tsx > shows the empty message when there are no users` |
 | US-082 | 화면: 목록을 읽지 못하면 서버 문구를 오류로 보인다 | US-R29, US-UC1 | frontend | `features/admin/users/UsersPage.test.tsx > shows the message when the list cannot be loaded` |
-| US-083 | 화면: 본인 행에는 작업 버튼이 없고 다른 재직 행에는 정보 수정·역할 변경·삭제가 있다 | US-R23, US-UC1 | frontend | `features/admin/users/UsersPage.profile.test.tsx > offers 정보 수정 on other users but not on the signed-in admin row`<br>`features/admin/users/UsersPage.test.tsx > hides the delete button on the row of the signed-in admin (last admin and self protection)`<br>`features/admin/users/UsersPage.test.tsx > shows 역할 변경 only on active rows other than the signed-in admin` |
+| US-083 | 화면에서 관리자 본인이 사용자 목록을 통해 자기 정보를 수정할 수 있다 | US-R23, US-UC1, US-UC5 | frontend | `features/admin/users/UsersPage.profile.test.tsx > lets the signed-in admin edit their own profile from the user list`<br>`features/admin/users/UsersPage.test.tsx > hides the delete button on the row of the signed-in admin (last admin and self protection)`<br>`features/admin/users/UsersPage.test.tsx > shows 역할 변경 only on active rows other than the signed-in admin` |
 | US-084 | 화면: AD 모드에는 비밀번호 칸·재설정 버튼이 없고 아이디 칸 이름이 "AD 아이디"다 | US-R23, US-R24, US-UC2 | frontend | `features/admin/users/AddUserForm.local.test.tsx > keeps the AD id label and adds optional email and phone but no password`<br>`features/admin/users/UsersPage.profile.test.tsx > is not offered in AD mode`<br>`features/admin/users/UsersPage.test.tsx > has no password column, field or reset button in AD mode` |
 | US-085 | 화면: local 모드는 다른 재직 행에 비밀번호 재설정 버튼을 둔다 | US-R23, US-UC6 | frontend | `features/admin/users/UsersPage.profile.test.tsx > offers 비밀번호 재설정 on other users in local mode but not on the admin row` |
 | US-086 | 화면: AD 아이디를 고른 역할로 등록하면 목록에 행이 생기고 폼이 비며 역할 기본값은 sales다 | US-R24, US-UC2 | frontend | `features/admin/users/AddUserForm.local.test.tsx > registers without a password and passes the phone`<br>`features/admin/users/UsersPage.test.tsx > registers an AD id with the chosen role and refreshes the list`<br>`features/admin/users/UsersPage.test.tsx > defaults the role to sales` |
@@ -756,10 +756,10 @@ US-R22~US-R31.
 - When 화면이 열린다
 - Then 경고 영역에 서버 문구가 보인다
 
-### US-083 화면: 본인 행에는 작업 버튼이 없고 다른 재직 행에는 정보 수정·역할 변경·삭제가 있다
-- Given root로 로그인
-- When 화면이 열린다
-- Then root 행에는 버튼이 없고 kim 행에는 "정보 수정"·"역할 변경"·"삭제"가 있다
+### US-083 관리자 본인의 정보 수정
+- Given local 모드에서 root로 로그인
+- When 사용자 목록의 root 행에서 "정보 수정"을 열어 이름을 바꾼 뒤 저장한다
+- Then 사용자 목록과 사용자 메뉴에 새 이름이 표시된다
 
 ### US-084 화면: AD 모드에는 비밀번호 칸·재설정 버튼이 없고 아이디 칸 이름이 "AD 아이디"다
 - Given 인증 방식 `ad`

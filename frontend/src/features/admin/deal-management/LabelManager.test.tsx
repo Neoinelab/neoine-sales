@@ -140,11 +140,11 @@ describe('BANT Label 추가·수정 (T-LABEL-02~03)', () => {
     const { user } = await openLabels()
 
     // when: '단독 예산 확보'의 이름 수정에서 '전액 예산 확보'로 저장한다
-    await user.click(labelRow('Budget', '단독 예산 확보').getByRole('button', { name: '이름 수정' }))
+    await user.click(labelRow('Budget', '단독 예산 확보').getByRole('button', { name: '단독 예산 확보' }))
     const input = screen.getByLabelText('Label 이름')
     await user.clear(input)
     await user.type(input, '전액 예산 확보')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 새 이름이 보이고 옛 이름은 없다
     expect(await section('Budget').findByText('전액 예산 확보')).toBeInTheDocument()
@@ -158,11 +158,11 @@ describe('BANT Label 추가·수정 (T-LABEL-02~03)', () => {
     const { user } = await openLabels()
 
     // when: '단독 예산 확보'를 '풀 예산 확보'로 바꿔 저장한다
-    await user.click(labelRow('Budget', '단독 예산 확보').getByRole('button', { name: '이름 수정' }))
+    await user.click(labelRow('Budget', '단독 예산 확보').getByRole('button', { name: '단독 예산 확보' }))
     const input = screen.getByLabelText('Label 이름')
     await user.clear(input)
     await user.type(input, '풀 예산 확보')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 중복 문구가 오류 배너에 보인다
     expect(await screen.findByRole('alert')).toHaveTextContent('같은 구분에 이미 있는 Label 이름입니다.')

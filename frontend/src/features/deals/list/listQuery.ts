@@ -1,4 +1,4 @@
-import type { Role } from '../../../shared/model/types'
+import type { Code, Role } from '../../../shared/model/types'
 import type { Quarter } from '../../../shared/model/period'
 import { DEAL_PAGE_SIZE, PRODUCT_MAX_LENGTH } from '../../../shared/model/constants'
 import type { DealListQuery, DealSortKey, SortOrder } from '../../../shared/model/types'
@@ -10,7 +10,7 @@ import { effectiveQuarters, monthsOfQuarters, parseQuarterParam, quarterParam, t
 import { isCalendarDate } from '../../../shared/model/updatedPeriod'
 import { FILTER_KEYS } from '../../../shared/model/dealListMemory'
 import { validOwnerName } from '../../../shared/model/ownerInput'
-import { parseForecastParam } from '../../../shared/model/forecastKeys'
+import { forecastParam, parseForecastParam } from '../../../shared/model/forecastKeys'
 
 /** URL 쿼리 키(정의는 shared의 기억 모듈에 있고 여기서 다시 내보낸다). */
 export { FILTER_KEYS }
@@ -177,10 +177,11 @@ export function hasListCondition(params: URLSearchParams): boolean {
   return FILTER_KEYS.some((key) => (params.get(key) ?? '').trim() !== '')
 }
 
-/** 조건 없이 들어온 목록의 기본 조건: 연도 전체(year=all) + (sales면) 내 딜만. 정렬은 이어받고 페이지·모르는 키는 버린다. _today는 호출부 호환용으로 쓰지 않는다. */
-export function defaultListParams(_today: string, role: Role | null | undefined, current?: URLSearchParams): URLSearchParams {
+export function defaultListParams(role: Role | undefined, forecasts: readonly Pick<Code, 'key' | 'outcome'>[], current?: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams({ year: 'all' })
   if (role === 'sales') next.set('mine', '1')
+  const open = forecastParam(forecasts.filter((code) => code.outcome === 'open').map((code) => code.key))
+  if (open) next.set('forecast', open)
   for (const key of ['sort', 'order']) {
     const value = current?.get(key)
     if (value) next.set(key, value)

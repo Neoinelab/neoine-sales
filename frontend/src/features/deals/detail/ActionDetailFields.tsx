@@ -74,7 +74,7 @@ export function ActionDetailFields({ action, canEdit, today, registeredOn, types
         {action.nextActionStatus === null ? (
           '—'
         ) : (
-          <NextActionStatusCell action={action} canChange={canEdit} busy={statusBusy} showClosedOn onChange={onChangeStatus} />
+          <NextActionStatusCell action={action} surface="dialog" canChange={canEdit} busy={statusBusy} onChange={onChangeStatus} />
         )}
       </dd>
     </dl>

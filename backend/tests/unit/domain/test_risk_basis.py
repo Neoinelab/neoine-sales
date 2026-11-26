@@ -8,13 +8,14 @@ from datetime import date, timedelta
 import pytest
 
 from app.domain.deal.risk import Risk, RiskBasis, compute_risk
+from app.domain.deal.sync_state import SyncState
 
 TODAY = date(2026, 10, 22)
 
 
 def _flagged_stale(day: date, stale_days: int) -> bool:
     risk = compute_risk(
-        forecast_key="pipeline",
+        sync=SyncState(status_key="prospecting", forecast_key="pipeline"),
         earliest_open_due=None,
         last_updated_on=day,
         today=TODAY,

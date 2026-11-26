@@ -61,7 +61,11 @@ button.dd-small { padding: 2px 8px; }
 .dd-scroll table { min-width: 560px; }
 .dd-table td.wrap { max-width: 280px; }
 .dd-action-table td.dd-col-short { white-space: nowrap; }
-.dd-action-table .dd-next-action-status { flex-wrap: nowrap; white-space: nowrap; }
+.content .dd-scroll.dd-action-scroll { overflow-x: auto; }
+.content .dd-action-scroll > .dd-action-table { min-width: 560px; max-width: none; }
+.dd-action-table th:nth-child(6) { width: 10rem; }
+.content .dd-action-scroll .dd-action-table .dd-next-action-status { flex-wrap: nowrap; white-space: nowrap; }
+.content .dd-action-scroll .dd-next-action-status > button { flex: none; white-space: nowrap; }
 .dd-action-table td.dd-col-long { min-width: 40em; overflow-wrap: anywhere; white-space: pre-wrap; }
 .dd-action-table tr.dd-action-row:hover { background: var(--accent-soft); }
 .dd-action-dl dd.dd-pre { white-space: pre-wrap; }

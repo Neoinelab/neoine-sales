@@ -95,7 +95,7 @@ async def build_views(
                 for link in item.deal.partner_links
             },
             risk=compute_risk(
-                forecast_key=item.deal.sync.forecast_key,
+                sync=item.deal.sync,
                 earliest_open_due=item.earliest_open_due,
                 last_updated_on=item.last_updated_on,
                 today=today,

@@ -155,11 +155,11 @@ describe('Action 유형 이름 수정', () => {
     const { user } = await openTypes()
 
     // when: '협상'의 이름 수정에서 '가격 협상'으로 저장한다
-    await user.click(typeRow('협상').getByRole('button', { name: '이름 수정' }))
+    await user.click(typeRow('협상').getByRole('button', { name: '협상' }))
     const input = screen.getByLabelText('유형 이름')
     await user.clear(input)
     await user.type(input, '가격 협상')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 새 이름이 보이고 옛 이름은 없다
     expect(await within(table()).findByText('가격 협상')).toBeInTheDocument()
@@ -175,11 +175,11 @@ describe('Action 유형 이름 수정', () => {
     await within(table()).findByText('Webinar')
 
     // when: 'WEBINAR'로 바꿔 저장한다
-    await user.click(typeRow('Webinar').getByRole('button', { name: '이름 수정' }))
+    await user.click(typeRow('Webinar').getByRole('button', { name: 'Webinar' }))
     const input = screen.getByLabelText('유형 이름')
     await user.clear(input)
     await user.type(input, 'WEBINAR')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 'WEBINAR'가 보인다
     expect(await within(table()).findByText('WEBINAR')).toBeInTheDocument()
@@ -192,11 +192,11 @@ describe('Action 유형 이름 수정', () => {
     const { user } = await openTypes()
 
     // when: '협상'을 '미팅'으로 바꿔 저장한다
-    await user.click(typeRow('협상').getByRole('button', { name: '이름 수정' }))
+    await user.click(typeRow('협상').getByRole('button', { name: '협상' }))
     const input = screen.getByLabelText('유형 이름')
     await user.clear(input)
     await user.type(input, '미팅')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 중복 문구가 배너에 보인다
     expect(await screen.findByRole('alert')).toHaveTextContent('이미 있는 유형 이름입니다.')
@@ -209,9 +209,9 @@ describe('Action 유형 이름 수정', () => {
     const { user } = await openTypes()
 
     // when: 이름 수정에서 글자를 더 입력하고 취소한다
-    await user.click(typeRow('협상').getByRole('button', { name: '이름 수정' }))
+    await user.click(typeRow('협상').getByRole('button', { name: '협상' }))
     await user.type(screen.getByLabelText('유형 이름'), ' 변경')
-    await user.click(screen.getByRole('button', { name: '취소' }))
+    await user.keyboard('{Escape}')
 
     // then: 이름은 그대로이고 입력 칸이 없다
     expect(within(table()).getByText('협상')).toBeInTheDocument()

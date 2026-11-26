@@ -346,7 +346,7 @@ describe('필터와 정렬 (T-LIST-05~09)', () => {
     await waitFor(() => expect(screen.getByLabelText('키워드')).toHaveValue(''))
     expect(screen.getByLabelText('Product')).toHaveValue('')
     expect(screen.getByLabelText('Vendor')).toHaveDisplayValue('전체')
-    await waitFor(() => expect(Object.keys(list.mock.calls.at(-1)?.[0] ?? {}).sort()).toEqual(['limit', 'offset']))
+    await waitFor(() => expect(list.mock.calls.at(-1)?.[0]).toEqual({ offset: 0, limit: 20, forecastKeys: ['best', 'commit', 'most_likely', 'pipeline'] }))
   })
 
   // Expected Close 정렬은 방향을 뒤집는다

@@ -14,7 +14,6 @@ interface Props {
   onCancel: () => void
 }
 
-/** 다른 사용자의 이름·이메일·전화번호를 고치는 대화상자. 바뀐 칸만 보내고, 비운 이메일·전화는 null이다. */
 export function EditUserDialog({ user, local, onDone, onCancel }: Props) {
   const formId = useId()
   const update = useUpdateUser()

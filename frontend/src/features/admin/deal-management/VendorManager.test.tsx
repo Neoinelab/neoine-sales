@@ -75,7 +75,7 @@ describe('Vendor 탭', () => {
     expect(names).toEqual(['CrowdStrike', 'CyberArk', 'Okta', 'Palo Alto', 'SentinelOne', 'Silverfort', 'Splunk', 'Tenable', 'Veeam', 'Zscaler'])
     expect(vendorRow('Silverfort').getByText('Deal 7건')).toBeVisible()
     expect(vendorRow('Splunk').getByText('Deal 0건')).toBeVisible()
-    expect(vendorRow('Silverfort').getByRole('button', { name: '이름 수정' })).toBeVisible()
+    expect(vendorRow('Silverfort').getByRole('button', { name: 'Silverfort' })).toBeVisible()
     expect(vendorRow('Silverfort').getByRole('button', { name: '삭제' })).toBeVisible()
   })
 
@@ -127,11 +127,11 @@ describe('Vendor 추가·이름 수정', () => {
     const { user } = await openVendors()
 
     // when: 'Silverfort'를 'Silverfort Inc'로 바꿔 저장한다
-    await user.click(vendorRow('Silverfort').getByRole('button', { name: '이름 수정' }))
+    await user.click(vendorRow('Silverfort').getByRole('button', { name: 'Silverfort' }))
     const input = screen.getByLabelText('Vendor 이름')
     await user.clear(input)
     await user.type(input, 'Silverfort Inc')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 새 이름과 'Deal 7건'이 보인다
     expect(await screen.findByText('Silverfort Inc')).toBeVisible()

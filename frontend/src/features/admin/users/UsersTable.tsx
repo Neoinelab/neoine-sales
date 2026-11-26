@@ -9,7 +9,6 @@ function emptyMessage(filter: UserListFilter): string {
 interface Props {
   users: readonly User[]
   filter: UserListFilter
-  /** 로그인한 사용자 id. 본인 행에는 역할 변경·삭제 버튼을 두지 않는다(마지막 admin 보호). */
   meId: number | undefined
   /** 앱에서 직접 관리(local) 모드일 때만 비밀번호 재설정 버튼을 둔다. */
   local: boolean
@@ -51,11 +50,14 @@ export function UsersTable({ users, filter, meId, local, onEdit, onResetPassword
               <td>{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : '-'}</td>
               <td>{u.resignedAt ? formatDateTime(u.resignedAt) : '-'}</td>
               <td>
+                {u.status === 'active' && (
+                  <button type="button" className="small" onClick={() => onEdit(u)}>
+                    정보 수정
+                  </button>
+                )}
                 {u.status === 'active' && u.id !== meId && (
                   <>
-                    <button type="button" className="small" onClick={() => onEdit(u)}>
-                      정보 수정
-                    </button>{' '}
+                    {' '}
                     {local && (
                       <>
                         <button type="button" className="small" aria-label="비밀번호 재설정" onClick={() => onResetPassword(u)}>

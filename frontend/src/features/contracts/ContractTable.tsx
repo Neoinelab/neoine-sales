@@ -6,17 +6,17 @@ import { EXPIRY_TITLES, expiryLevel } from './contractExpiry'
 import type { ContractSort } from './contractFilter'
 import { STATUS_LABELS, isIssuedStatus } from './contractLabels'
 
-const COLUMNS: readonly { label: string; sort: ContractSort; widthClass?: string }[] = [
-  { label: 'Deal명', sort: 'dealName', widthClass: 'deal-list-name' },
-  { label: '고객사명', sort: 'customer' },
-  { label: 'Vendor', sort: 'vendor', widthClass: 'deal-list-vendor' },
-  { label: '제품명', sort: 'product', widthClass: 'contract-list-product' },
-  { label: '파트너사', sort: 'partner' },
-  { label: '라이선스 시작일', sort: 'licenseStart' },
-  { label: '라이선스 종료일', sort: 'licenseEnd' },
-  { label: '상태', sort: 'status', widthClass: 'deal-list-owner' },
-  { label: '담당영업', sort: 'salesOwner', widthClass: 'deal-list-owner' },
-  { label: '기술담당', sort: 'techOwner', widthClass: 'deal-list-owner' },
+const COLUMNS: readonly { label: string; sort: ContractSort; width: number }[] = [
+  { label: 'Deal명', sort: 'dealName', width: 22 },
+  { label: '고객사명', sort: 'customer', width: 8 },
+  { label: 'Vendor', sort: 'vendor', width: 10 },
+  { label: '제품명', sort: 'product', width: 12 },
+  { label: '파트너사', sort: 'partner', width: 8 },
+  { label: '라이선스 시작일', sort: 'licenseStart', width: 8 },
+  { label: '라이선스 종료일', sort: 'licenseEnd', width: 8 },
+  { label: '상태', sort: 'status', width: 8 },
+  { label: '담당영업', sort: 'salesOwner', width: 8 },
+  { label: '기술담당', sort: 'techOwner', width: 8 },
 ]
 
 interface ContractTableProps {
@@ -33,10 +33,10 @@ const dash = (value: string | null) => (value === null || value === '' ? '-' : v
 
 export function ContractTable({ rows, sort, order, onSort, today, onEdit }: ContractTableProps) {
   return (
-    <div className="table-scroll deal-list-scroll">
+    <div className="table-scroll">
       <table className="contract-table" aria-label="계약 목록">
         <colgroup>
-          {COLUMNS.map(({ sort, widthClass }) => <col key={sort} className={widthClass} />)}
+          {COLUMNS.map(({ sort, width }) => <col key={sort} style={{ width: `${width}%` }} />)}
         </colgroup>
         <thead>
           <tr>

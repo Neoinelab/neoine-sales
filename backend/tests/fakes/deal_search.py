@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from app.application.ports.deal_repository import DealQuery
     from app.domain.deal.risk import RiskBasis
+    from app.domain.deal.sync_state import SyncState
 
 
 def company_of(contacts: Mapping[Any, Any], contact_id: Any) -> str:  # noqa: ANN401
@@ -173,14 +174,14 @@ def check_risk_basis(query: DealQuery) -> RiskBasis:
 
 
 def risk_matches(
-    query: DealQuery, *, forecast_key: str, earliest_open_due: date | None, last_updated_on: date
+    query: DealQuery, *, sync: SyncState, earliest_open_due: date | None, last_updated_on: date
 ) -> bool:
     """overdue/stale 필터. 판정은 compute_risk로 독립 계산한다(SQL 경계 변환을 베끼지 않음)."""
     if not query.wants_risk():
         return True
     basis = check_risk_basis(query)
     risk = compute_risk(
-        forecast_key=forecast_key,
+        sync=sync,
         earliest_open_due=earliest_open_due,
         last_updated_on=last_updated_on,
         today=basis.today,

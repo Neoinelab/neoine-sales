@@ -1,11 +1,12 @@
 /** Risk(기한초과/미업데이트) 판정 순수 함수(A-0 계약, 구현은 A-1). 계획 6.3, R03/R04. */
 
-import { FORECAST_LOST, FORECAST_WON } from './constants'
+import { FORECAST_LOST, FORECAST_WON, STATUS_CONTRACT_COMPLETED } from './constants'
 import { datePart, daysBetween } from './dates'
 import type { Risk } from './types'
 
 export interface RiskInput {
   forecastKey: string
+  statusKey: string
   /** Open인 Next Action의 Due Date 중 가장 이른 값. 없으면 null(기한초과 아님). */
   earliestOpenDue: string | null
   /** DealRow.lastUpdatedOn(YYYY-MM-DD): 모든 Action의 가장 최근 수행일, Action이 없으면 등록일. */
@@ -24,7 +25,7 @@ export function computeRisk(input: RiskInput, now: string, staleDays: number): R
   if (isClosedForecast(input.forecastKey)) return null
   const today = datePart(now)
   const overdue = input.earliestOpenDue !== null && input.earliestOpenDue < today
-  const stale = daysBetween(today, datePart(input.lastUpdatedOn)) >= staleDays
+  const stale = input.statusKey !== STATUS_CONTRACT_COMPLETED && daysBetween(today, datePart(input.lastUpdatedOn)) >= staleDays
   if (overdue && stale) return 'overdue_stale'
   if (overdue) return 'overdue'
   return stale ? 'stale' : null

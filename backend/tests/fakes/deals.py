@@ -304,7 +304,7 @@ class FakeDealRepository(DealCountsMixin, InMemoryStore["Deal"]):
         item = self._item(deal, None)
         return risk_matches(
             query,
-            forecast_key=deal.sync.forecast_key,
+            sync=deal.sync,
             earliest_open_due=item.earliest_open_due,
             last_updated_on=item.last_updated_on,
         )

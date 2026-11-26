@@ -44,7 +44,7 @@ async function nextActionOf(name: string) {
 
 describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
   // 테스트 코드: DL-058
-  it('shows the ten remaining headers in order', async () => {
+  it('shows the ten remaining headers in order with their percentage widths', async () => {
     // given: 시드 목록
     await renderAt(ALL_DEALS)
 
@@ -52,6 +52,8 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     await rowOf(/한빛은행 ITDR 도입/)
 
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
+    expect(Array.from(screen.getByRole('table').querySelectorAll('col'), (col) => col.style.width))
+      .toEqual(['26%', '6%', '6%', '6%', '6%', '6%', '6%', '26%', '6%', '6%'])
     expect(screen.queryByRole('columnheader', { name: 'BANT' })).not.toBeInTheDocument()
   })
 

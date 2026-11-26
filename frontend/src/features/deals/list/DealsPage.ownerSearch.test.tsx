@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { ApiError } from '../../../shared/api/problem'
+import { defaultDealsUrl } from '../../../test/dealsUrl'
 import { resetMock } from '../../../test/fake/default'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import type { SeedData, UserRecord } from '../../../test/fake/store'
@@ -414,7 +415,7 @@ describe('담당자 URL 복원', () => {
     await user.click(screen.getByRole('button', { name: '초기화' }))
 
     // then: 담당자 칸이 비고 URL에 담당자 조건이 없다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
     expect(await owner()).toHaveValue('')
   })
 })

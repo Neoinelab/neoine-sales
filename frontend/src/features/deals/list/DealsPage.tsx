@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMe, usePermissions } from '../../../data/auth'
 import { useAlertSettings } from '../../../data/alerts'
+import { useCodeSet } from '../../../data/codes'
 import { useDeals, useExportDeals } from '../../../data/deals'
 import { saveBlob } from '../detail/detailHelpers'
-import { useToday } from '../../../data/today'
 import { useVendors } from '../../../data/vendors'
 import { rememberListSearch } from '../../../shared/model/dealListMemory'
 import { effectiveVendorFilter } from '../../../shared/model/vendorFilter'
@@ -21,12 +21,13 @@ import './list.css'
 /** Deals 목록(`/deals`, 계획 6.3). 조건·정렬·페이지는 모두 URL 쿼리에 있다. */
 export function DealsPage() {
   const [urlParams, setParams] = useSearchParams()
-  const { today } = useToday()
   const me = useMe().data
   const role = me?.role
-  // 조건이 하나도 없는 주소는 기본 조건(연도 전체)을 적용한 것으로 본다: 조건 없는 요청이 나가지 않게 첫 렌더부터 이 값을 쓰고, 주소는 replace로 맞춘다.
+  const codes = useCodeSet()
+  const forecasts = codes.data?.forecasts
   const bare = !hasListCondition(urlParams)
-  const params = useMemo(() => (bare ? defaultListParams(today, role, urlParams) : urlParams), [bare, today, role, urlParams])
+  const needsForecasts = bare && forecasts === undefined
+  const params = useMemo(() => (bare && forecasts ? defaultListParams(role, forecasts, urlParams) : urlParams), [bare, forecasts, role, urlParams])
   const { canWrite } = usePermissions()
   const meId = me?.id
   const vendors = useVendors().data
@@ -35,23 +36,23 @@ export function DealsPage() {
     const effective = effectiveVendorFilter(vendors, vendorId)
     return { ...rest, ...(effective.vendorId && { vendorId: effective.vendorId }) }
   }, [params, vendors])
-  const deals = useDeals(query)
+  const deals = useDeals(query, !needsForecasts)
   const alerts = useAlertSettings()
   // 기준을 아직 모르거나(로딩) 가져오지 못하면(오류) 숫자 없는 문구를 보인다.
   const staleDays = alerts.data?.staleDays
   const staleLegend = staleDays === undefined ? '기준일 이상 미업데이트' : `${staleDays}일 이상 미업데이트`
   const [notice, setNotice] = useLocationNotice()
   const sort = currentSort(params)
-  const page = deals.data
+  const page = needsForecasts ? undefined : deals.data
 
   useEffect(() => {
-    if (bare) setParams(defaultListParams(today, role, urlParams), { replace: true })
-  }, [bare, today, role, urlParams, setParams])
+    if (bare && forecasts) setParams(params, { replace: true })
+  }, [bare, forecasts, params, setParams])
 
   // URL이 진실이다: 목록에 마지막으로 보인 조건을 기억한다(초기화하면 빈 조건이 기록되어 지워진다).
   useEffect(() => {
-    if (meId) rememberListSearch(meId, params)
-  }, [meId, params])
+    if (meId && !needsForecasts) rememberListSearch(meId, params)
+  }, [meId, needsForecasts, params])
 
   const exportDeals = useExportDeals()
   // CSV 오류는 요청한 목록 조건과 함께 보관해, 조건이 바뀌면 보이지 않는다(진행 중 요청은 끊지 않는다).
@@ -70,7 +71,7 @@ export function DealsPage() {
 
   function change(patch: Record<string, string | undefined>) {
     setParams((prev) => {
-      const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(today, role, prev), patch)
+      const next = updateParams(hasListCondition(prev) ? prev : defaultListParams(role, forecasts ?? [], prev), patch)
       // 사용자가 마지막 조건을 직접 지우면 기본값이 되살아나지 않고 연도 '전체'로 남긴다.
       return hasListCondition(next) ? next : updateParams(next, { year: 'all', page: next.get('page') ?? undefined })
     })
@@ -92,7 +93,9 @@ export function DealsPage() {
         )}
       </div>
 
-      <DealFilterBar params={params} onChange={change} onReset={() => setParams(defaultListParams(today, role))} />
+      {!(needsForecasts && codes.isPending) && (
+        <DealFilterBar params={params} onChange={change} onReset={() => setParams(forecasts ? defaultListParams(role, forecasts) : new URLSearchParams())} />
+      )}
 
       <ul className="risk-legend" aria-label="Risk 범례">
         <li>
@@ -110,9 +113,9 @@ export function DealsPage() {
           {notice}
         </Notice>
       )}
-      <ErrorBanner error={deals.error} />
+      <ErrorBanner error={needsForecasts ? codes.error : deals.error} />
 
-      {deals.isPending && <p className="hint">불러오는 중…</p>}
+      {deals.isPending && !(needsForecasts && codes.isError) && <p className="hint">불러오는 중…</p>}
       {page && (
         <>
           <div className="deals-count-row">

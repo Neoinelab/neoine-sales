@@ -27,11 +27,7 @@ export function CodeRow({ code, isFirst, isLast, editing, busy, onEdit, onSaveNa
     <tr>
       <td className="num">{code.order}</td>
       <td>
-        {editing ? (
-          <InlineNameEdit label="코드 이름" initial={code.name} busy={busy} onSave={onSaveName} onCancel={onCancelEdit} />
-        ) : (
-          code.name
-        )}
+        <InlineNameEdit label="코드 이름" name={code.name} editing={editing} busy={busy} onEdit={onEdit} onSave={onSaveName} onCancel={onCancelEdit} />
       </td>
       <td className="mono">{code.key}</td>
       {forecast && <td>{code.probabilityHint ?? '-'}</td>}
@@ -51,9 +47,6 @@ export function CodeRow({ code, isFirst, isLast, editing, busy, onEdit, onSaveNa
           </button>
           <button type="button" className="small" aria-label={`${code.name} 아래로 이동`} disabled={isLast || busy} onClick={() => onMove(1)}>
             ↓
-          </button>
-          <button type="button" className="small" disabled={editing} onClick={onEdit}>
-            이름 수정
           </button>
           <button
             type="button"

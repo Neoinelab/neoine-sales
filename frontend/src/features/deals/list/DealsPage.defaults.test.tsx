@@ -2,12 +2,12 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { listMemoryKey } from '../../../shared/model/dealListMemory'
-import { defaultDealsUrl } from '../../../test/dealsUrl'
+import { defaultDealsUrl, OPEN_FORECAST_SEARCH } from '../../../test/dealsUrl'
 import { resetMock } from '../../../test/fake/default'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import { SEED_PASSWORD } from '../../../test/fake/seed/users'
 import { renderAt } from '../../../test/mockApp'
-import { clearQuarter, dataRows, quarterButton, rowOf } from './testHelpers'
+import { clearQuarter, dataRows, openForecastPanel, quarterButton, rowOf } from './testHelpers'
 // 기록 테스트는 /dashboard에서 시작한다. App은 DashboardPage를 React.lazy로 불러오므로 청크 로딩이 findBy 기본 대기(1초)를 넘기지 않게 미리 읽어 둔다.
 import '../../dashboard/DashboardPage'
 
@@ -34,14 +34,21 @@ describe('조건 없는 목록 진입', () => {
   // 테스트 코드: DL-055
   it('replaces the bare list url with all years and no quarter', async () => {
     // when: 조건 없는 /deals로 들어간다 (전제: 서버 시계 2026-10-15의 로그인한 admin)
-    const { location } = await renderAt('/deals', ADMIN)
+    const { location, user } = await renderAt('/deals', ADMIN)
 
     // then: 주소가 /deals?year=all로 바뀌고 연도 전체·Quarter 전체·월 전체·월 선택지 13개가 보인다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
     expect(await screen.findByLabelText('Close 연도')).toHaveDisplayValue('전체')
     expect(quarterButton('전체')).toBeInTheDocument()
     expect(screen.getByLabelText('월')).toHaveDisplayValue('전체')
     expect(optionNames(screen.getByLabelText('월'))).toHaveLength(13)
+    const forecast = await openForecastPanel(user)
+    for (const name of ['Pipeline', 'Best', 'Most Likely', 'Commit']) {
+      expect(forecast.getByRole('checkbox', { name })).toBeChecked()
+    }
+    for (const name of ['Won', 'Lost']) {
+      expect(forecast.getByRole('checkbox', { name })).not.toBeChecked()
+    }
   })
 
   // 기본 조건 목록 요청에는 연도·분기가 없고 정렬은 최종 업데이트 내림차순이다
@@ -59,6 +66,7 @@ describe('조건 없는 목록 진입', () => {
     for (const [query] of list.mock.calls) {
       expect(query).not.toHaveProperty('year')
       expect(query).not.toHaveProperty('quarters')
+      expect(query.forecastKeys).toEqual(['best', 'commit', 'most_likely', 'pipeline'])
       expect(query.sort ?? 'lastUpdatedAt').toBe('lastUpdatedAt')
       expect(query.order ?? 'desc').toBe('desc')
     }
@@ -72,16 +80,18 @@ describe('조건 없는 목록 진입', () => {
     const years = new Set(all.items.map((d) => d.revenueDate.slice(0, 4)))
     expect(years.has('2026')).toBe(true)
     expect(years.has('2027')).toBe(true)
-    const expected = await gateway.deals.list({ limit: 20, sort: 'lastUpdatedAt', order: 'desc' })
+    const expected = await gateway.deals.list({ forecastKeys: ['best', 'commit', 'most_likely', 'pipeline'], limit: 20, sort: 'lastUpdatedAt', order: 'desc' })
 
     // when: 조건 없는 /deals로 들어간다
     await renderAt('/deals', ADMIN)
 
     // then: '총 N건'이 전체 Deal 수이고 행이 최종 업데이트 최신순이며 머리글이 내림차순이다
-    expect(await screen.findByText(`총 ${all.total}건`)).toBeVisible()
+    expect(await screen.findByText(`총 ${expected.total}건`)).toBeVisible()
     const names = dataRows().map((row) => row.textContent ?? '')
     expect(names).toHaveLength(expected.items.length)
-    expected.items.forEach((deal, i) => expect(names[i]).toContain(deal.name))
+    expected.items.forEach((deal, i) => {
+      expect(names[i]).toContain(deal.name)
+    })
     expect(screen.getByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
   })
 
@@ -92,7 +102,7 @@ describe('조건 없는 목록 진입', () => {
     const { location } = await renderAt('/deals?q=&product=%20', ADMIN)
 
     // then: 주소가 /deals?year=all로 바뀐다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 
   // 기본 조건은 정렬을 이어받고 page·모르는 키를 버린다
@@ -102,7 +112,7 @@ describe('조건 없는 목록 진입', () => {
     const { location } = await renderAt('/deals?sort=owner&order=asc&page=3&outcome=open', ADMIN)
 
     // then: 주소가 정렬만 남은 기본 조건이 되고 담당자 머리글이 오름차순이다
-    await waitFor(() => expect(location()).toBe('/deals?year=all&sort=owner&order=asc'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, 'sort=owner&order=asc', 'admin')))
     expect(await screen.findByRole('columnheader', { name: '담당자' })).toHaveAttribute('aria-sort', 'ascending')
   })
 
@@ -116,7 +126,7 @@ describe('조건 없는 목록 진입', () => {
     // when: 상단 메뉴 Deals를 눌러 들어온 뒤 뒤로 간다
     await user.click(mainMenu().getByRole('link', { name: 'Deals' }))
     // then: 조건 없는 주소가 아니라 /dashboard로 돌아간다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
     goTo(-1)
 
     await waitFor(() => expect(location()).toBe('/dashboard'))
@@ -136,7 +146,7 @@ describe('앱 시계와 무관', () => {
       const { location } = await renderAt('/deals', ADMIN)
 
       // then: 주소가 시계와 무관하게 /deals?year=all이다
-      await waitFor(() => expect(location()).toBe('/deals?year=all'))
+      await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
       expect(location()).toBe(defaultDealsUrl(now, '', 'admin'))
     },
   )
@@ -150,7 +160,7 @@ describe('여러 진입점', () => {
     const { location } = await renderAt('/', ADMIN)
 
     // then: 주소가 /deals?year=all이 된다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 
   // 로그인 직후에도 기본 조건이 적용된다
@@ -166,7 +176,7 @@ describe('여러 진입점', () => {
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
     // then: 주소가 /deals?year=all이 된다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 
   // 기억이 없으면 상단 메뉴 Deals도 기본 조건이다
@@ -181,7 +191,7 @@ describe('여러 진입점', () => {
     await user.click(mainMenu().getByRole('link', { name: 'Deals' }))
 
     // then: 주소가 /deals?year=all이 된다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 
   // 예전 outcome만 기억돼 있으면 기본 조건이다
@@ -197,7 +207,7 @@ describe('여러 진입점', () => {
     await user.click(back)
 
     // then: 주소가 /deals?year=all이 된다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 
   // 기억이 없는 상세의 목록 링크도 기본 조건이다
@@ -210,7 +220,7 @@ describe('여러 진입점', () => {
     await user.click(await screen.findByRole('link', { name: 'Deal 목록으로' }))
 
     // then: 주소가 /deals?year=all이 된다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
   })
 })
 
@@ -219,7 +229,7 @@ describe('초기화', () => {
   // 테스트 코드: DL-070
   it('goes to all years as a new history entry and remembers it', async () => {
     // given: 연도 전체·Status·정렬이 걸린 목록
-    const start = '/deals?year=all&status=contract_completed&sort=name&order=asc'
+    const start = '/deals?year=all&status=contract_completed&forecast=won&sort=name&order=asc'
     const { user, location, goTo } = await renderAt(start, ADMIN)
     await screen.findByRole('row', { name: /청명대학교 SSO\/MFA/ })
 
@@ -227,12 +237,13 @@ describe('초기화', () => {
     await user.click(screen.getByRole('button', { name: '초기화' }))
 
     // then: 주소·칸이 연도 전체 기본 조건이 되고 정렬은 최종 업데이트 내림차순, 기억도 year=all이며 뒤로 가면 이전 조건이다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
     expect(screen.getByLabelText('Status')).toHaveDisplayValue('전체')
     expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
+    expect(screen.getByRole('button', { name: 'Forecast Open 전체' })).toBeInTheDocument()
     expect(quarterButton('전체')).toBeInTheDocument()
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
-    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.root))).toBe('year=all')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.root))).toBe(`year=all&${OPEN_FORECAST_SEARCH}`)
 
     goTo(-1)
 

@@ -6,7 +6,7 @@ const NOW = '2026-10-15T09:00:00+09:00'
 const STALE = 14
 
 describe('computeRisk', () => {
-  const base = { forecastKey: 'commit', earliestOpenDue: '2026-10-20', lastUpdatedOn: '2026-10-14' }
+  const base = { statusKey: 'prospecting', forecastKey: 'commit', earliestOpenDue: '2026-10-20', lastUpdatedOn: '2026-10-14' }
 
   // Due가 오늘이면 기한초과가 아니다.
   // 테스트 코드: RK-066, RK-079
@@ -54,10 +54,16 @@ describe('computeRisk', () => {
     // given: Due가 지나고 오래전에 갱신한 상태다
     const stale = { earliestOpenDue: '2026-01-01', lastUpdatedOn: '2026-01-01' }
     // when: Due가 지나고 오래된 Won·Lost Deal을 판정한다
-    const result = computeRisk({ forecastKey: 'won', ...stale }, NOW, STALE)
+    const result = computeRisk({ ...base, forecastKey: 'won', ...stale }, NOW, STALE)
     // then: 둘 다 null이다
     expect(result).toBeNull()
-    expect(computeRisk({ forecastKey: 'lost', ...stale }, NOW, STALE)).toBeNull()
+    expect(computeRisk({ ...base, forecastKey: 'lost', ...stale }, NOW, STALE)).toBeNull()
+  })
+
+  it('excludes 계약완료 from stale even when Forecast is still open', () => {
+    const completed = { ...base, statusKey: 'contract_completed', lastUpdatedOn: '2026-09-20' }
+    expect(computeRisk(completed, NOW, STALE)).toBeNull()
+    expect(computeRisk({ ...completed, earliestOpenDue: '2026-10-01' }, NOW, STALE)).toBe('overdue')
   })
 
   // Action이 없어 Due가 null이면 기한초과가 아니다.
@@ -118,7 +124,7 @@ describe('computeRisk', () => {
   // 테스트 코드: RK-066
   it('keeps closed deals null whatever the threshold', () => {
     // when: 기준 1일로 오래된 Won Deal을 판정한다
-    const result = computeRisk({ forecastKey: 'won', earliestOpenDue: '2020-01-01', lastUpdatedOn: '2020-01-01' }, NOW, 1)
+    const result = computeRisk({ ...base, forecastKey: 'won', earliestOpenDue: '2020-01-01', lastUpdatedOn: '2020-01-01' }, NOW, 1)
     // then: risk가 null이다
     expect(result).toBeNull()
   })

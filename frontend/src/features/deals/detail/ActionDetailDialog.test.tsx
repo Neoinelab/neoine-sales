@@ -184,14 +184,14 @@ describe('행 안의 상태 칸 버튼', () => {
   it('does not open the detail dialog when Enter or Space is pressed on the button in the row', async () => {
     // given: 상태 버튼에 포커스를 둔 행
     const view = await openActionsTab()
-    const button = within(bodyRows(view.table)[0]!).getByRole('button', { name: '종료(미수행)' })
+    const button = within(bodyRows(view.table)[0]!).getByRole('button', { name: '종료(수행)' })
     act(() => button.focus())
 
     // when: Space를 누른다
     await view.user.keyboard(' ')
 
     // then: 종료 팝업만 열린다
-    expect(await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })).toBeVisible()
+    expect(await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })).toBeVisible()
     expect(queryDetail()).not.toBeInTheDocument()
 
     // when: 취소한 뒤 Enter를 누른다
@@ -200,13 +200,12 @@ describe('행 안의 상태 칸 버튼', () => {
     await view.user.keyboard('{Enter}')
 
     // then: 이번에도 종료 팝업만 열린다
-    expect(await screen.findByRole('dialog', { name: 'Next Action 종료(미수행)' })).toBeVisible()
+    expect(await screen.findByRole('dialog', { name: 'Next Action 종료(수행)' })).toBeVisible()
     expect(queryDetail()).not.toBeInTheDocument()
   })
 
-  // "Open으로"는 팝업 없이 행을 Open으로 바꾸고 상세 팝업도 열지 않는다.
   // 테스트 코드: AC-134
-  it('reopens in the row without any dialog', async () => {
+  it('requires the detail dialog to reopen a closed action', async () => {
     // given: 종료(수행)된 KIM의 행
     const view = await openActionsTab()
     const [first] = await gateway.actions.list(view.code, {})
@@ -214,16 +213,17 @@ describe('행 안의 상태 칸 버튼', () => {
     await view.client.invalidateQueries()
     const row = await waitFor(() => {
       const r = bodyRows(view.table)[0]!
-      expect(within(r).getByRole('button', { name: 'Open으로' })).toBeVisible()
+      expect(within(r).getAllByRole('cell')[5]?.textContent).toBe('종료(수행)')
       return r
     })
 
-    // when: "Open으로"를 누른다
-    await view.user.click(within(row).getByRole('button', { name: 'Open으로' }))
+    expect(within(row).queryByRole('button', { name: 'Open으로' })).not.toBeInTheDocument()
+    await view.user.click(within(row).getByRole('link'))
+    const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
+    await view.user.click(within(dialog).getByRole('button', { name: 'Open으로' }))
 
-    // then: 행이 Open이 되고 어떤 팝업도 열리지 않는다
     await waitFor(() => expect(within(bodyRows(view.table)[0]!).getByRole('button', { name: '종료(수행)' })).toBeVisible())
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toEqual([dialog])
   })
 })
 

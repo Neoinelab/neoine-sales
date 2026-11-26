@@ -60,7 +60,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
   const { today } = useToday()
   const own = (a: DealAction) => me !== null && canEditAction(me, a.actor.id)
   return (
-    <div className="dd-scroll">
+    <div className="dd-scroll dd-action-scroll">
       <table className="dd-table dd-action-table" aria-label="Action 목록">
         <thead>
           <tr>
@@ -93,7 +93,7 @@ export function ActionTable({ actions, deal, canEdit, me, sort, onSort, onOpen, 
                 </div>
               </td>
               <td className="dd-col-short">
-                <NextActionStatusCell action={a} canChange={canEdit && own(a) && onChangeStatus !== undefined} busy={statusBusy} describedBy={`next-action-${a.id}`} onChange={onChangeStatus ?? noop} />
+                <NextActionStatusCell action={a} surface="table" canChange={canEdit && own(a) && onChangeStatus !== undefined} busy={statusBusy} describedBy={`next-action-${a.id}`} onChange={onChangeStatus ?? noop} />
               </td>
               <td className="dd-col-short">
                 {onOpenComment && <CommentButton unread={commentCounts?.[a.id] ?? 0} canWrite={canEdit} onClick={() => onOpenComment(a)} />}

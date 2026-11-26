@@ -55,15 +55,18 @@ describe('사용자 목록의 이메일·전화번호 열', () => {
 })
 
 describe('정보 수정', () => {
-  // 다른 사용자에게는 정보 수정이 있고 본인 행에는 없다
   // 테스트 코드: US-083
-  it('offers 정보 수정 on other users but not on the signed-in admin row', async () => {
-    // when: 사용자 관리 화면을 연다 (전제: local 모드)
-    await openUsers(true)
+  it('lets the signed-in admin edit their own profile from the user list', async () => {
+    const { user } = await openUsers(true)
+    await user.click(within(rowOf('root')).getByRole('button', { name: '정보 수정' }))
+    const d = await dialog('정보 수정')
+    await replace(user, d, '이름', '새 관리자 이름')
 
-    // then: kim 행에는 정보 수정이 있고 root 행에는 없다
-    expect(within(rowOf('kim')).getByRole('button', { name: '정보 수정' })).toBeInTheDocument()
-    expect(within(rowOf('root')).queryByRole('button', { name: '정보 수정' })).not.toBeInTheDocument()
+    await user.click(d.getByRole('button', { name: '저장' }))
+
+    expect(await within(rowOf('root')).findByRole('cell', { name: '새 관리자 이름' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '사용자 메뉴' }))
+    expect(await screen.findByText('새 관리자 이름 (admin)')).toBeInTheDocument()
   })
 
   // 정보 수정 대화상자는 현재 값을 채워 연다

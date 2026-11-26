@@ -523,8 +523,7 @@ describe('예전 URL 키 solution (2026-11-16 Product 이름 변경)', () => {
     const view = await renderAt('/deals?solution=ITDR', { role: 'admin' })
     await screen.findByRole('row', { name: /한빛은행 ITDR 도입/ })
 
-    // then: 조건 없는 주소(DL-R19)인 `/deals?year=all`로 바뀌고 조회에 product가 없다
-    await waitFor(() => expect(view.location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(view.location()).toBe(defaultDealsUrl(undefined, '', 'admin')))
     expect(list.mock.calls.every(([query]) => query?.product === undefined)).toBe(true)
   })
 

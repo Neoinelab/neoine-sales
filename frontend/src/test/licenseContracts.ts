@@ -24,11 +24,11 @@ export const DEFAULT_CONTRACT_QUERY: LicenseContractQuery = { sort: 'licenseEnd'
 export const STATUS_TEXT = { not_issued: '미발급', issued_new: '발급(신규)', issued_renewal: '발급(갱신)', ended: '종료' } as const
 
 /** 모든 계약(admin으로 200건씩 끝까지 읽는다). */
-export async function allContracts(): Promise<LicenseContract[]> {
+export async function allContracts(query: LicenseContractQuery = DEFAULT_CONTRACT_QUERY): Promise<LicenseContract[]> {
   await defaultMock.signInAs(USER_ID.root)
   const found: LicenseContract[] = []
   for (let offset = 0; ; offset += 200) {
-    const page = await gateway.licenseContracts.list(DEFAULT_CONTRACT_QUERY, offset, 200)
+    const page = await gateway.licenseContracts.list(query, offset, 200)
     found.push(...page.items)
     if (found.length >= page.total || page.items.length === 0) return found
   }

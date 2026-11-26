@@ -11,37 +11,7 @@
   table-layout: fixed;
 }
 
-.content .table-scroll.deal-list-scroll {
-  overflow-x: auto;
-}
-
-.content .deal-list-scroll > table {
-  --deal-name-min: calc(30ic + 24px);
-  --deal-owner-width: calc(5ic + 24px);
-  --deal-vendor-width: calc(20ch + 8px);
-  max-width: none;
-}
-
-.content .deal-list-scroll > .deals-table {
-  --deal-name-min: calc(30ic + 56px);
-  --deal-forecast-width: calc(10ch + 16px);
-  --deal-updated-width: calc(7ic + 8px);
-  min-width: calc(var(--deal-name-min) + var(--deal-owner-width) + var(--deal-vendor-width) + var(--deal-forecast-width) + var(--deal-updated-width) + 280px);
-}
-
-.content .deal-list-scroll > .contract-table {
-  --contract-product-width: calc(max(15ic, 30ch) + 24px);
-  min-width: calc(var(--deal-name-min) + 3 * var(--deal-owner-width) + var(--deal-vendor-width) + var(--contract-product-width) + 224px);
-}
-
-.deal-list-name { width: var(--deal-name-min); }
-.deal-list-owner { width: var(--deal-owner-width); }
-.deal-list-vendor { width: var(--deal-vendor-width); }
-.deal-list-forecast { width: var(--deal-forecast-width); }
-.deal-list-updated { width: var(--deal-updated-width); }
-.contract-list-product { width: var(--contract-product-width); }
-
-.content .deal-list-scroll :is(th, td):nth-child(3),
+.content :is(.deals-table, .contract-table) :is(th, td):nth-child(3),
 .content .deals-table :is(th, td):is(:nth-child(4), :nth-child(7)) {
   padding-inline: 4px;
 }

@@ -50,35 +50,25 @@ export function VendorManager() {
               {vendors.data.map((vendor) => (
                 <tr key={vendor.id}>
                   <td>
-                    {editingId === vendor.id ? (
-                      <InlineNameEdit
-                        label="Vendor 이름"
-                        initial={vendor.name}
-                        busy={busy}
-                        onSave={(name) => {
-                          setError(null)
-                          renameVendor.mutate({ id: vendor.id, name }, { onSuccess: () => setEditingId(null), onError: setError })
-                        }}
-                        onCancel={() => setEditingId(null)}
-                      />
-                    ) : (
-                      vendor.name
-                    )}
+                    <InlineNameEdit
+                      label="Vendor 이름"
+                      name={vendor.name}
+                      editing={editingId === vendor.id}
+                      busy={busy}
+                      onEdit={() => {
+                        setError(null)
+                        setEditingId(vendor.id)
+                      }}
+                      onSave={(name) => {
+                        setError(null)
+                        renameVendor.mutate({ id: vendor.id, name }, { onSuccess: () => setEditingId(null), onError: setError })
+                      }}
+                      onCancel={() => setEditingId(null)}
+                    />
                   </td>
                   <td className="stat">{`Deal ${vendor.usageCount}건`}</td>
                   <td>
                     <div className="row-actions">
-                      <button
-                        type="button"
-                        className="small"
-                        disabled={editingId === vendor.id}
-                        onClick={() => {
-                          setError(null)
-                          setEditingId(vendor.id)
-                        }}
-                      >
-                        이름 수정
-                      </button>
                       <button type="button" className="small" disabled={busy} onClick={() => setDeleting(vendor)}>
                         삭제
                       </button>

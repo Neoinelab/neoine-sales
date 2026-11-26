@@ -58,35 +58,26 @@ export function ActionTypeManager() {
                 {types.data.map((type) => (
                   <tr key={type.id}>
                     <td>
-                      {editingId === type.id ? (
-                        <InlineNameEdit
-                          label="유형 이름"
-                          initial={type.name}
-                          busy={busy}
-                          onSave={(next) => saveName(type, next)}
-                          onCancel={() => setEditingId(null)}
-                        />
-                      ) : (
-                        <>
-                          {type.name} {type.isDefault && <span className="badge">기본</span>}
-                        </>
+                      <InlineNameEdit
+                        label="유형 이름"
+                        name={type.name}
+                        editing={editingId === type.id}
+                        busy={busy}
+                        onEdit={() => {
+                          setError(null)
+                          setEditingId(type.id)
+                        }}
+                        onSave={(next) => saveName(type, next)}
+                        onCancel={() => setEditingId(null)}
+                      />
+                      {editingId !== type.id && type.isDefault && (
+                        <>{' '}<span className="badge">기본</span></>
                       )}
                     </td>
                     <td className="stat">{`Action ${type.usageCount}건`}</td>
                     <td>{type.createdBy ? `${userLabel(type.createdBy)} · ${formatDateTime(type.createdAt)}` : '시스템'}</td>
                     <td>
                       <div className="row-actions">
-                        <button
-                          type="button"
-                          className="small"
-                          disabled={editingId === type.id}
-                          onClick={() => {
-                            setError(null)
-                            setEditingId(type.id)
-                          }}
-                        >
-                          이름 수정
-                        </button>
                         <button type="button" className="small" disabled={busy} onClick={() => setDeleting(type)}>
                           삭제
                         </button>

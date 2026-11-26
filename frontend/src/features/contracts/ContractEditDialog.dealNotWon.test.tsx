@@ -94,11 +94,11 @@ describe('Won이 아닌 Deal의 계약 대화상자', () => {
 
   // Won이 아니어도 admin에게는 삭제가 보인다.
   // 테스트 코드: LC-048
-  it('still shows 삭제 to an admin', async () => {
+  it('still shows 계약삭제 to an admin', async () => {
     // when: 대화상자를 연다 (전제: admin으로 연 dealIsWon false 대화상자)
     const { dlg } = await openContractOfDeal12(true, 'admin')
 
     // then: 삭제 버튼이 보인다
-    expect(within(dlg).getByRole('button', { name: '삭제' })).toBeEnabled()
+    expect(within(dlg).getByRole('button', { name: '계약삭제' })).toBeEnabled()
   })
 })

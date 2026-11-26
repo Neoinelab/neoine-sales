@@ -13,6 +13,7 @@ import pytest
 
 from app.application.ports.deal_repository import DealQuery
 from app.domain.deal.risk import Risk, RiskBasis, compute_risk
+from app.domain.deal.sync_state import SyncState
 from tests.factories import make_deal
 from tests.support.user_ids import uid
 
@@ -180,7 +181,10 @@ def _expected(accepted: set[Risk]) -> list[str]:
         spec.code
         for spec in SPECS
         if compute_risk(
-            forecast_key=spec.forecast,
+            sync=SyncState(
+                status_key="contract_completed" if spec.forecast == "won" else "prospecting",
+                forecast_key=spec.forecast,
+            ),
             earliest_open_due=spec.expected_open_due,
             last_updated_on=(spec.expected_updated or spec.created).date(),
             today=TODAY,

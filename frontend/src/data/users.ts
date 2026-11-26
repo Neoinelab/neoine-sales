@@ -1,7 +1,8 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
 import type {
+  Me,
   ProfileChange,
   Role,
   User,
@@ -56,12 +57,15 @@ export function useRemoveUser(): Mutation<number, UserRemoveResult> {
   })
 }
 
-/** gateway.users.update(id, change). 성공: keys.users 무효화(이름이 바뀌면 UserRef 표시가 바뀌므로 keys.deals·keys.forecast도). */
 export function useUpdateUser(): Mutation<{ id: number; change: ProfileChange }, User> {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidate()
   return useMutation<User, ApiError, { id: number; change: ProfileChange }>({
     mutationFn: ({ id, change }) => gateway.users.update(id, change),
-    onSuccess: () => invalidate(keys.users, keys.deals, keys.forecast),
+    onSuccess: (user) => {
+      const editingSelf = queryClient.getQueryData<Me>(keys.me)?.id === user.id
+      return invalidate(keys.users, keys.deals, keys.forecast, ...(editingSelf ? [keys.me] : []))
+    },
   })
 }
 

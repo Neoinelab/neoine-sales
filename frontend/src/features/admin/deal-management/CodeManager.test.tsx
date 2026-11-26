@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
@@ -126,16 +126,35 @@ describe('Status 코드 이름 수정 (T-ADMIN-04)', () => {
     const { user } = await openStatus()
 
     // when: 가격협상의 이름을 "가격 협의"로 바꿔 저장한다
-    await user.click(row(/가격협상/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/가격협상/).getByRole('button', { name: '가격협상' }))
     const input = screen.getByLabelText('코드 이름')
+    expect(input).toHaveFocus()
+    expect(screen.queryByRole('button', { name: /^(저장|취소|이름 수정)$/ })).not.toBeInTheDocument()
     await user.clear(input)
     await user.type(input, '가격 협의')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 새 이름 행이 보이고 옛 이름 행과 입력 칸은 사라진다
     expect(await screen.findByRole('row', { name: /가격 협의/ })).toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /가격협상/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('코드 이름')).not.toBeInTheDocument()
+  })
+
+  it('keeps editing on a composing Enter and discards the unsaved name on blur', async () => {
+    const { user } = await openStatus()
+    const rename = vi.spyOn(gateway.codes, 'rename')
+    await user.click(row(/가격협상/).getByRole('button', { name: '가격협상' }))
+    const input = screen.getByRole('textbox', { name: '코드 이름' })
+    await user.type(input, '추가')
+
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('가격협상추가')
+
+    await user.tab()
+    expect(screen.queryByRole('textbox', { name: '코드 이름' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '가격협상' })).toBeInTheDocument()
+    expect(rename).not.toHaveBeenCalled()
   })
 
   // 잠금 코드도 Enter로 이름을 바꿀 수 있고 key는 그대로다.
@@ -145,7 +164,7 @@ describe('Status 코드 이름 수정 (T-ADMIN-04)', () => {
     const { user } = await openStatus()
 
     // when: 계약완료의 이름을 "계약성사"로 바꾸고 Enter를 누른다
-    await user.click(row(/계약완료/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/계약완료/).getByRole('button', { name: '계약완료' }))
     const input = screen.getByLabelText('코드 이름')
     await user.clear(input)
     await user.type(input, '계약성사')
@@ -162,7 +181,7 @@ describe('Status 코드 이름 수정 (T-ADMIN-04)', () => {
     // given: Status 코드 탭을 열고 가격협상 이름 수정을 시작해 글자를 더한다
     const { user } = await openStatus()
     const rename = vi.spyOn(gateway.codes, 'rename')
-    await user.click(row(/가격협상/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/가격협상/).getByRole('button', { name: '가격협상' }))
     await user.type(screen.getByLabelText('코드 이름'), '추가')
 
     // when: Esc를 누른다
@@ -179,13 +198,13 @@ describe('Status 코드 이름 수정 (T-ADMIN-04)', () => {
   it('shows the server message for a duplicate name and keeps editing', async () => {
     // given: 가격협상 이름 수정을 시작한다
     const { user } = await openStatus()
-    await user.click(row(/가격협상/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/가격협상/).getByRole('button', { name: '가격협상' }))
     const input = screen.getByLabelText('코드 이름')
     await user.clear(input)
     await user.type(input, '제품소개')
 
     // when: 저장한다
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: 오류 알림이 서버 문구이고 입력 칸 값은 "제품소개"다
     expect(await screen.findByRole('alert')).toHaveTextContent('같은 이름의 코드가 이미 있습니다.')
@@ -197,11 +216,11 @@ describe('Status 코드 이름 수정 (T-ADMIN-04)', () => {
   it('shows the server message when the name is empty', async () => {
     // given: 가격협상 이름 수정을 시작해 입력을 비운다
     const { user } = await openStatus()
-    await user.click(row(/가격협상/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/가격협상/).getByRole('button', { name: '가격협상' }))
     await user.clear(screen.getByLabelText('코드 이름'))
 
     // when: 저장한다
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: "이름을 입력하세요." 오류 알림이 보인다
     expect(await screen.findByRole('alert')).toHaveTextContent('이름을 입력하세요.')
@@ -337,7 +356,7 @@ describe('오류 배너 (CD-R23)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('이름을 입력하세요.')
 
     // when: 다른 행의 "이름 수정"을 누른다
-    await user.click(row(/제품소개/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/제품소개/).getByRole('button', { name: '제품소개' }))
 
     // then: 오류 알림이 사라진다
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -387,11 +406,11 @@ describe('Forecast 코드 (T-ADMIN-03~05)', () => {
     expect(row(/Won/).getByText('시스템 연결')).toBeInTheDocument()
 
     // when: Won의 이름을 "수주"로 바꾼다
-    await user.click(row(/Won/).getByRole('button', { name: '이름 수정' }))
+    await user.click(row(/Won/).getByRole('button', { name: 'Won' }))
     const input = screen.getByLabelText('코드 이름')
     await user.clear(input)
     await user.type(input, '수주')
-    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.keyboard('{Enter}')
 
     // then: "수주" 행이 보인다
     expect(await screen.findByRole('row', { name: /수주/ })).toBeInTheDocument()

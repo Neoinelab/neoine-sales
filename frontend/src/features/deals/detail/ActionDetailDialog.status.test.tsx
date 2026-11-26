@@ -111,7 +111,7 @@ describe('팝업에서 Next Action 종료', () => {
     expect(within(dialog).getByRole('button', { name: '삭제' })).toBeDisabled()
     expect(within(dialog).getByRole('button', { name: '종료(미수행)' })).toBeDisabled()
     // then: 표 행의 상태 버튼도 꺼져 있다
-    expect(within(rowWith(view.table, '킥오프 미팅')).getByRole('button', { name: '종료(미수행)' })).toBeDisabled()
+    expect(within(rowWith(view.table, '킥오프 미팅')).getByRole('button', { name: '종료(수행)' })).toBeDisabled()
     release()
     await waitFor(() => expect(within(detail()).getByRole('button', { name: '닫기' })).toBeEnabled())
   })

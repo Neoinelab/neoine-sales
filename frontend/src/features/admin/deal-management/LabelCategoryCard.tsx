@@ -40,27 +40,23 @@ export function LabelCategoryCard({ category, labels, editingId, busy, onAdd, on
             {labels.map((label) => (
               <tr key={label.id}>
                 <td>
-                  {editingId === label.id ? (
-                    <InlineNameEdit
-                      label="Label 이름"
-                      initial={label.name}
-                      busy={busy}
-                      onSave={(next) => onRename(label, next)}
-                      onCancel={() => onEdit(null)}
-                    />
-                  ) : (
-                    <>
-                      {label.name} {label.isDefault && <span className="badge">기본</span>}
-                    </>
+                  <InlineNameEdit
+                    label="Label 이름"
+                    name={label.name}
+                    editing={editingId === label.id}
+                    busy={busy}
+                    onEdit={() => onEdit(label.id)}
+                    onSave={(next) => onRename(label, next)}
+                    onCancel={() => onEdit(null)}
+                  />
+                  {editingId !== label.id && label.isDefault && (
+                    <>{' '}<span className="badge">기본</span></>
                   )}
                 </td>
                 <td className="stat">{`Deal ${label.usageCount}건`}</td>
                 <td>{label.createdBy ? `${userLabel(label.createdBy)} · ${formatDateTime(label.createdAt)}` : '시스템'}</td>
                 <td>
                   <div className="row-actions">
-                    <button type="button" className="small" disabled={editingId === label.id} onClick={() => onEdit(label.id)}>
-                      이름 수정
-                    </button>
                     <button type="button" className="small" disabled={busy} onClick={() => onDelete(label)}>
                       삭제
                     </button>

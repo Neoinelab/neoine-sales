@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { listMemoryKey } from '../../../shared/model/dealListMemory'
+import { defaultDealsUrl, OPEN_FORECAST_SEARCH } from '../../../test/dealsUrl'
 import { resetMock } from '../../../test/fake/default'
 import { USER_ID } from '../../../test/fake/seed/ids'
 import { SEED_PASSWORD } from '../../../test/fake/seed/users'
@@ -15,7 +16,7 @@ import '../../dashboard/DashboardPage'
  * 시드 Deal 날짜는 기준일 상대값이라 앱 시계를 고정한다. 화면 테스트의 기본 로그인 역할은 sales(KIM)다.
  */
 const NOW = '2026-10-15T09:00:00+09:00'
-const MINE_DEFAULT = '/deals?year=all&mine=1'
+const MINE_DEFAULT = defaultDealsUrl()
 
 beforeEach(() => resetMock({ now: NOW }))
 afterEach(() => {
@@ -152,7 +153,7 @@ describe('sales의 초기화', () => {
     expect(screen.getByLabelText('Close 연도')).toHaveDisplayValue('전체')
     expect(await screen.findByRole('columnheader', { name: '최종 업데이트' })).toHaveAttribute('aria-sort', 'descending')
     // then: 기억도 같은 조건이고 상단 메뉴 Deals 주소도 같다
-    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe('year=all&mine=1')
+    expect(window.sessionStorage.getItem(listMemoryKey(USER_ID.kim))).toBe(`year=all&mine=1&${OPEN_FORECAST_SEARCH}`)
     expect(mainMenu().getByRole('link', { name: 'Deals' })).toHaveAttribute('href', MINE_DEFAULT)
 
     // when: 뒤로 간다
@@ -168,7 +169,7 @@ describe('내 딜만 끄기', () => {
   // 테스트 코드: DL-103
   it('removes mine from the url without bringing the default back', async () => {
     // given: 기본 조건 목록 (전제: KIM·PARK의 Deal이 있는 시드)
-    const { user, location } = await renderAt(MINE_DEFAULT)
+    const { user, location } = await renderAt('/deals?year=all&mine=1')
     await rowOf(/한빛은행 ITDR 도입/)
     expect(screen.queryByRole('row', { name: /미래전자 EDR 교체/ })).not.toBeInTheDocument()
 
@@ -187,7 +188,7 @@ describe('내 딜만 끄기', () => {
   // 테스트 코드: DL-103
   it('keeps mine off after a detail round trip through the list link', async () => {
     // given: 내 딜만을 끈 목록에서 상세로 들어간 상태
-    const { user, location } = await renderAt(MINE_DEFAULT)
+    const { user, location } = await renderAt('/deals?year=all&mine=1')
     await rowOf(/한빛은행 ITDR 도입/)
     await user.click(mineBox())
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
@@ -208,7 +209,7 @@ describe('내 딜만 끄기', () => {
   // 테스트 코드: DL-103
   it('keeps mine off when coming back through the top menu', async () => {
     // given: 내 딜만을 끈 목록에서 Forecast 화면으로 간 상태
-    const { user, location } = await renderAt(MINE_DEFAULT)
+    const { user, location } = await renderAt('/deals?year=all&mine=1')
     await rowOf(/한빛은행 ITDR 도입/)
     await user.click(mineBox())
     await waitFor(() => expect(location()).toBe('/deals?year=all'))
@@ -279,7 +280,7 @@ describe('역할별 기본 조건', () => {
     await screen.findByText(/총 \d+건/)
 
     // then: 주소가 /deals?year=all이고 내 딜만이 꺼진 채 Deal이 보이며 요청에 mine이 없다
-    await waitFor(() => expect(location()).toBe('/deals?year=all'))
+    await waitFor(() => expect(location()).toBe(defaultDealsUrl(undefined, '', 'user')))
     expect(mineBox()).not.toBeChecked()
     expect(dataRows().length).toBeGreaterThan(0)
     for (const [query] of list.mock.calls) expect(query).not.toHaveProperty('mine')
