@@ -1,0 +1,58 @@
+.content :is(.table-scroll, .dd-scroll, .table-wrap, .fc-scroll, .db-scroll, .report-scroll) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: visible;
+}
+
+.content :is(table, table[class]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: fixed;
+}
+
+.content :is(table, table[class]) :is(th, td) {
+  min-width: 0;
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.content :is(table, table[class]) :is(button, a, .badge, .contract-status-cell, .dd-next-action-status) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.content :is(table, table[class]) :is(.row-actions, .meeting-actions, .contract-status-cell, .dd-next-action-status, .dd-row, .deal-name-cell, .th-sort) {
+  flex-wrap: wrap;
+}
+
+.content :is(table, table[class]) :is(.deal-name-cell, .next-action, .inline-editor, .dd-inline-edit .field.combo) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.content :is(table, table[class]) :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.content :is(table, table[class]) :is(td.wrap, .dd-col-long, .meeting-content, .contract-note) {
+  white-space: pre-wrap;
+}
+
+.content .dd-action-table :is(th, td):nth-child(3),
+.content .dd-action-table :is(th, td):nth-child(4) {
+  width: 25%;
+}
+
+@media (max-width: 900px) {
+  .content :is(table, table[class]) :is(th, td) {
+    padding: 8px 4px;
+  }
+
+  .content :is(table, table[class]) button {
+    padding: 4px;
+  }
+}

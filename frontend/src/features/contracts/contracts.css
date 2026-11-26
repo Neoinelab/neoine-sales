@@ -1,6 +1,9 @@
 /* 계약관리 스타일. 전역 토큰만 사용해 다크 모드를 따른다. */
 .contracts-page { display: grid; gap: 12px; min-width: 0; }
-.contract-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
+.contract-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }
+.contract-filters > .field { flex: 1 1 130px; min-width: 0; }
+.contract-filters > .filter-buttons { flex: 0 0 auto; margin-left: auto; }
+.contract-filters > .error { flex-basis: 100%; }
 .contract-filters .field input, .contract-filters .field select { width: 100%; min-width: 0; }
 .contracts-count { margin: 0; }
 .contract-table { min-width: 1280px; }
