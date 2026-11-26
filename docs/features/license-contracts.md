@@ -19,6 +19,12 @@
 
 ## 2. 명세 (SDD)
 
+### 2026-11-25 시작일 변경 시 종료일 자동 입력 (사용자 요청 확정)
+
+- 발급·갱신 입력 중 시작일을 유효한 다른 날짜로 변경하면 종료일을 기존 LC-R4의 종료일 포함 1년 계산으로 다시 채운다. 예: 2027-01-01 → 2027-12-31, 2024-02-29 → 2025-02-28.
+- 종료일은 직접 수정할 수 있다. 시작일을 단순히 포커스하거나 같은 값을 확정해도 직접 입력한 종료일을 덮어쓰지 않는다. 시작일을 다시 변경하면 수동 종료일을 새 시작일 기준 1년으로 대체한다.
+- 빈 값·미완성·잘못된 시작일을 입력 중일 때는 종료일을 재계산하지 않는다. 저장 시 기존 날짜 검증을 적용한다.
+
 ### 2.1 용어
 
 | 용어 | 뜻 |
@@ -371,6 +377,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-085 | 계약 첨부 설명에 NUL 문자가 있으면 422이고 아무것도 남지 않는다 | LC-R21, LC-UC10 | backend | `application/test_license_contract_attachment_description_nul.py::test_upload_description_with_a_nul_is_rejected_and_nothing_is_left` |
 | LC-086 | 종료·갱신하면 ended_on은 요청의 업무 날짜이고 응답에 ended_at 키가 없다 | LC-R12, LC-R13 | backend | `application/test_license_contract_end_update_delete.py`, `domain/test_license_contract_entity.py` |
 | LC-087 | 마이그레이션은 계약 종료 시각을 업무 날짜로 채우고 비어 있던 행은 null로 두며 CHECK를 새 컬럼으로 만든다 | LC-R38 | backend | `infra/schema/test_business_dates_migration.py`, `infra/schema/test_license_contract_schema.py` |
+| LC-088 | 시작일 변경 시 종료일을 1년으로 자동 입력하며 종료일은 수동 수정할 수 있다 | LC-R33 | frontend | `features/contracts/ContractEditDialog.status.test.tsx` |
 
 ### LC-001 처음부터 Won으로 등록한 Deal에 미발급 계약 1건이 생긴다
 - Given KIM(sales)
@@ -805,6 +812,11 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - Given 기준선 리비전 DB(Asia/Seoul)에 `ended_at`이 `2026-11-12T15:30:00Z`인 종료 계약과 `ended_at`이 null인 발급 계약이 있다
 - When `upgrade head`를 실행한 뒤 다시 `downgrade -1`을 실행한다
 - Then upgrade 뒤에는 계약이 2건 그대로이고, `ended_on`은 2026-11-13, null이며, `ck_license_contracts_ended_has_date`가 있고 `ended_at` 컬럼은 없다. downgrade 뒤에는 `ended_at`이 `2026-11-13T00:00:00+09:00`, null이다
+
+### LC-088 시작일 변경 시 종료일을 1년으로 자동 입력한다
+- Given 라이선스 발급 입력이 활성화된 계약이다
+- When 유효한 시작일을 입력하거나 다시 변경한다
+- Then 종료일은 종료일 포함 1년으로 자동 입력되고 윤년을 보정한다. 종료일은 수동 수정할 수 있으며, 시작일을 변경하지 않고 포커스만 이동하면 수동 종료일을 유지한다. 저장 요청은 최종 입력한 두 날짜를 사용한다
 
 ## 5. 변경 이력
 

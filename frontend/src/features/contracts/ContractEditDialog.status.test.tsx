@@ -128,6 +128,48 @@ describe('라이선스 발급 (C4, C6, AC12)', () => {
     return view
   }
 
+  // 테스트 코드: LC-088
+  it.each([
+    ['20270101', '2027.12.31'],
+    ['20240229', '2025.02.28'],
+  ])('시작일 %s를 입력하면 종료일을 종료일 포함 1년인 %s로 채운다', async (start, end) => {
+    // given: 라이선스 발급 입력이 활성화되어 있다
+    const { user, dlg } = await startIssue()
+
+    // when: 시작일을 입력한다
+    await user.clear(startInput(dlg))
+    await user.type(startInput(dlg), start)
+
+    // then: 종료일이 1년으로 자동 입력되고 직접 수정할 수 있다
+    expect(endInput(dlg)).toHaveValue(end)
+    expect(endInput(dlg)).toBeEnabled()
+  })
+
+  // 테스트 코드: LC-088
+  it('수동 종료일을 유지하되 시작일을 다시 변경하면 1년으로 재계산한다', async () => {
+    // given: 시작일과 종료일을 직접 입력했다
+    const { user, dlg } = await startIssue()
+    const issue = vi.spyOn(gateway.licenseContracts, 'issue')
+    await user.clear(startInput(dlg))
+    await user.type(startInput(dlg), '20270101')
+    await user.clear(endInput(dlg))
+    await user.type(endInput(dlg), '20280630')
+    await user.click(startInput(dlg))
+    await user.tab()
+    expect(endInput(dlg)).toHaveValue('2028.06.30')
+
+    // when: 시작일을 다시 변경한다
+    await user.clear(startInput(dlg))
+    await user.type(startInput(dlg), '20280401')
+
+    // then: 종료일은 새 시작일의 1년으로 바뀌며 다시 수동 수정하여 저장할 수 있다
+    expect(endInput(dlg)).toHaveValue('2029.03.31')
+    await user.clear(endInput(dlg))
+    await user.type(endInput(dlg), '20290415')
+    await user.click(within(dlg).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(issue).toHaveBeenCalledWith(expect.any(Number), expect.objectContaining({ start: '2028-04-01', end: '2029-04-15' })))
+  })
+
   // 라이선스 발급 버튼은 칸을 활성화하고 시작일에 포커스하며 안내를 보인다.
   // 테스트 코드: LC-046
   it('opens no extra dialog, enables the fields, focuses the start date and shows the guide', async () => {
