@@ -12,10 +12,9 @@ import { InlineCell } from './InlineCell'
 import { QuickView } from './QuickView'
 import { NextActionDueDate } from './NextActionDueDate'
 
-export const COLUMN_COUNT = 13
-
 interface DealRowItemProps {
   row: DealRow
+  columnCount: number
   canWrite: boolean
   onSaved: (message: string) => void
 }
@@ -46,11 +45,11 @@ function NextActionCells({ row, today, canWrite, onSaved }: { row: DealRow; toda
 }
 
 /** 목록 한 줄(+ 펼친 빠른 보기). Risk 행 색은 배지 텍스트와 함께 쓴다(색만으로 구분하지 않음). */
-export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
+export function DealRowItem({ row, columnCount, canWrite, onSaved }: DealRowItemProps) {
   const [open, setOpen] = useState(false)
   const { now, today } = useToday()
   const lastUpdated = formatRelativeDays(row.lastUpdatedOn, now)
-  const cell = (field: 'statusKey' | 'forecastKey' | 'revenueAmount' | 'revenueDate') => (
+  const cell = (field: 'forecastKey' | 'revenueAmount' | 'revenueDate') => (
     <InlineCell row={row} field={field} canWrite={canWrite} onSaved={onSaved} />
   )
 
@@ -76,10 +75,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
           </div>
         </td>
         <td>{userLabel(row.owner)}</td>
-        <td>{row.customer.company}</td>
-        <td>{row.activePartner?.company ?? '—'}</td>
         <td>{row.vendor?.name ?? '—'}</td>
-        <td>{cell('statusKey')}</td>
         <td>{cell('forecastKey')}</td>
         <td className="num">{cell('revenueAmount')}</td>
         <td>{cell('revenueDate')}</td>
@@ -92,7 +88,7 @@ export function DealRowItem({ row, canWrite, onSaved }: DealRowItemProps) {
       </tr>
       {open && (
         <tr className="quick-view-row">
-          <td colSpan={COLUMN_COUNT}>
+          <td colSpan={columnCount}>
             <QuickView row={row} />
           </td>
         </tr>

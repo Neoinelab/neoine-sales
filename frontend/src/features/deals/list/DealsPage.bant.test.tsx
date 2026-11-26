@@ -17,7 +17,7 @@ describe('목록 헤더 정렬', () => {
     await rowOf(/한빛은행 ITDR 도입/)
 
     // then: 기존 정렬 열이 정렬 버튼이다
-    for (const name of ['Deal', 'Status', '금액(단위:원)', 'Expected Close', '최종 업데이트']) {
+    for (const name of ['Deal', '금액(단위:원)', 'Expected Close', '최종 업데이트']) {
       expect(within(screen.getByRole('columnheader', { name })).getByRole('button')).toBeVisible()
     }
   })

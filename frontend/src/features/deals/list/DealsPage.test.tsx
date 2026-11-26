@@ -4,7 +4,7 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
-const HEADERS = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트', 'Next Action', 'Due Date', 'Next Action 상태']
+const HEADERS = ['Deal', '담당자', 'Vendor', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트', 'Next Action', 'Due Date', 'Next Action 상태']
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -19,13 +19,11 @@ describe('목록 표 (T-LIST-01~04)', () => {
     // when: /deals?year=all을 연다
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
 
-    // then: 열 머리글이 문서의 13열이다
     expect(headers).toEqual(HEADERS)
   })
 
-  // 담당자 열이 고객사 열보다 앞이고 행도 같은 순서다
   // 테스트 코드: DL-058
-  it('orders the columns with the owner before the customer, and each row follows the same order', async () => {
+  it('places the owner before Vendor and aligns row cells with the headers', async () => {
     // given: 시드 Deal이 있는 목록
     await renderAt('/deals?q=누리통신 MFA')
     const row = await rowOf(/누리통신 MFA/)
@@ -34,11 +32,9 @@ describe('목록 표 (T-LIST-01~04)', () => {
     const cells = within(row).getAllByRole('cell')
 
     // then: 머리글과 첫 행의 칸 순서가 같다
+    expect(cells).toHaveLength(HEADERS.length)
     expect(cells[HEADERS.indexOf('담당자')]).toHaveTextContent('이영업')
-    expect(cells[HEADERS.indexOf('고객사')]).toHaveTextContent('누리통신')
-    expect(cells[HEADERS.indexOf('파트너사')]).toHaveTextContent('에이원시스템')
     expect(cells[HEADERS.indexOf('Vendor')]).toHaveTextContent('Silverfort')
-    expect(HEADERS.indexOf('담당자')).toBe(HEADERS.indexOf('고객사') - 1)
   })
 
   // Vendor가 없는 Deal의 Vendor 칸은 '—'다
@@ -80,35 +76,23 @@ describe('목록 표 (T-LIST-01~04)', () => {
     expect(location()).toBe('/deals?year=all')
   })
 
-  // 고객사·활성 파트너·담당자·콤마 금액을 보인다
   // 테스트 코드: DL-058
-  it('shows the customer, only the active partner, the owner and the formatted amount', async () => {
+  it('shows the owner and formatted amount without separate company cells', async () => {
     // given: 활성·해제 파트너가 섞인 Deal
     await renderAt('/deals?q=누리통신 MFA')
 
     // when: 목록을 연다
     const row = await rowOf(/누리통신 MFA/)
 
-    // then: 고객사·활성 파트너만·담당자·콤마 금액이 보인다
-    expect(within(row).getByText('누리통신')).toBeVisible()
-    expect(within(row).getByText('에이원시스템')).toBeVisible()
+    expect(within(row).queryByText('누리통신')).not.toBeInTheDocument()
+    expect(within(row).queryByText('에이원시스템')).not.toBeInTheDocument()
     expect(within(row).queryByText('코어테크')).not.toBeInTheDocument()
     expect(within(row).getByText('이영업')).toBeVisible()
     expect(within(row).getByText('330,000,000')).not.toHaveAttribute('title')
   })
 
-  // 파트너 없는 Deal은 '—', 퇴사한 담당자는 '이름(퇴사)'로 보인다
   // 테스트 코드: DL-058
-  it('shows a dash for a deal without a partner and the resigned owner label', async () => {
-    // given: 파트너가 없는 Deal과 퇴사한 담당자의 Deal
-    await renderAt('/deals?q=누리통신 NGFW')
-
-    // when: 목록을 연다
-    const cells = within(await rowOf(/누리통신 NGFW/)).getAllByRole('cell')
-
-    // then: 파트너 칸은 '—'이고 담당자 칸에 '(퇴사)'가 붙는다
-    expect(cells[HEADERS.indexOf('파트너사')]).toHaveTextContent(/^—$/)
-    cleanup()
+  it('shows the resigned owner label', async () => {
     await renderAt('/deals?q=한빛은행 PAM')
     expect(within(await rowOf(/한빛은행 PAM/)).getByText('강퇴사(퇴사)')).toBeVisible()
   })

@@ -4,15 +4,11 @@ import { gateway } from '../../../gateway'
 import { renderAt } from '../../../test/mockApp'
 import { ALL_DEALS, dataRows, rowOf } from './testHelpers'
 
-/** 정렬 버튼이 있는 10개 머리글(Next Action·Due·Next Action 상태 제외). */
-const SORTABLE = ['Deal', '담당자', '고객사', '파트너사', 'Vendor', 'Status', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트']
+const SORTABLE = ['Deal', '담당자', 'Vendor', 'Forecast', '금액(단위:원)', 'Expected Close', '최종 업데이트']
 const NOT_SORTABLE = ['Next Action', 'Due Date', 'Next Action 상태']
 
-/** 새로 정렬할 수 있게 된 5개 열: 머리글, URL sort 값. */
 const NEW_COLUMNS = [
   ['담당자', 'owner'],
-  ['고객사', 'customer'],
-  ['파트너사', 'partner'],
   ['Vendor', 'vendor'],
   ['Forecast', 'forecastKey'],
 ] as const
@@ -22,9 +18,8 @@ function rowNames(): string[] {
 }
 
 describe('목록 머리글 정렬', () => {
-  // 정렬 버튼은 10개 머리글뿐이다
   // 테스트 코드: DL-089
-  it('Next Action·Due·Next Action 상태를 뺀 10개 헤더만 정렬 버튼이다', async () => {
+  it('Next Action·Due Date·Next Action 상태를 뺀 7개 헤더만 정렬 버튼이다', async () => {
     // given: 목록 머리글
     await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
@@ -32,7 +27,6 @@ describe('목록 머리글 정렬', () => {
     const headers = screen.getAllByRole('columnheader')
     // when: 머리글을 확인한다
     const withButton = headers.filter((h) => within(h).queryByRole('button') !== null).map((h) => h.textContent?.trim())
-    // then: Next Action 세 열을 뺀 10열만 정렬 버튼이다
     expect(withButton).toEqual(SORTABLE)
     for (const name of SORTABLE) expect(within(screen.getByRole('columnheader', { name })).getByRole('button')).toBeVisible()
     for (const name of NOT_SORTABLE) {
@@ -109,10 +103,10 @@ describe('목록 머리글 정렬 토글', () => {
     await screen.findByRole('button', { name: '이전' })
 
     // when: 머리글을 누른다
-    await user.click(screen.getByRole('button', { name: '고객사' }))
+    await user.click(screen.getByRole('button', { name: '담당자' }))
 
     // then: page 키가 사라진다
-    await waitFor(() => expect(location()).toBe('/deals?year=all&sort=customer&order=asc'))
+    await waitFor(() => expect(location()).toBe('/deals?year=all&sort=owner&order=asc'))
   })
 
   // URL의 정렬 값을 머리글 표시로 복원한다
@@ -149,29 +143,14 @@ describe('새 정렬이 행 순서에 반영된다', () => {
     await waitFor(() => expect(rowNames()).toEqual(expectedDesc))
   })
 
-  // 파트너 없는 Deal은 어느 방향이든 끝에 있다
   // 테스트 코드: DL-090
-  it('파트너가 없는 Deal은 오름차순·내림차순 모두 마지막에 있다', async () => {
-    // given: 파트너 없는 Deal이 섞인 목록
-    const { user } = await renderAt('/deals?mine=1') // 한 페이지에 모두 보이는 조건
+  it.each(['asc', 'desc'] as const)('기존 파트너사 정렬 URL(%s)은 파트너 없는 Deal을 끝에 표시한다', async (order) => {
+    await renderAt(`/deals?year=all&mine=1&sort=partner&order=${order}`)
     await rowOf(/한빛은행 ITDR 도입/)
-    const partnerColumn = screen.getAllByRole('columnheader').findIndex((h) => h.textContent?.trim() === '파트너사')
-    const partnerCells = () => dataRows().map((row) => within(row).getAllByRole('cell')[partnerColumn]?.textContent?.trim())
-
-    // when: 파트너사로 오름차순 정렬한다
-    await user.click(screen.getByRole('button', { name: '파트너사' }))
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: '파트너사' })).toHaveAttribute('aria-sort', 'ascending'))
-    const asc = partnerCells()
-    // when: 파트너사로 내림차순 정렬한다
-    await user.click(screen.getByRole('button', { name: '파트너사' }))
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: '파트너사' })).toHaveAttribute('aria-sort', 'descending'))
-    const desc = partnerCells()
-
-    // then: 두 방향 모두 '—' 칸이 끝에 모여 있다
-    for (const cells of [asc, desc]) {
-      const firstEmpty = cells.findIndex((text) => text === '—')
-      expect(firstEmpty).toBeGreaterThan(0)
-      expect(cells.slice(firstEmpty).every((text) => text === '—')).toBe(true)
-    }
+    const { items } = await gateway.deals.list({ mine: true, sort: 'partner', order, limit: 20 })
+    const firstWithoutPartner = items.findIndex((deal) => deal.activePartner === null)
+    expect(firstWithoutPartner).toBeGreaterThan(0)
+    expect(items.slice(firstWithoutPartner).every((deal) => deal.activePartner === null)).toBe(true)
+    expect(rowNames()).toEqual(items.map((deal) => deal.name))
   })
 })

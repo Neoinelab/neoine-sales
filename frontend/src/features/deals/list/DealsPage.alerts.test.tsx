@@ -30,10 +30,8 @@ describe('목록과 경고 기준', () => {
     await renderAt(ALL_DEALS)
     await rowOf(/한빛은행 ITDR 도입/)
 
-    // then: '체류' 열 머리글도 'N일째' 문구도 없고 열은 13개다
     expect(screen.queryByRole('columnheader', { name: /체류/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/\d+일째/)).not.toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader')).toHaveLength(13)
   })
 })
 

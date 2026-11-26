@@ -292,13 +292,11 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     // then: 상세로 이동한다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
 
-    // when: 목록에서 새 Deal 행을 찾는다.
+    expect(await screen.findByRole('button', { name: 'Status 수정' })).toHaveTextContent('기회발굴')
+    expect((await gateway.deals.get(location().split('/').at(-1)!)).customer.company).toBe('한빛은행')
     const row = await openList(user, '신규 등록 테스트')
-    // then: 행에 고객·Owner·금액·Status가 보인다.
-    expect(within(row).getByText('한빛은행')).toBeVisible()
     expect(within(row).getByText('김영업')).toBeVisible()
     expect(within(row).getByText('300,000,000')).toBeVisible()
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('기회발굴')
   })
 
   // 폼에서 고른 고객의 이메일을 고치면 공유 연락처가 갱신된다.
@@ -350,10 +348,8 @@ describe('Deal 등록 저장 (T-FORM-04)', () => {
     // then: 상세로 이동한다.
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
 
-    // when: 목록에서 그 행을 찾고 빠른 보기를 연다.
+    expect((await gateway.deals.get(location().split('/').at(-1)!)).customer.company).toBe('신규고객사')
     const row = await openList(user, '직접 입력 테스트')
-    // then: 목록 행에 새 고객사가 보인다.
-    expect(within(row).getByText('신규고객사')).toBeVisible()
 
     // when: 빠른 보기를 연다.
     await user.click(within(row).getByRole('button', { name: /빠른 보기/ }))

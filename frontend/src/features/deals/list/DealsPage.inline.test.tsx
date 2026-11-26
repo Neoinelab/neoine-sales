@@ -17,7 +17,7 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
     const { user } = await renderAt(SEARCH)
 
     const row = await rowOf(/대한제조 MFA 확대/)
-    for (const label of ['Status', 'Forecast', '금액(단위:원)', 'Expected Close']) {
+    for (const label of ['Forecast', '금액(단위:원)', 'Expected Close']) {
       // when: 칸을 눌러 편집을 연다
       await user.click(within(row).getByRole('button', { name: (name) => name.endsWith(`${label} 편집`) }))
       // then: 저장·취소 버튼이 없다
@@ -59,21 +59,6 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
     // then: 원래 값이 그대로다
     expect(within(row).queryByLabelText('Forecast 값')).not.toBeInTheDocument()
     expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Most Likely')
-  })
-
-  // Status도 고르는 즉시 저장된다
-  // 테스트 코드: DL-093
-  it('saves Status as soon as it is picked', async () => {
-    // given: sales의 목록
-    const { user } = await renderAt(SEARCH)
-    const row = await rowOf(/대한제조 MFA 확대/)
-
-    // when: Status 편집에서 값을 고른다
-    await user.click(within(row).getByRole('button', { name: /Status 편집/ }))
-    await user.selectOptions(within(row).getByLabelText('Status 값'), 'POC완료')
-
-    // then: 저장되어 새 Status가 보인다
-    expect(await within(row).findByRole('button', { name: /Status 편집/ })).toHaveTextContent('POC완료')
   })
 
   // 금액은 Enter에 저장되고 원 단위로 보인다
@@ -325,9 +310,8 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
     expect(within(row).getByLabelText('Expected Close 값')).toBeVisible()
   })
 
-  // 편집 가능한 칸은 정확히 네 개다
   // 테스트 코드: DL-093
-  it('offers exactly four editable columns and none for Vendor, owner or the deal name', async () => {
+  it('offers editing for Forecast, amount and Expected Close when there is no Next Action', async () => {
     // given: sales의 목록
     await renderAt(SEARCH)
     const row = await rowOf(/대한제조 MFA 확대/)
@@ -337,8 +321,7 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
       .getAllByRole('button', { name: /편집/ })
       .map((b) => b.getAttribute('aria-label') ?? '')
 
-    // then: Status·Forecast·금액·Expected Close뿐이다
-    expect(labels).toHaveLength(4)
+    expect(labels).toEqual(['Forecast', '금액(단위:원)', 'Expected Close'].map((label) => `대한제조 MFA 확대 ${label} 편집`))
   })
 
   // user 역할에는 편집 버튼이 없다
@@ -355,14 +338,18 @@ describe('Inline Update 즉시 저장 (T-LIST-12~14)', () => {
   })
 })
 
-describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
-  // 계약완료 전환 시 실제 매출 대화상자를 연다(DD 동기화)
+async function storedStatus(row: HTMLElement) {
+  const href = within(row).getAllByRole('link')[0]?.getAttribute('href')
+  if (!href) throw new Error('Deal 링크가 없습니다.')
+  return (await gateway.deals.get(href.slice('/deals/'.length))).statusKey
+}
+
+describe('Forecast 편집에 따른 Status 동기화 (목록)', () => {
   it('asks for the actual revenue before closing a deal as 계약완료 and tells the co-changed value', async () => {
-    // given: Status를 계약완료로 바꾸는 목록
     const { user } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
-    await user.click(within(row).getByRole('button', { name: /Status 편집/ }))
-    await user.selectOptions(within(row).getByLabelText('Status 값'), '계약완료')
+    await user.click(within(row).getByRole('button', { name: /Forecast 편집/ }))
+    await user.selectOptions(within(row).getByLabelText('Forecast 값'), 'Won')
     const dialog = await screen.findByRole('dialog', { name: '매출 확정' })
     const amount = within(dialog).getByLabelText('매출금액(단위:원, 실제 값)')
 
@@ -377,7 +364,7 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
     await user.click(within(dialog).getByRole('button', { name: '확정' }))
     // then: Won·계약완료·새 금액이 보이고 함께 바뀐 값을 알린다
     expect(await within(row).findByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Won')
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('계약완료')
+    expect(await storedStatus(row)).toBe('contract_completed')
     expect(within(row).getByRole('button', { name: /금액\(단위:원\) 편집/ })).toHaveTextContent('1,800,000,000')
     expect(await screen.findByText(/함께 변경되었습니다/)).toBeVisible()
   })
@@ -397,7 +384,7 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
     // then: 값이 그대로다
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Commit')
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('가격협상')
+    expect(await storedStatus(row)).toBe('price_negotiation')
   })
 
   // Won Deal을 되돌리면 새 Status를 고르게 한다(DD)
@@ -420,27 +407,8 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
     await user.click(within(dialog).getByRole('button', { name: '확인' }))
     await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
     // then: Status가 기술평가로 바뀌고 Forecast는 Commit이다
-    expect(await within(row).findByRole('button', { name: /Status 편집/ })).toHaveTextContent('기술평가')
-    expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Commit')
-  })
-
-  // 계약완료에서 되돌리면 Forecast를 고르게 한다(DD)
-  it('makes the user pick the Forecast when 계약완료 is moved back', async () => {
-    // given: 계약완료 Deal
-    const { user } = await renderAt('/deals?q=바른제약 PAM')
-    const row = await rowOf(/바른제약 PAM/)
-    await user.click(within(row).getByRole('button', { name: /Status 편집/ }))
-    await user.selectOptions(within(row).getByLabelText('Status 값'), '가격협상')
-    const dialog = await screen.findByRole('dialog', { name: '함께 바꿀 값 선택' })
-
-    // when: Status를 되돌린다
-    await user.click(within(dialog).getByRole('radio', { name: 'Best' }))
-    await user.click(within(dialog).getByRole('button', { name: '확인' }))
-    await user.click(within(await screen.findByRole('dialog', { name: '라이선스 계약 처리' })).getByRole('button', { name: '유지' }))
-
-    // then: Forecast 선택 창이 뜬다
-    expect(await within(row).findByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Best')
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('가격협상')
+    expect(await within(row).findByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Commit')
+    expect(await storedStatus(row)).toBe('technical_evaluation')
   })
 
   // 선택 창을 취소하면 원래 값이 남는다(DD)
@@ -457,6 +425,6 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI-01~06, 목록)', () => {
 
     // then: 값이 그대로다
     expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Won')
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('계약완료')
+    expect(await storedStatus(row)).toBe('contract_completed')
   })
 })

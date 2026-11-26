@@ -72,7 +72,6 @@ describe('Deal 수정 (T-FORM-06)', () => {
     const { user, location } = await openEdit('누리통신 MFA')
     // when: 파트너 제거를 누르고 저장한다.
     await user.click(screen.getByRole('button', { name: '파트너 제거' }))
-    // then: 파트너 칸이 비고 제거 안내가 보이며, 저장 뒤 목록의 파트너사가 '—'이다.
     expect(screen.getByLabelText('파트너 회사명')).toHaveValue('')
     expect(
       await screen.findByText('저장하면 기존 활성 파트너(에이원시스템 표성호)가 제거되고 이력으로 남습니다.'),
@@ -80,9 +79,9 @@ describe('Deal 수정 (T-FORM-06)', () => {
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
     const row = await openList(user, '누리통신 MFA')
-    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
-    const cells = within(row).getAllByRole('cell')
-    expect(cells[headers.indexOf('파트너사')]).toHaveTextContent(/^—$/)
+    await user.click(within(row).getByRole('button', { name: /빠른 보기/ }))
+    const view = await screen.findByRole('region', { name: /빠른 보기/ })
+    expect(within(view).getByText('파트너 없음')).toBeVisible()
   })
 
   // 퇴사한 Owner는 보이지만 다른 Owner를 고를 때까지 저장되지 않는다.
@@ -240,10 +239,9 @@ describe('Status⇄Forecast 동기화 (T-SYNC-UI, 폼)', () => {
     await user.click(within(await screen.findByRole('dialog', { name: '매출 확정' })).getByRole('button', { name: '확정' }))
     await save(user)
     await waitFor(() => expect(location()).toMatch(DETAIL_URL))
-    // then: 목록에 바뀐 Status·Forecast가 보인다.
+    expect(await screen.findByRole('button', { name: 'Status 수정' })).toHaveTextContent('계약완료')
     const row = await openList(user, '대한제조 MFA')
     expect(within(row).getByRole('button', { name: /Forecast 편집/ })).toHaveTextContent('Won')
-    expect(within(row).getByRole('button', { name: /Status 편집/ })).toHaveTextContent('계약완료')
   })
 
   // 새 Deal을 Won으로 고르면 매출 확인을 묻는다.

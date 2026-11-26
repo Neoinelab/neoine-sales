@@ -14,10 +14,7 @@ afterEach(() => {
 const HEADERS = [
   'Deal',
   '담당자',
-  '고객사',
-  '파트너사',
   'Vendor',
-  'Status',
   'Forecast',
   '금액(단위:원)',
   'Expected Close',
@@ -46,16 +43,14 @@ async function nextActionOf(name: string) {
 }
 
 describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
-  // 머리글 13열이 순서대로 있고 BANT 열이 없다
   // 테스트 코드: DL-058
-  it('shows the 13 headers in order without BANT', async () => {
+  it('shows the ten remaining headers in order', async () => {
     // given: 시드 목록
     await renderAt(ALL_DEALS)
 
     // when: 목록을 연다
     await rowOf(/한빛은행 ITDR 도입/)
 
-    // then: 13개 머리글이 문서 순서이며 BANT 머리글이 없다
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
     expect(screen.queryByRole('columnheader', { name: 'BANT' })).not.toBeInTheDocument()
   })
@@ -95,9 +90,8 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     }
   })
 
-  // 빠른 보기 행은 13열 너비로 펼쳐진다
   // 테스트 코드: DL-091
-  it('quick view row spans all 13 columns', async () => {
+  it('quick view row spans all displayed columns', async () => {
     // given: 빠른 보기가 닫힌 행
     const { user } = await renderAt('/deals?q=한빛은행 ITDR')
     const row = await rowOf(/한빛은행 ITDR 도입/)
@@ -106,8 +100,7 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
     await user.click(within(row).getByRole('button', { name: /빠른 보기/ }))
     const view = screen.getByRole('region', { name: /빠른 보기/ })
 
-    // then: 펼친 칸의 colSpan이 13이다
-    expect(view.closest('td')).toHaveAttribute('colspan', '13')
+    expect(view.closest('td')).toHaveAttribute('colspan', String(HEADERS.length))
   })
 })
 
@@ -122,7 +115,7 @@ describe('목록 열 정리: BANT 없음 (AC1)', () => {
     const row = await rowOf(/한빛은행 ITDR 도입/)
 
     // then: BANT 칸과 Label 이름이 보이지 않는다
-    expect(within(row).getAllByRole('cell')).toHaveLength(13)
+    expect(within(row).getAllByRole('cell')).toHaveLength(HEADERS.length)
     expect(within(row).queryByLabelText(/^(Budget|Authority|Need|Timeline): /)).not.toBeInTheDocument()
     expect(row).not.toHaveTextContent('단독 예산 확보')
     expect(row).not.toHaveTextContent('CISO 보고 완료')

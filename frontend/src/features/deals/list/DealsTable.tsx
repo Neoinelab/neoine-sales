@@ -13,10 +13,7 @@ interface Column {
 const COLUMNS: readonly Column[] = [
   { label: 'Deal', sort: 'name' },
   { label: '담당자', sort: 'owner' },
-  { label: '고객사', sort: 'customer' },
-  { label: '파트너사', sort: 'partner' },
   { label: 'Vendor', sort: 'vendor' },
-  { label: 'Status', sort: 'statusKey' },
   { label: 'Forecast', sort: 'forecastKey' },
   { label: AMOUNT_LABEL, sort: 'revenueAmount' },
   { label: 'Expected Close', sort: 'revenueDate' },
@@ -56,7 +53,7 @@ export function DealsTable({ rows, canWrite, sort, onSort, onSaved }: DealsTable
         </thead>
         <tbody>
           {rows.map((row) => (
-            <DealRowItem key={row.code} row={row} canWrite={canWrite} onSaved={onSaved} />
+            <DealRowItem key={row.code} row={row} columnCount={COLUMNS.length} canWrite={canWrite} onSaved={onSaved} />
           ))}
         </tbody>
       </table>

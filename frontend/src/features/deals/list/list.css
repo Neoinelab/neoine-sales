@@ -21,13 +21,14 @@
 .risk-legend li { display: flex; align-items: center; gap: 6px; font-size: var(--font-base); }
 
 .table-scroll { overflow-x: auto; border-radius: 8px; }
-.deals-table { min-width: 1340px; font-size: var(--font-base); }
+.deals-table { font-size: var(--font-base); }
 .deals-table th { white-space: nowrap; }
+.deals-table th:first-child { width: clamp(26%, calc(20ic + 48px), 42%); }
 .deals-table td { vertical-align: middle; }
 
-.deal-name-cell { display: flex; align-items: flex-start; gap: 4px; min-width: 240px; }
-.deal-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; } /* 기한초과·미업데이트 배지는 Deal 이름과 같은 줄 오른쪽(좁으면 다음 줄로) */
-.quick-toggle { padding: 0 6px; border: none; background: transparent; color: var(--muted); }
+.deal-name-cell { display: flex; align-items: flex-start; gap: 4px; }
+.deal-name { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px 6px; } /* 기한초과·미업데이트 배지는 Deal 이름과 같은 줄 오른쪽(좁으면 다음 줄로) */
+.quick-toggle { flex: none; padding: 0 6px; border: none; background: transparent; color: var(--muted); }
 .quick-toggle:hover, .quick-toggle:focus-visible { color: var(--fg); }
 .next-action { min-width: 180px; }
 .deals-table td.due { white-space: nowrap; }
