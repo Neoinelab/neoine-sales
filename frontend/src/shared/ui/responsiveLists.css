@@ -16,14 +16,14 @@
 }
 
 .content .deal-list-scroll > table {
-  --deal-name-min: calc(40ic + 24px);
+  --deal-name-min: calc(30ic + 24px);
   --deal-owner-width: calc(5ic + 24px);
   --deal-vendor-width: calc(20ch + 8px);
   max-width: none;
 }
 
 .content .deal-list-scroll > .deals-table {
-  --deal-name-min: calc(40ic + 56px);
+  --deal-name-min: calc(30ic + 56px);
   --deal-forecast-width: calc(10ch + 16px);
   --deal-updated-width: calc(7ic + 8px);
   min-width: calc(var(--deal-name-min) + var(--deal-owner-width) + var(--deal-vendor-width) + var(--deal-forecast-width) + var(--deal-updated-width) + 280px);
