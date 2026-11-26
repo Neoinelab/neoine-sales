@@ -19,7 +19,13 @@
 .content .meeting-table :is(.meeting-date, .meeting-actions) { white-space: nowrap; }
 .meeting-table .meeting-date { font-variant-numeric: tabular-nums; }
 .content .meeting-table .meeting-actions > button {
-  padding-inline: 2px;
+  --meeting-action-size: calc(2ic + 6px);
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--meeting-action-size);
+  block-size: var(--meeting-action-size);
+  padding: 0;
+  vertical-align: middle;
   white-space: nowrap;
 }
 .meeting-table .meeting-actions > button + button { margin-inline-start: 2px; }

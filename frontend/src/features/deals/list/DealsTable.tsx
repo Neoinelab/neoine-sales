@@ -18,7 +18,7 @@ const COLUMNS: readonly Column[] = [
   { label: 'Forecast', sort: 'forecastKey', widthClass: 'deal-list-forecast' },
   { label: AMOUNT_LABEL, sort: 'revenueAmount' },
   { label: 'Expected Close', sort: 'revenueDate' },
-  { label: '최종 업데이트', sort: 'lastUpdatedAt' },
+  { label: '최종 업데이트', sort: 'lastUpdatedAt', widthClass: 'deal-list-updated' },
   { label: 'Next Action' },
   { label: 'Due Date' },
   { label: 'Next Action 상태' },

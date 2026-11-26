@@ -35,8 +35,8 @@
 
 .cell-edit-wrap { display: inline-flex; align-items: center; gap: 4px; }
 .cell-edit { padding: 2px 6px; border: 1px dashed transparent; border-radius: 6px; background: transparent; text-align: left; }
-.deal-forecast .cell-edit { padding-inline: 3px; }
-.deal-forecast .badge { padding-inline: 4px; }
+.content .deals-table .deal-forecast .cell-edit { padding-inline: 1px; }
+.deal-forecast .badge { padding-inline: 2px; }
 .cell-edit:hover { border-color: var(--line-strong); background: var(--hover); }
 .cell-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .saved-mark { color: var(--ok); font-weight: 700; }
