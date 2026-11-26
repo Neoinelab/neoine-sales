@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useState } from 'react'
 import { useContactCompanies } from '../../data/contacts'
 import { itemErrorsOf, useUpdateMeeting } from '../../data/partnerMeetings'
 import type { PartnerMeeting } from '../../shared/model/types'
@@ -33,19 +33,11 @@ export function MeetingEditDialog({ meeting, onClose }: MeetingEditDialogProps) 
   const [errors, setErrors] = useState<EntryErrors>({})
   const [focus, setFocus] = useState<EntryField | null>(null)
   const [formError, setFormError] = useState<unknown>(null)
-  const saveRef = useRef<HTMLButtonElement>(null)
   const clearFocus = useCallback(() => setFocus(null), [])
 
   const onPatch = (patch: Partial<EntryRow>, edited?: EntryField) => {
     setRow((prev) => ({ ...prev, ...patch }))
     if (edited) setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== edited)))
-  }
-
-  function onContentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== 'Enter' || event.shiftKey) return
-    if (event.nativeEvent.isComposing || event.keyCode === 229) return
-    event.preventDefault()
-    saveRef.current?.focus()
   }
 
   async function save() {
@@ -82,7 +74,7 @@ export function MeetingEditDialog({ meeting, onClose }: MeetingEditDialogProps) 
           <button type="button" onClick={onClose}>
             취소
           </button>
-          <button type="button" ref={saveRef} className="primary" disabled={update.isPending} onClick={() => void save()}>
+          <button type="button" className="primary" disabled={update.isPending} onClick={() => void save()}>
             저장
           </button>
         </>
@@ -97,7 +89,6 @@ export function MeetingEditDialog({ meeting, onClose }: MeetingEditDialogProps) 
           focusField={focus}
           onFocused={clearFocus}
           onPatch={onPatch}
-          onContentKeyDown={onContentKeyDown}
           autoFocusContent
         />
       </div>

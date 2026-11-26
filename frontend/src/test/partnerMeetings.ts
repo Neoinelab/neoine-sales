@@ -87,10 +87,6 @@ export function fieldsOf(dialog: HTMLElement, n: number) {
     partner: row.getByRole<HTMLInputElement>('combobox', { name: '파트너' }),
     date: row.getByRole<HTMLInputElement>('textbox', { name: '미팅 날짜' }),
     content: row.getByRole<HTMLTextAreaElement>('textbox', { name: '미팅 내용' }),
-    /** 입력 팝업 행에만 있다(수정 팝업에는 없으므로 접근할 때만 찾는다). */
-    get remove() {
-      return row.getByRole('button', { name: '행 삭제' })
-    },
     native: entryGroup(dialog, n).querySelector<HTMLInputElement>('input[type="date"]') as HTMLInputElement,
   }
 }

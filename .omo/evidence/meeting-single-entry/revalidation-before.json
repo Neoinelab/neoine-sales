@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-26T00:34:26.526Z",
+  "source": "frontend/src/features/partner-activity/MeetingEntryDialog.tsx",
+  "sha256": "e5a241c488c386b480f707c8435234cca6629d34fb044a43067dbae907398dec",
+  "sourceModifiedAt": "2026-11-26T00:32:21.318Z",
+  "focusLines": [
+    {
+      "line": 42,
+      "text": "const [focus, setFocus] = useState<EntryField | null>(null)"
+    },
+    {
+      "line": 117,
+      "text": "focusField={focus}"
+    }
+  ]
+}

@@ -40,39 +40,20 @@ async function renameCompanyBehindTheScenes(from: string, to: string): Promise<v
 const total = async () => (await gateway.partnerMeetings.list({ sort: 'meetingDate', order: 'desc' }, 0, 1)).total
 
 describe('저장 성공', () => {
-  // 여러 행을 저장하면 팝업이 닫히고 목록 맨 위에 보이며 저장 건수를 알린다.
+  // 저장 버튼을 누르면 한 건만 저장하고 팝업을 닫아 목록과 건수 알림을 갱신한다.
   // 테스트 코드: PA-081
-  it('saves several rows, closes the dialog, shows them at the top of the list and says how many were saved', async () => {
-    // given: 입력 팝업에 두 행을 채웠다
+  it('saves one meeting, closes the dialog and shows the saved count and list entry', async () => {
+    // given: 한 미팅을 채운 팝업
     const { user, dialog } = await open()
-    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '오늘 첫 번째' })
-    await user.keyboard('{Enter}')
-    await fillRow(user, dialog, 2, { company: '넷브릿지', date: '20270316', content: '내일 두 번째' })
+    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '오늘 미팅' })
 
-    // when: 저장한다
+    // when: 저장 버튼을 누른다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    // then: 팝업이 닫히고 알림이 뜨며 새 기록 둘이 목록 맨 위에 보이고 서버에 14건이다
+    // then: 한 건 알림과 목록 항목이 보이고 전체 기록은 한 건 늘었다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '미팅 내용 입력' })).not.toBeInTheDocument())
-    expect(await screen.findByText('미팅 2건을 저장했습니다.')).toBeVisible()
-    await waitFor(() => expect(shownContents().slice(0, 2)).toEqual(['내일 두 번째', '오늘 첫 번째']))
-    expect(await total()).toBe(14)
-  })
-
-  // 완전히 빈 행은 건너뛰고 저장한 건수만 센다.
-  // 테스트 코드: PA-081
-  it('skips completely empty rows and counts only the saved ones', async () => {
-    // given: 한 행만 채우고 빈 행 둘이 더 있다
-    const { user, dialog } = await open()
-    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '하나만' })
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-
-    // when: 저장한다
-    await user.click(within(dialog).getByRole('button', { name: '저장' }))
-
-    // then: 1건 저장 알림이 뜨고 서버에 13건이다
     expect(await screen.findByText('미팅 1건을 저장했습니다.')).toBeVisible()
+    await waitFor(() => expect(shownContents()[0]).toBe('오늘 미팅'))
     expect(await total()).toBe(13)
   })
 
@@ -82,13 +63,13 @@ describe('저장 성공', () => {
     // given: 줄바꿈이 든 내용을 채운 행
     const { user, dialog } = await open()
     await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '첫 줄' })
-    await user.keyboard('{Shift>}{Enter}{/Shift}둘째 줄')
+    await user.keyboard('{Enter}둘째 줄{Shift>}{Enter}{/Shift}셋째 줄')
 
     // when: 저장한다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
     // then: 줄바꿈이 유지된 채 맨 위에 보이고 작성자는 김영업이다
-    await waitFor(() => expect(shownContents()[0]).toBe('첫 줄\n둘째 줄'))
+    await waitFor(() => expect(shownContents()[0]).toBe('첫 줄\n둘째 줄\n셋째 줄'))
     expect(within(meetingRows()[0] as HTMLElement).getAllByRole('cell')[3]).toHaveTextContent('김영업')
   })
 
@@ -127,41 +108,24 @@ describe('저장 전 검사', () => {
     expect(await total()).toBe(12)
   })
 
-  // 건드리지 않은 행의 기본 날짜는 입력으로 보지 않는다.
-  // 테스트 코드: PA-082
-  it('does not look at the default date of an untouched row', async () => {
-    // given: 한 행을 채우고 빈 행을 하나 더했다
-    const { user, dialog } = await open()
-    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '하나' })
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-
-    // when: 저장한다
-    await user.click(within(dialog).getByRole('button', { name: '저장' }))
-
-    // then: 1건만 저장된다
-    expect(await screen.findByText('미팅 1건을 저장했습니다.')).toBeVisible()
-  })
-
   // 덜 채운 행은 빠진 칸마다 문구를 보이고 요청하지 않으며 첫 칸에 포커스한다.
   // 테스트 코드: PA-082
   it('marks every missing field of a partly filled row, sends nothing and focuses the first one', async () => {
-    // given: 첫 행은 정상이고 둘째 행은 파트너만 고른 상태
+    // given: 파트너만 고른 뒤 날짜를 지워 날짜와 내용이 빠진 상태
     const { user, dialog } = await open()
-    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270315', content: '정상 행' })
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-    await choosePartner(user, dialog, 2, '넷브릿지')
-    await user.keyboard('{Escape}')
+    await choosePartner(user, dialog, 1, '넷브릿지')
+    await user.clear(fieldsOf(dialog, 1).date)
 
     // when: 저장한다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    // then: 둘째 행의 내용 칸에 문구가 보이고 첫 칸에 포커스가 가며 서버에 12건 그대로다
-    const second = entryRow(dialog, 2)
-    expect(await second.findByText('미팅 내용을 입력하세요.')).toBeVisible()
-    expect(second.queryByText('파트너를 선택하세요.')).not.toBeInTheDocument()
-    expect(second.queryByText(/Deal/)).not.toBeInTheDocument()
-    expect(entryRow(dialog, 1).queryByRole('alert')).not.toBeInTheDocument()
-    await waitFor(() => expect(fieldsOf(dialog, 2).content).toHaveFocus())
+    // then: 날짜와 내용 문구가 보이고 날짜 칸에 포커스가 가며 서버에 12건 그대로다
+    const current = entryRow(dialog, 1)
+    expect(await current.findByText('미팅 내용을 입력하세요.')).toBeVisible()
+    expect(current.queryByText('파트너를 선택하세요.')).not.toBeInTheDocument()
+    expect(current.queryByText(/Deal/)).not.toBeInTheDocument()
+    expect(current.getByText('미팅 날짜를 입력하세요.')).toBeVisible()
+    await waitFor(() => expect(fieldsOf(dialog, 1).date).toHaveFocus())
     expect(await total()).toBe(12)
   })
 
@@ -251,24 +215,20 @@ describe('서버가 거절할 때', () => {
   // 서버가 거절하면 입력을 유지하고 거절된 행·칸에 서버 문구를 보인다.
   // 테스트 코드: PA-083
   it('saves nothing, keeps the dialog open and shows the server message at the row and field that were rejected', async () => {
-    // given: 셋째 행의 회사가 저장 전에 연락처 회사명 변경으로 사라졌다
+    // given: 선택한 회사가 저장 전에 연락처 회사명 변경으로 사라졌다
     const { user, dialog } = await open()
-    await fillRow(user, dialog, 1, { company: '넷브릿지', date: '20270315', content: '정상 행' })
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' })) // 2: 빈 행
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-    await fillRow(user, dialog, 3, { company: '코어테크', date: '20270316', content: '회사가 사라진 행' })
+    await fillRow(user, dialog, 1, { company: '코어테크', date: '20270316', content: '회사가 사라진 행' })
     await renameCompanyBehindTheScenes('코어테크', '새이름테크') // 선택한 뒤 연락처 회사명이 바뀌었다
 
     // when: 저장한다
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    // then: 셋째 행에 서버 문구가 보이고 다른 행은 정상이며 팝업이 열려 있고 입력이 남고 서버에 12건 그대로다
-    expect(await entryRow(dialog, 3).findByText('등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.')).toBeVisible()
-    expect(entryRow(dialog, 1).queryByRole('alert')).not.toBeInTheDocument()
-    expect(entryRow(dialog, 2).queryByRole('alert')).not.toBeInTheDocument()
+    // then: 파트너 칸에 서버 문구가 보이고 팝업과 입력이 남으며 서버에 12건 그대로다
+    expect(await entryRow(dialog, 1).findByText('등록된 파트너 회사가 아닙니다. 목록에서 다시 선택하세요.')).toBeVisible()
+    await waitFor(() => expect(fieldsOf(dialog, 1).partner).toHaveFocus())
     expect(screen.getByRole('dialog', { name: '미팅 내용 입력' })).toBeVisible()
     expect(await total()).toBe(12)
-    expect(fieldsOf(dialog, 1).content).toHaveValue('정상 행') // 입력한 값이 남아 있다
+    expect(fieldsOf(dialog, 1).content).toHaveValue('회사가 사라진 행') // 입력한 값이 남아 있다
   })
 
   // 위치 없는 실패(403)는 팝업 배너로 보이고 입력을 잃지 않는다.

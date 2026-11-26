@@ -25,6 +25,14 @@
 
 ## 2. 명세 (SDD)
 
+### 2026-11-26 미팅 한 건 입력과 Enter 줄바꿈 (사용자 요청 확정)
+
+- 입력 팝업은 미팅 한 건만 입력한다. 행 추가·행 삭제·Enter로 새 행 생성 기능을 제공하지 않는다. 목록의 기존 미팅 삭제 기능은 유지한다.
+- 입력·수정 팝업의 미팅 내용에서 Enter와 Shift+Enter는 줄바꿈이며, 내용 입력에 포커스를 유지한다. Enter로 저장하거나 저장 버튼으로 이동하지 않는다. 저장 버튼을 명시적으로 눌렀을 때만 저장한다.
+- 파트너 선택·미팅 날짜·필수 칸 검증·취소 시 입력 버림 확인과 현재 내용 영역 높이는 유지한다. 등록 API는 기존 형식을 유지하고 입력 항목 하나만 보낸다.
+- Layout: 기존 넓은 Modal과 두 열 파트너·미팅 날짜, 전체 폭 미팅 내용 영역을 사용한다. 하단은 취소·저장만 제공하며 기존 토큰과 모바일 재배치를 따른다.
+- 우선순위는 파트너·미팅 날짜, 미팅 내용, 저장이다. 주 동작은 저장이다.
+
 ### 2.1 용어
 
 | 용어 | 뜻 |
@@ -108,12 +116,12 @@ API 문서
   - "전체"는 날짜 조건을 지운다(검색하면 URL에서 `from`·`to`가 빠진다). "초기화"하면 전체로 돌아간다.
   - 표시: 사용자가 이번에 고른 값, 아니면 직접 지정으로 검색한 상태면 직접 지정, 아니면 URL 날짜가 **오늘의** 프리셋과 정확히 같으면 그 프리셋, 날짜가 없으면 전체, 그 밖(한쪽만 있음, 전날 저장한 프리셋 날짜 포함)은 직접 지정과 그 날짜. 프리셋을 읽지 못해도 URL 날짜로 검색한다. 예전 주소(날짜 칸 두 개 시절 `from`·`to`)도 같은 결과로 열린다.
 - **PA-R32** 정렬 머리글: 파트너·미팅 날짜·미팅 내용·작성자 네 열이 정렬 버튼이고 정렬 중인 열에만 방향 표시가 있다. 정렬이 없는 주소는 미팅 날짜 내림차순으로 표시한다. 지금 정렬하지 않는 열을 누르면 오름차순으로 시작하고 같은 열을 다시 누르면 방향을 바꾼다(미팅 날짜 열: 내림차순 → 오름차순 → 내림차순). 정렬을 바꾸면 조건은 유지하고 첫 10건부터 다시 읽는다. URL의 정렬로 머리글 표시를 복원한다.
-- **PA-R33** 입력 팝업(제목 "미팅 내용 입력", 넓은 모달): 열면 빈 행 하나이고 첫 칸(파트너)에 포커스, 미팅 날짜 기본값은 앱 시계의 오늘(TM-R12)이다. 각 행은 `group` "미팅 <번호>"이고 칸 순서는 파트너 → 미팅 날짜 → 미팅 내용 → "행 삭제" 버튼이다(Deal 칸 없음). "행 추가"는 오늘 날짜의 빈 행을 아래에 더하고, "행 삭제"는 그 행을 지우고 번호를 다시 매긴다(행이 하나면 비활성). 행은 50개까지이고 51번째를 더하려 하면 행을 더하지 않고 "한 번에 50건까지 입력할 수 있습니다."(`alert`)를 보인다. 아래에 "취소"·"저장" 버튼(저장 중 비활성).
+- **PA-R33** 입력 팝업(제목 "미팅 내용 입력", 넓은 모달)은 항상 미팅 한 건만 입력한다. 첫 칸(파트너)에 포커스가 있고 미팅 날짜 기본값은 앱 시계의 오늘(TM-R12)이다. `group` "미팅 1" 안의 칸은 파트너 → 미팅 날짜 → 미팅 내용이며, 행 추가·행 삭제 버튼은 없다. 아래에는 취소·저장 버튼만 둔다. 현재 미팅 내용 영역 높이를 유지한다.
 - **PA-R34** 파트너 칸(콤보박스 "파트너"): 선택지는 파트너 회사 목록(CT-R14)이고 친 글자로 좁혀진다(포커스만으로는 열리지 않음). 목록에서 고르면 그 회사가 행의 회사가 되고 포커스가 미팅 날짜 칸으로 간다. 목록 글자와 같은 글자(대소문자·앞뒤 공백 무시)를 다 치고 Enter를 누르면 고른 것으로 보고 날짜 칸으로 넘어가며, 같은 항목이 없으면 칸 아래 "목록에서 선택하세요."를 보인다(글자를 고치거나 목록에서 고르면 사라짐). Enter 없이 친 글자만으로는 고른 것이 아니다. 고른 뒤 글자를 고치면 고른 회사가 풀린다. 행마다 따로다.
-- **PA-R35** 칸 이동 키: 목록이 닫힌(또는 활성 항목 없는) 파트너 칸의 Enter는 PA-R34대로, 칸이 비어 있고 이미 고른 회사가 있으면 날짜 칸으로 간다. 목록이 열려 있으면 Enter는 활성 항목을 고른다(콤보박스 동작). 날짜 칸에 `yyyymmdd`를 치고 Enter, 또는 달력에서 고르면 내용 칸으로 간다. 덜 쳤거나 없는 날짜에서 Enter는 날짜 칸에 머물고 날짜 칸 문구를 보인다. 내용 칸: Shift+Enter는 줄바꿈, 한글 조합을 확정하는 Enter는 무시, 그 밖의 Enter는 ① 그 행에 빠진 칸(파트너 미선택 → 틀리거나 빈 날짜 → 빈 내용 순)이 있으면 첫 빠진 칸으로 ② 다음 행이 있으면 다음 행 파트너로 ③ 마지막 행이면 오늘 날짜의 새 행을 더하고 그 파트너로 간다(50행이면 PA-R33 안내만).
-- **PA-R36** 저장: 완전히 빈 행(파트너 글자·고른 회사·내용이 모두 빈 행, 날짜는 보지 않음)은 건너뛴다. 모두 빈 행이면 요청하지 않고 "입력한 미팅이 없습니다."(`alert`). 빈 행이 아닌 행은 칸별로 검사해 빠진 칸에 "파트너를 선택하세요."(목록에서 고르지 않음)·"미팅 날짜를 입력하세요."(빈 날짜)·날짜 칸 문구(틀린 날짜, UI-R7)·"미팅 내용을 입력하세요."(공백뿐)를 보이고 요청하지 않으며 첫 오류(행 순서 → 칸 순서)로 포커스한다. 칸을 고치면 그 칸 문구가 사라진다. 내용 칸 문구는 textarea의 접근성 설명(`aria-describedby`)이고 `aria-invalid`가 켜진다. 통과하면 빈 행을 뺀 행들을 화면 순서대로 한 요청(행마다 `partnerCompany`·`meetingDate`·`content` 세 값만)으로 보낸다. 성공하면 팝업을 닫고 알림 "미팅 N건을 저장했습니다."(N = 보낸 행 수)를 보이며 목록을 처음부터 다시 읽는다(PA-R40, 새 기록은 기본 정렬에서 맨 위, 작성자는 로그인 사용자, 줄바꿈 유지). 다시 열면 빈 행 하나다. 실패하면 아무것도 저장되지 않았으므로 입력을 유지하고, 서버가 위치를 준 위반(PA-R8)은 그 요청 항목이 화면의 몇 번째 행이었는지로 옮겨 그 행·칸 아래에 서버 문구를 보이고(칸마다 첫 문구, 놓을 수 없는 위치·`deal_code`는 무시) 첫 오류로 포커스한다. 위치가 없는 실패(403 등)는 팝업 안 오류 배너다.
+- **PA-R35** 칸 이동 키: 파트너 칸의 Enter는 PA-R34의 선택·날짜 칸 이동 규칙을 따른다. 날짜 칸의 유효한 날짜 Enter·달력 선택은 내용 칸으로 이동하고, 미완성·잘못된 날짜 Enter는 날짜 칸에 머물며 오류를 보인다. 내용 칸의 Enter·Shift+Enter는 기본 textarea 줄바꿈이며 내용 칸에 포커스를 유지한다. 한글 조합 확정 Enter를 가로채지 않는다. 내용 Enter로 저장·새 행 생성·다른 칸 이동을 하지 않는다.
+- **PA-R36** 저장 버튼을 눌렀을 때만 등록한다. 완전히 빈 입력(기본 날짜는 제외)이면 요청 없이 "입력한 미팅이 없습니다."를 보인다. 입력 중인 한 건의 파트너·미팅 날짜·미팅 내용을 검사해 빠진 칸에 기존 문구와 접근성 오류 설명을 보이고 첫 오류 칸으로 포커스한다. 통과하면 기존 등록 API에 항목 한 개만 보낸다(파트너·미팅 날짜·미팅 내용). 성공하면 팝업을 닫고 "미팅 1건을 저장했습니다."와 함께 목록 첫 쪽을 갱신한다. 중간 줄바꿈을 유지한다. 다시 열면 빈 미팅 하나다. 서버 항목 0의 필드 오류는 해당 칸에, 위치 없는 오류는 팝업 배너에 표시하고 입력을 유지한다.
 - **PA-R37** 입력 팝업 닫기: "취소"·Esc·닫기 버튼은 모든 행이 빈 행이면(기본 날짜는 입력으로 보지 않음) 바로 닫는다. 입력이 있으면 확인 대화상자(제목 "입력 취소", 문구 "입력한 내용을 버릴까요?", 위험 버튼 "버리기", 취소 버튼 "계속 입력")를 띄운다. "계속 입력"은 입력을 그대로 두고, "버리기"는 두 대화상자를 닫고 입력을 버린다.
-- **PA-R38** 수정 팝업(제목 "미팅 수정"): 관리 열의 "수정"으로 열고, 저장값으로 채운 행 하나(PA-R34·R35의 칸 동작, "행 추가"·"행 삭제" 없음)이며 내용 칸에 포커스가 간다. 내용 칸의 Enter(Shift·한글 조합 제외)는 "저장" 버튼으로 포커스를 옮긴다. 저장은 PA-R36과 같은 칸 검사(빈 행도 검사)를 하고 통과하면 세 값만 `PUT`한다. 다른 파트너를 골라도 날짜·내용은 유지된다. 성공하면 팝업을 닫고 목록을 처음부터 다시 읽어 새 위치에 보인다(알림 없음). 실패하면 위치가 있는 위반(PA-R18)은 그 칸 아래, 그 밖(404 "미팅 기록을 찾을 수 없습니다." 등)은 팝업 안 오류 배너다. "취소"·Esc는 저장 없이 닫는다(확인 없음). 저장된 회사 그대로면 연락처 회사명이 그 사이 바뀌었어도 저장된다(PA-R17).
+- **PA-R38** 수정 팝업(제목 "미팅 수정")은 저장값 한 건으로 열리고 내용 칸에 포커스한다. 행 추가·행 삭제는 없다. 내용 Enter·Shift+Enter는 줄바꿈이며 포커스를 이동하거나 자동 저장하지 않는다. 저장 버튼을 명시적으로 눌렀을 때 기존 필수 칸 검사 후 세 값만 PUT한다. 파트너 변경 시 날짜·내용을 유지하며, 성공하면 팝업을 닫고 목록을 갱신한다. 서버 필드 오류·일반 오류 표시, 취소·Esc 처리와 기존 회사명 유지 규칙(PA-R17)은 유지한다.
 - **PA-R39** 삭제: 관리 열의 "삭제"는 확인 대화상자(제목 "미팅 기록 삭제", 문구 "이 미팅 기록을 삭제할까요?", 위험 버튼 "삭제")를 띄운다. 취소하면 요청 없이 닫고 기록은 남는다. 확인하면 삭제 중 버튼이 바쁨 상태이고 다른 행은 계속 보이며, 성공하면 닫고 목록을 처음부터 다시 읽는다(그 기록이 사라지고 다음 기록이 보임). 실패하면(이미 지워져 404 등) 대화상자 안에 서버 문구를 보인다.
 - **PA-R40** 갱신: 등록·수정·삭제가 성공하면 미팅 목록 쿼리를 초기화해 지금 조건의 첫 쪽을 **한 번만** 다시 요청한다(불러 둔 다른 쪽을 다시 받지 않음). 연락처 수정 뒤 미팅 조회 무효화는 CT-R20이다.
 - **PA-R41** 게이트웨이(`gateway/http/partnerMeetings.ts`): `list(query, offset, limit)`는 값이 있는 조건만 snake_case 쿼리(`partner`, `content`, `date_from`, `date_to`, `author_user_id`)로 보내고 `sort`(`meetingDate` → `meeting_date`, 나머지 같음)·`order`·`offset`·`limit`은 늘 보낸다. Deal 조건은 보내지 않는다. 응답 항목은 `{id, partnerCompany, meetingDate, content, author(UserRef 변환 — 퇴사자는 status `resigned`), createdAt, updatedAt}`이고 쪽은 `{items, total, offset, limit}`. `create(items)`는 `POST {items: [{partner_company, meeting_date, content}]}`(정확히 세 키)이고 생성 항목을 순서대로 돌려준다. `update(id, input)`은 `PUT /partner-meetings/{id}`에 같은 세 키, `remove(id)`는 `DELETE`이며 204를 성공으로 받는다. Deal 선택지 호출은 없다. 실패는 `ApiError`(PL-R39)이고, 422 `invalid-value`의 `errors[{location, message}]`는 `problem.itemErrors`로 옮기고 `errors`를 뺀 본문으로 문구를 만든다(그래서 문구에 필드 접미사가 붙지 않음). 422 `request-validation`은 PL-R37 문구(필드 설명 포함)를 그대로 쓴다.
@@ -292,16 +300,16 @@ PA-R25~PA-R42.
 | PA-073 | 주소로 열면 오늘의 프리셋과 같을 때만 프리셋이고 그 밖은 직접 지정이며 프리셋을 못 읽어도 날짜로 검색한다 | PA-R31, PA-UC2 | frontend | `features/partner-activity/PartnerActivityPage.period.test.tsx > shows the preset when the URL dates equal the server preset`<br>외 6건 |
 | PA-074 | 직접 지정으로 검색한 날짜는 프리셋 범위와 같아도 직접 지정으로 남고 다시 받은 프리셋에 키가 없으면 날짜 없이 검색한다 | PA-R31, PA-UC2 | frontend | `features/partner-activity/PartnerActivityPage.period.test.tsx > keeps 직접 지정 and the date inputs after searching dates equal to a preset range`<br>외 2건 |
 | PA-075 | 입력 팝업은 빈 행 하나·파트너 포커스·오늘 날짜로 열리고 admin도 열며 user에게는 버튼이 없다 | PA-R33, PA-UC1 | frontend | `features/partner-activity/PartnerActivityPage.entry.test.tsx > opens a dialog with one empty row, focus on the partner, and today as the default date`<br>`features/partner-activity/PartnerActivityPage.test.tsx > shows no buttons at all to a read-only user, not even the entry button`<br>외 3건 |
-| PA-076 | 행 추가는 오늘 날짜 행을 더하고 행 삭제는 번호를 다시 매기며 50행을 넘기지 않는다 | PA-R33, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.keys.test.tsx > does not add a 51st row with Enter and explains the limit`<br>`features/partner-activity/PartnerActivityPage.entry.test.tsx > adds a row with today as its date and renumbers the rows when one is removed`<br>외 1건 |
+| PA-076 | 폐기(2026-11-26): 다중 행 추가·삭제·50행 제한 UI는 PA-094 한 건 입력으로 대체 | PA-R33 | frontend | - |
 | PA-077 | 파트너 칸은 등록된 회사 목록을 친 글자로 좁히고 고르면 날짜 칸으로 가며 행마다 따로다 | PA-R34, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.keys.test.tsx > moves the focus to the date field when a partner is chosen from the list`<br>`features/partner-activity/PartnerActivityPage.entry.test.tsx > lists the registered partner companies`<br>외 5건 |
 | PA-078 | 목록 글자를 그대로 치고 Enter면 고른 것으로 보고 없으면 "목록에서 선택하세요."다 | PA-R34, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.exactMatch.test.tsx > takes a partner typed exactly as in the list as chosen and moves to the date field`<br>외 5건 |
 | PA-079 | 날짜 Enter·달력 선택은 내용 칸으로 가고 덜 친 날짜는 머물며 콤보박스 Enter는 상태대로 움직인다 | PA-R35, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.keys.test.tsx > moves the focus to the content when 20270310 and Enter are typed in the date field`<br>외 4건 |
-| PA-080 | 내용 칸 Enter는 빠진 칸·다음 행·새 행 순으로 가고 Shift+Enter는 줄바꿈, 한글 조합 Enter는 무시한다 | PA-R35, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.keys.test.tsx > adds a new row with today as its date and puts the focus on its partner when Enter is pressed in the last full row`<br>외 5건 |
-| PA-081 | 저장하면 빈 행을 건너뛴 N건이 저장되고 팝업이 닫히며 알림과 함께 목록 맨 위에 보인다 | PA-R36, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.save.test.tsx > saves several rows, closes the dialog, shows them at the top of the list and says how many were saved`<br>외 5건 |
+| PA-080 | 폐기(2026-11-26): 내용 Enter의 칸 이동·새 행 추가는 PA-094 줄바꿈으로 대체 | PA-R35 | frontend | - |
+| PA-081 | 저장 버튼으로 미팅 한 건을 저장하면 팝업이 닫히고 알림과 목록에 반영된다 | PA-R36, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.save.test.tsx` |
 | PA-082 | 저장 전 검사는 모든 행이 비면 안내하고 빠진 칸 문구와 첫 칸 포커스를 보이며 요청하지 않는다 | PA-R36, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.save.test.tsx > sends nothing and says so when every row is empty`<br>외 7건 |
 | PA-083 | 서버가 거절하면 입력을 유지하고 거절된 행·칸에 서버 문구를, 위치 없는 실패는 팝업 배너를 보인다 | PA-R36, PA-R8, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.save.test.tsx > saves nothing, keeps the dialog open and shows the server message at the row and field that were rejected`<br>외 1건 |
 | PA-084 | 빈 팝업은 바로 닫히고 입력이 있으면 버릴지 묻는다 | PA-R37, PA-UC1 | frontend | `features/partner-activity/MeetingEntryDialog.close.test.tsx > closes an empty dialog at once with 취소`<br>외 6건 |
-| PA-085 | 수정 팝업은 저장값 한 행이고 내용 Enter는 저장 버튼으로 가며 저장하면 닫히고 새 위치에 보인다 | PA-R38, PA-UC3 | frontend | `features/partner-activity/MeetingEditDialog.test.tsx > opens one row filled with the stored values and no way to add rows`<br>외 5건 |
+| PA-085 | 수정 팝업은 저장값 한 건이며 내용 Enter는 줄바꿈이고 저장 버튼으로만 수정한다 | PA-R38, PA-UC3 | frontend | `features/partner-activity/MeetingEditDialog.test.tsx` |
 | PA-086 | 수정 팝업은 빈 내용·틀린 날짜를 막고 다른 파트너를 골라도 날짜·내용을 유지하며 서버 오류를 보인다 | PA-R38, PA-R17, PA-UC3 | frontend | `features/partner-activity/MeetingEditDialog.test.tsx > saves a content-only change even after the contact company was renamed meanwhile`<br>외 5건 |
 | PA-087 | 삭제는 확인 뒤 지우고 취소하면 남기며 이미 지워졌으면 대화상자에 서버 문구를 보인다 | PA-R39, PA-UC4 | frontend | `features/partner-activity/MeetingTable.test.tsx > asks for confirmation naming the action`<br>외 5건 |
 | PA-088 | 등록·수정·삭제 뒤 목록 첫 쪽을 한 번만 다시 요청한다 | PA-R40 | frontend | `features/partner-activity/PartnerActivityPage.requests.test.tsx > asks for the first page once after a registration`<br>외 2건 |
@@ -310,6 +318,7 @@ PA-R25~PA-R42.
 | PA-091 | Fake 게이트웨이는 권한·판정 순서·일괄 위반·요청 형식 오류에서 서버와 같은 결과를 낸다 | PA-R42 | frontend | `gateway/contract/partnerMeetings.contract.ts > creates several meetings in input order and lists them newest meeting date first`<br>`test/fake/gateway/partnerMeetings.test.ts > has twelve sample meetings in the planned default order`<br>외 38건 |
 | PA-092 | canEditMeeting은 admin 모두·sales 본인만 참이고 user는 거짓이다 | PA-R29 | frontend | `shared/model/permissions.test.ts > 수정·삭제: %s` |
 | PA-093 | Fake 목록 조회는 서버처럼 범위 밖 날짜·긴 텍스트·NUL 조건을 거절한다 | PA-R42, PA-R11, PA-R12 | frontend | `gateway/contract/partnerMeetings.contract.ts > rejects an out-of-bounds search date with the range message and a too long text condition with the request-format error`<br>`test/fake/gateway/partnerMeetings.test.ts > rejects the out-of-bounds search date (%s) with the range message, not the reversed-range message`<br>외 4건 |
+| PA-094 | 입력은 미팅 한 건이며 행 추가·삭제 없이 내용 Enter가 줄바꿈하고 명시적 저장만 한다 | PA-R33, PA-R35, PA-R36, PA-R38 | frontend | `features/partner-activity/PartnerActivityPage.entry.test.tsx`<br>`features/partner-activity/MeetingEntryDialog.keys.test.tsx`<br>`features/partner-activity/MeetingEditDialog.test.tsx` |
 
 ### PA-001 sales가 여러 건을 한 번에 등록하면 201로 입력 순서대로 저장되고 Location이 없다
 - Given 파트너 연락처 "HanbitCo"·"비컴퍼니", KIM(sales) 로그인
@@ -686,10 +695,8 @@ PA-R25~PA-R42.
 - When KIM과 ROOT가 "미팅 내용 입력"을 누르고, VIEWER가 화면을 본다
 - Then 팝업 "미팅 내용 입력"에 행 "미팅 1" 하나, 파트너 칸에 포커스, 미팅 날짜 칸은 오늘이며, VIEWER에게는 버튼이 없다
 
-### PA-076 행 추가는 오늘 날짜 행을 더하고 행 삭제는 번호를 다시 매기며 50행을 넘기지 않는다
-- Given 열린 팝업
-- When "행 추가"를 두 번 누르고 2번 행을 지우고, 다음에 50행이 될 때까지 더한 뒤 한 번 더 누른다
-- Then 새 행 날짜는 오늘이고 지운 뒤 행 이름은 "미팅 1"·"미팅 2"이며, 행이 하나뿐이면 "행 삭제"가 비활성이고, 51번째는 더해지지 않고 "한 번에 50건까지 입력할 수 있습니다."가 보인다
+### PA-076 폐기: 다중 행 추가·삭제·제한
+2026-11-26 사용자 요청으로 폐기했다. 한 건 입력과 행 조작 없음은 PA-094에서 검증한다.
 
 ### PA-077 파트너 칸은 등록된 회사 목록을 친 글자로 좁히고 고르면 날짜 칸으로 가며 행마다 따로다
 - Given 파트너 회사 목록
@@ -706,15 +713,13 @@ PA-R25~PA-R42.
 - When 날짜 칸에 `20270310`+Enter, 달력에서 날짜 선택, `2027031`+Enter를 각각 하고, 파트너 칸에서 목록이 닫힌 채 Enter와 목록이 열린 채 Enter를 누른다
 - Then 앞의 둘은 내용 칸으로 가고(날짜 2027-03-10), 덜 친 날짜는 날짜 칸에 머물고 문구가 보이며, 닫힌 콤보박스 Enter는 날짜 칸으로, 열린 목록 Enter는 활성 항목을 고른다
 
-### PA-080 내용 칸 Enter는 빠진 칸·다음 행·새 행 순으로 가고 Shift+Enter는 줄바꿈, 한글 조합 Enter는 무시한다
-- Given 행 1(완성), 별도로 행 1·2가 있는 팝업, 파트너를 고르지 않은 행, 날짜가 틀린 행, 50행 팝업
-- When 각 행의 내용 칸에서 Enter, Shift+Enter, 한글 조합 중 Enter를 누른다
-- Then 마지막 완성 행은 오늘 날짜의 새 행을 더하고 그 파트너로, 다음 행이 있으면 다음 행 파트너로, 빠진 칸이 있으면 그 행의 첫 빠진 칸(파트너 → 틀린 날짜 → 내용)으로 가고, Shift+Enter는 줄바꿈만 넣고, 조합 중 Enter는 아무것도 하지 않으며, 50행에서는 행을 더하지 않고 안내를 보인다
+### PA-080 폐기: 내용 Enter의 칸 이동·새 행 추가
+2026-11-26 사용자 요청으로 폐기했다. Enter·Shift+Enter 줄바꿈과 자동 저장 금지는 PA-094에서 검증한다.
 
-### PA-081 저장하면 빈 행을 건너뛴 N건이 저장되고 팝업이 닫히며 알림과 함께 목록 맨 위에 보인다
-- Given 완성 행 2개와 빈 행 1개, 줄바꿈이 든 내용
-- When "저장"을 누르고, 다시 "미팅 내용 입력"을 연다
-- Then 팝업이 닫히고 "미팅 2건을 저장했습니다."가 보이며, 두 기록이 목록 맨 위에 작성자 = 로그인 사용자·줄바꿈 그대로 보이고, 다시 연 팝업은 빈 행 하나다
+### PA-081 저장 버튼으로 미팅 한 건을 저장한다
+- Given 파트너·미팅 날짜와 줄바꿈이 든 내용을 작성했다
+- When 저장 버튼을 누르고 다시 미팅 내용 입력을 연다
+- Then 한 건만 저장되고 "미팅 1건을 저장했습니다."와 함께 팝업이 닫히며, 목록에 작성자·내용의 중간 줄바꿈이 유지된다. 다시 연 팝업은 빈 미팅 하나다
 
 ### PA-082 저장 전 검사는 모든 행이 비면 안내하고 빠진 칸 문구와 첫 칸 포커스를 보이며 요청하지 않는다
 - Given (1) 손대지 않은 행만 있음 (2) 내용만 쓴 행 (3) 파트너 글자만 친 행 (4) 날짜를 지운 행 (5) 틀린 날짜 행
@@ -731,10 +736,10 @@ PA-R25~PA-R42.
 - When 빈 팝업을 "취소"·Esc로 닫고, 쓴 팝업을 Esc로 닫으려다 "계속 입력", 다시 닫으려다 "버리기"를 누른다
 - Then 빈 팝업은 바로 닫히고, 쓴 팝업은 "입력 취소"/"입력한 내용을 버릴까요?"를 띄우며 "계속 입력"은 입력을 그대로 두고 "버리기"는 두 대화상자를 닫고 다시 열면 빈 행이다
 
-### PA-085 수정 팝업은 저장값 한 행이고 내용 Enter는 저장 버튼으로 가며 저장하면 닫히고 새 위치에 보인다
-- Given KIM이 자기 기록과 남의 기록이 있는 목록을 봄, ROOT도 같은 목록
-- When KIM이 자기 행 "수정"을 눌러 날짜·내용을 바꾸고(내용 칸 Enter 포함) 저장하고, ROOT가 남의 기록을 고친다
-- Then 팝업 "미팅 수정"은 저장값으로 채운 한 행이고 "행 추가"가 없으며 내용 칸 Enter는 "저장"으로 포커스를 옮기고, 저장하면 닫혀 그 기록이 새 날짜 위치에 새 내용으로 보이며, 보낸 본문은 세 값뿐이다. ROOT의 수정도 저장된다
+### PA-085 저장값 한 건 수정과 명시적 저장
+- Given 본인 미팅을 고치는 sales 또는 다른 사람의 미팅을 고치는 admin이다
+- When 수정 팝업의 날짜·내용을 바꾸고 저장 버튼을 누른다
+- Then 팝업은 저장값으로 채운 한 건이고 행 추가·삭제가 없다. 내용 Enter는 줄바꿈이며, 저장 버튼을 누르면 세 값만 수정되고 팝업이 닫혀 목록에 반영된다
 
 ### PA-086 수정 팝업은 빈 내용·틀린 날짜를 막고 다른 파트너를 골라도 날짜·내용을 유지하며 서버 오류를 보인다
 - Given 수정 팝업
@@ -776,7 +781,14 @@ PA-R25~PA-R42.
 - When `list`를 `dateFrom` `1899-12-31`, `dateTo` `3000-01-01`, `dateFrom` `3000-01-01`·`dateTo` `1899-12-31`(범위 밖이며 역전), 201자 `partner`, 101자 `content`, NUL이 든 `content`, 200자 `partner`, 100자 `content`로 각각 부른다
 - Then 범위 밖 날짜 세 경우는 422 "미팅 날짜은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"(역전 문구가 아님), 201자 파트너·101자 내용은 422 "요청 형식이 올바르지 않습니다", NUL 내용은 422(입력 위반)이고, 200자 파트너·100자 내용은 오류 없이 빈 쪽(`total` 0)이다
 
+### PA-094 미팅 한 건 입력과 내용 Enter 줄바꿈
+- Given 입력 또는 수정 팝업에서 파트너·미팅 날짜·미팅 내용을 작성하고 있다
+- When 내용에 Enter·Shift+Enter를 입력한다
+- Then 내용 칸에 줄바꿈이 생기고 포커스가 유지되며 새 행·저장 요청은 없다. 행 추가·행 삭제 버튼은 없고, 저장 버튼을 눌렀을 때 작성한 한 건만 중간 줄바꿈을 유지해 저장된다
+
 ## 5. 변경 이력
+
+2026-11-26 사용자 요청: 입력 팝업 단일 건, 내용 Enter 줄바꿈·자동 저장 금지. PA-076·PA-080 폐기, PA-081·PA-085 변경, PA-094 추가.
 
 | 날짜 | 변경 | 영향 테스트 코드 |
 | --- | --- | --- |

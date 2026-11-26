@@ -1,9 +1,7 @@
 /** 미팅 내용 입력 팝업의 행 상태와 검증(순수 로직). 서버 규칙의 정본은 서버이고, 여기서는 빠진 칸을 먼저 알려 준다. */
 
-import { dateValueError, isDateValue } from '../../shared/model/dateText'
+import { dateValueError } from '../../shared/model/dateText'
 import type { PartnerMeetingInput } from '../../shared/model/types'
-
-export const MAX_ROWS = 50
 
 export type EntryField = 'partnerCompany' | 'meetingDate' | 'content'
 export type EntryErrors = Partial<Record<EntryField, string>>
@@ -30,17 +28,6 @@ export function emptyRow(today: string): EntryRow {
 /** 날짜는 보지 않는다(기본값이 들어 있다). 내용은 공백만이면 빈 것이다. */
 export function isBlank(row: EntryRow): boolean {
   return row.partnerText === '' && row.partnerCompany === '' && row.content.trim() === ''
-}
-
-export function firstMissingField(row: EntryRow): EntryField | null {
-  if (row.partnerCompany === '') return 'partnerCompany'
-  if (!isDateValue(row.meetingDate)) return 'meetingDate'
-  if (row.content.trim() === '') return 'content'
-  return null
-}
-
-export function isComplete(row: EntryRow): boolean {
-  return firstMissingField(row) === null
 }
 
 /** 한 행의 칸별 오류(빈 행도 검사한다). 수정 팝업이 쓴다. */

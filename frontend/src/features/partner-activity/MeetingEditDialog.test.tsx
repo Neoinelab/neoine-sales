@@ -40,20 +40,26 @@ describe('행 수정', () => {
     expect(within(dialog).getByRole('button', { name: '취소' })).toBeVisible()
   })
 
-  // 내용 칸에서 Enter를 누르면 저장 버튼으로 포커스가 간다.
-  // 테스트 코드: PA-085
-  it('moves the focus to the save button when Enter is pressed in the content', async () => {
-    // given: 수정 팝업이 열려 있다
+  // 수정 내용의 Enter와 Shift+Enter는 저장 없이 줄바꿈과 포커스를 유지한다.
+  // 테스트 코드: PA-094
+  it.each(['{Enter}', '{Shift>}{Enter}{/Shift}'])('keeps a native newline in edit content without saving: %s', async (keys) => {
+    // given: 수정 팝업과 수정 요청 관찰
     const { user, dialog } = await openEdit()
+    const { content } = fieldsOf(dialog, 1)
+    await user.clear(content)
+    await user.type(content, '첫 줄')
+    const update = vi.spyOn(gateway.partnerMeetings, 'update')
 
-    // when: 내용 칸에서 Enter를 누른다
-    await user.click(fieldsOf(dialog, 1).content)
-    await user.keyboard('{Enter}')
+    // when: 내용 칸에서 줄바꿈 키와 다음 줄을 입력한다
+    await user.keyboard(keys + '둘째 줄')
 
-    // then: 저장 버튼에 포커스가 가고 내용에 줄바꿈이 없다
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: '저장' })).toHaveFocus())
-    expect(fieldsOf(dialog, 1).content).toHaveValue(OWN) // 줄바꿈이 들어가지 않는다
-    expect(within(dialog).getAllByRole('group')).toHaveLength(1)
+    // then: 줄바꿈·포커스가 유지되고 저장 요청과 목록 변경은 없다
+    expect(content).toHaveValue('첫 줄\n둘째 줄')
+    expect(content).toHaveFocus()
+    expect(within(dialog).getByRole('button', { name: '저장' })).not.toHaveFocus()
+    expect(update).not.toHaveBeenCalled()
+    expect(shownContents()).toContain(OWN)
+    update.mockRestore()
   })
 
   // 새 날짜·내용을 저장하면 팝업이 닫히고 새 위치에 보인다.
@@ -67,15 +73,15 @@ describe('행 수정', () => {
     await user.clear(date)
     await user.type(date, '20270315')
     await user.clear(content)
-    await user.type(content, '고친 내용')
+    await user.type(content, '고친 내용{Enter}둘째 줄{Shift>}{Enter}{/Shift}셋째 줄')
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
     // then: 팝업이 닫히고 고친 기록이 가장 늦은 날짜로 맨 위에 보인다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '미팅 수정' })).not.toBeInTheDocument())
-    await waitFor(() => expect(shownContents()).toContain('고친 내용'))
+    await waitFor(() => expect(shownContents()).toContain('고친 내용\n둘째 줄\n셋째 줄'))
     expect(shownContents()).not.toContain(OWN)
-    expect(cellsOf(rowWithContent('고친 내용'))[1]).toHaveTextContent('2027-03-15')
-    expect(shownContents()[0]).toBe('고친 내용') // 가장 늦은 날짜가 되어 맨 위로 옮겨 간다
+    expect(cellsOf(rowWithContent('고친 내용\n둘째 줄\n셋째 줄'))[1]).toHaveTextContent('2027-03-15')
+    expect(shownContents()[0]).toBe('고친 내용\n둘째 줄\n셋째 줄') // 가장 늦은 날짜가 되어 맨 위로 옮겨 간다
   })
 
   // admin은 남의 기록을 수정한다.

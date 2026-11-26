@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dateValueError } from '../../shared/model/dateText'
-import { MAX_ROWS, applyServerErrors, emptyRow, firstMissingField, isBlank, isComplete, rowsToInputs, validateRows, type EntryRow } from './entryRows'
+import { applyServerErrors, emptyRow, isBlank, rowsToInputs, validateRows, type EntryRow } from './entryRows'
 
 const TODAY = '2027-03-15'
 
@@ -26,12 +26,6 @@ describe('emptyRow', () => {
     expect(a).toMatchObject({ partnerText: '', partnerCompany: '', meetingDate: TODAY, content: '' })
     expect(a.key).not.toBe(b.key)
     expect(Object.keys(a).sort()).toEqual(['content', 'key', 'meetingDate', 'partnerCompany', 'partnerText'])
-  })
-
-  // 행은 최대 50개다.
-  it('caps the rows at 50', () => {
-    // when·then: 상수 MAX_ROWS를 읽으면 50이다
-    expect(MAX_ROWS).toBe(50)
   })
 })
 
@@ -62,52 +56,6 @@ describe('isBlank', () => {
     const blank = isBlank({ ...emptyRow(TODAY), content: '  \n ' })
     // then: 비었다
     expect(blank).toBe(true)
-  })
-})
-
-describe('isComplete and firstMissingField', () => {
-  // 파트너·올바른 날짜·내용이 있는 행은 완성이다(Deal 없이).
-  it('a row with a partner, a valid date and content is complete without any deal', () => {
-    // when: 모두 채운 행을 검사한다
-    const complete = isComplete(row())
-    const missing = firstMissingField(row())
-    // then: 완성이고 빠진 칸이 없다
-    expect(complete).toBe(true)
-    expect(missing).toBeNull()
-  })
-
-  // 빠졌거나 틀린 칸이 첫 빠진 칸으로 보고된다.
-  it.each([
-    ['partnerCompany', { partnerCompany: '' }],
-    ['meetingDate', { meetingDate: '' }],
-    ['meetingDate', { meetingDate: '2027.03' }],
-    ['meetingDate', { meetingDate: '2027.13.45' }],
-    ['content', { content: '   ' }],
-  ] as const)('reports %s when it is missing or wrong', (field, over) => {
-    // when: 그 칸이 빠진 행을 검사한다
-    const complete = isComplete(row(over))
-    const missing = firstMissingField(row(over))
-    // then: 미완성이고 그 칸이 첫 빠진 칸이다
-    expect(complete).toBe(false)
-    expect(missing).toBe(field)
-  })
-
-  // 첫 빠진 칸은 파트너, 날짜, 내용 순이다.
-  it('reports the first missing field in the order partner, date, content', () => {
-    // when: 파트너·내용이 빠진 행과 날짜·내용이 빠진 행을 검사한다
-    const partnerFirst = firstMissingField(row({ partnerCompany: '', content: '' }))
-    const dateFirst = firstMissingField(row({ meetingDate: '2027.03', content: '' }))
-    // then: 각각 파트너, 날짜가 먼저다
-    expect(partnerFirst).toBe('partnerCompany')
-    expect(dateFirst).toBe('meetingDate')
-  })
-
-  // 글자만 친 파트너는 고른 것으로 보지 않는다.
-  it('does not accept a typed-only partner (nothing chosen from the list)', () => {
-    // when: 글자만 친 파트너의 행을 검사한다
-    const missing = firstMissingField(row({ partnerCompany: '', partnerText: '코어' }))
-    // then: 파트너가 빠졌다고 본다
-    expect(missing).toBe('partnerCompany')
   })
 })
 

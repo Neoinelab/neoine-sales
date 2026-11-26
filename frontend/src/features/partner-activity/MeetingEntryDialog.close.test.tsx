@@ -45,20 +45,6 @@ describe('팝업 닫기', () => {
     expect(discardDialog()).not.toBeInTheDocument()
   })
 
-  // 기본 날짜는 입력으로 세지 않는다.
-  // 테스트 코드: PA-084
-  it('does not count the default date as input', async () => {
-    // given: 행을 더해 기본 날짜만 있는 팝업
-    const { user, dialog } = await open()
-    await user.click(within(dialog).getByRole('button', { name: '행 추가' }))
-
-    // when: 취소를 누른다
-    await user.click(within(dialog).getByRole('button', { name: '취소' }))
-
-    // then: 바로 닫힌다
-    expect(entryDialog()).not.toBeInTheDocument()
-  })
-
   // 입력이 있으면 취소도 Escape와 같게 버릴지 묻는다.
   // 테스트 코드: PA-084
   it.each([

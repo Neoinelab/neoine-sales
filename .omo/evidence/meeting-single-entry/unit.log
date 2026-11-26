@@ -1,0 +1,12 @@
+
+ RUN  v5.0.3 /Users/dgkim/myworkspace/projects-neoine/neoine-sales/frontend
+
+
+ Test Files  14 passed (14)
+      Tests  210 passed (210)
+   Start at  09:34:26
+   Duration  7.79s (tests 39%, environment 24%, transform 17%, import 10%, setup 10%)
+
+    Isolate  14 workers spawned · ~1.43s startup each (spawn + environment, per file)
+             at least ~391ms faster with isolate: false — reuses workers across files instead of one per file
+

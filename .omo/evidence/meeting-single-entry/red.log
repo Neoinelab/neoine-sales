@@ -1,0 +1,81 @@
+
+ RUN  v5.0.3 /Users/dgkim/myworkspace/projects-neoine/neoine-sales/frontend
+
+ ❯ src/features/partner-activity/PartnerActivityPage.entry.test.tsx (7 tests | 1 failed) 1045ms
+   ❯ 미팅 내용 입력 팝업 열기 (3)
+     × opens a dialog with one empty row, focus on the partner, and today as the default date 547ms
+ ❯ src/features/partner-activity/MeetingEditDialog.test.tsx (13 tests | 1 failed) 2035ms
+   ❯ 행 수정 (13)
+     × keeps a native newline in edit content without saving: {Enter} 124ms
+ ❯ src/features/partner-activity/MeetingEntryDialog.keys.test.tsx (13 tests | 3 failed) 2126ms
+   ❯ 내용 칸의 Enter (6)
+     × keeps native content newlines without saving or moving focus: complete 159ms
+     × keeps native content newlines without saving or moving focus: missing partner 130ms
+     × keeps native content newlines without saving or moving focus: invalid date 147ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/partner-activity/MeetingEditDialog.test.tsx > 행 수정 > keeps a native newline in edit content without saving: {Enter}
+Error: expect(element).toHaveValue(첫 줄
+둘째 줄)
+
+Expected the element to have value:
+  첫 줄
+  둘째 줄
+Received:
+  첫 줄
+ ❯ src/features/partner-activity/MeetingEditDialog.test.tsx:57:21
+     55|
+     56|     // then: 줄바꿈·포커스가 유지되고 저장 요청과 목록 변경은 없다
+     57|     expect(content).toHaveValue('첫 줄\n둘째 줄')
+       |                     ^
+     58|     expect(content).toHaveFocus()
+     59|     expect(within(dialog).getByRole('button', { name: '저장' })).not.toH…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/features/partner-activity/MeetingEntryDialog.keys.test.tsx > 내용 칸의 Enter > keeps native content newlines without saving or moving focus: complete
+ FAIL  src/features/partner-activity/MeetingEntryDialog.keys.test.tsx > 내용 칸의 Enter > keeps native content newlines without saving or moving focus: missing partner
+ FAIL  src/features/partner-activity/MeetingEntryDialog.keys.test.tsx > 내용 칸의 Enter > keeps native content newlines without saving or moving focus: invalid date
+Error: expect(element).toHaveValue(첫 줄
+둘째 줄)
+
+Expected the element to have value:
+  첫 줄
+  둘째 줄
+Received:
+  첫 줄
+ ❯ src/features/partner-activity/MeetingEntryDialog.keys.test.tsx:157:21
+    155|
+    156|     // then: 한 입력을 유지하고 내용·포커스가 남으며 저장 요청은 없다
+    157|     expect(content).toHaveValue('첫 줄\n둘째 줄')
+       |                     ^
+    158|     expect(content).toHaveFocus()
+    159|     expect(within(dialog).getAllByRole('group')).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/features/partner-activity/PartnerActivityPage.entry.test.tsx > 미팅 내용 입력 팝업 열기 > opens a dialog with one empty row, focus on the partner, and today as the default date
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <button
+  type="button"
+>
+  행 추가
+</button> instead
+ ❯ src/features/partner-activity/PartnerActivityPage.entry.test.tsx:39:72
+     37|     expect(within(dialog).getByRole('button', { name: '저장' })).toBeEna…
+     38|     expect(within(dialog).getByRole('button', { name: '취소' })).toBeVis…
+     39|     expect(within(dialog).queryByRole('button', { name: '행 추가' })).not…
+       |                                                                        ^
+     40|     expect(within(dialog).queryByRole('button', { name: '행 삭제' })).not…
+     41|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  5 failed | 28 passed (33)
+   Start at  09:30:15
+   Duration  8.91s (environment 45%, tests 21%, setup 15%, transform 12%, import 7%)
+

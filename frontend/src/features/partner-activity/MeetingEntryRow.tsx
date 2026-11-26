@@ -14,11 +14,6 @@ interface MeetingEntryRowProps {
   focusField: EntryField | null
   onFocused: () => void
   onPatch: (patch: Partial<EntryRow>, edited?: EntryField) => void
-  /** 없으면 "행 삭제" 버튼을 두지 않는다(수정 팝업). */
-  onRemove?: () => void
-  removeDisabled?: boolean
-  /** 내용 칸의 키 입력(Enter 처리는 팝업이 한다). */
-  onContentKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   /** 열릴 때 내용 칸에 포커스를 둔다(수정 팝업). */
   autoFocusContent?: boolean
 }
@@ -27,7 +22,7 @@ const NOT_LISTED = '목록에서 선택하세요.'
 
 /** 입력 팝업의 한 행: 파트너 -> 미팅 날짜 -> 미팅 내용. 칸 이동은 선택·Enter로 이어진다. */
 export function MeetingEntryRow(props: MeetingEntryRowProps) {
-  const { number, row, errors, companies, focusField, onFocused, onPatch, onRemove, removeDisabled, onContentKeyDown, autoFocusContent } = props
+  const { number, row, errors, companies, focusField, onFocused, onPatch, autoFocusContent } = props
   const partnerRef = useRef<HTMLInputElement>(null)
   const dateRef = useRef<HTMLInputElement>(null)
   const contentRef = useRef<HTMLTextAreaElement>(null)
@@ -120,7 +115,6 @@ export function MeetingEntryRow(props: MeetingEntryRowProps) {
           aria-invalid={errors.content ? true : undefined}
           aria-describedby={errors.content ? contentErrorId : undefined}
           onChange={(e) => onPatch({ content: e.target.value }, 'content')}
-          onKeyDown={onContentKeyDown}
         />
         {errors.content && (
           <p id={contentErrorId} role="alert" className="field-error">
@@ -128,11 +122,6 @@ export function MeetingEntryRow(props: MeetingEntryRowProps) {
           </p>
         )}
       </div>
-      {onRemove && (
-        <button type="button" className="meeting-entry-remove" disabled={removeDisabled} onClick={onRemove}>
-          행 삭제
-        </button>
-      )}
     </div>
   )
 }

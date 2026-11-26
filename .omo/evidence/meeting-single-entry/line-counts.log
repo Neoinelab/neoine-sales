@@ -1,0 +1,11 @@
+125	frontend/src/features/partner-activity/MeetingEntryDialog.tsx
+116	frontend/src/features/partner-activity/MeetingEntryRow.tsx
+91	frontend/src/features/partner-activity/MeetingEditDialog.tsx
+77	frontend/src/features/partner-activity/entryRows.ts
+123	frontend/src/features/partner-activity/entryRows.test.ts
+114	frontend/src/features/partner-activity/MeetingEntryDialog.keys.test.tsx
+166	frontend/src/features/partner-activity/MeetingEntryDialog.save.test.tsx
+64	frontend/src/features/partner-activity/MeetingEntryDialog.close.test.tsx
+81	frontend/src/features/partner-activity/PartnerActivityPage.entry.test.tsx
+137	frontend/src/features/partner-activity/MeetingEditDialog.test.tsx
+99	frontend/src/test/partnerMeetings.ts
