@@ -19,7 +19,7 @@ const emptyCell = (): ForecastCell => ({ count: 0, amount: 0 })
 
 function add(cell: ForecastCell, deal: Deal): void {
   cell.count += 1
-  cell.amount += deal.revenueAmount
+  cell.amount += deal.revenueAmount ?? 0
 }
 
 /** 연 / 연+분기 / 연+월 기간에 속하는지(서버의 ForecastPeriod와 같은 경계). */

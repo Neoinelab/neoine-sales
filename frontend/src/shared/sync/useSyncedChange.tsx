@@ -15,7 +15,7 @@ import './sync.css'
 
 /** 변경 대상 Deal의 현재 값. revenue*는 매출 확정 팝업의 미리 채움용(예상값). */
 export interface SyncSubject extends SyncState {
-  revenueAmount?: number
+  revenueAmount?: number | null
   revenueDate?: string
 }
 
@@ -92,7 +92,7 @@ export function useSyncedChange(subject: SyncSubject) {
       dialogs = (
         <RevenueDialog
           notice={plan.notice}
-          defaultAmount={pending.subject.revenueAmount}
+          defaultAmount={pending.subject.revenueAmount ?? undefined}
           defaultDate={pending.subject.revenueDate}
           error={error}
           onConfirm={confirm}

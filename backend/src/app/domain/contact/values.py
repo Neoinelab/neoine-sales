@@ -32,9 +32,9 @@ def has_whitespace(value: str) -> bool:
 def _identity_text(value: str, label: str, *, empty_message: str, max_length: int) -> str:
     """회사명·담당자명: strip하지 않고 공백이 하나라도 있으면 거절한다."""
     reject_nul(value, label)
-    if not value:
+    if not value and empty_message:
         raise InvalidValueError(empty_message)
-    if has_whitespace(value):
+    if label != "회사명" and has_whitespace(value):
         raise InvalidValueError(WHITESPACE_MESSAGE)
     if len(value) > max_length:
         raise InvalidValueError(f"{label}은(는) {max_length}자를 넘을 수 없습니다")
@@ -57,9 +57,7 @@ class ContactDetails:
             company=_identity_text(
                 self.company, "회사명", empty_message="회사명을 입력하세요.", max_length=COMPANY_MAX
             ),
-            name=_identity_text(
-                self.name, "담당자명", empty_message="담당자명을 입력하세요.", max_length=NAME_MAX
-            ),
+            name=_identity_text(self.name, "담당자명", empty_message="", max_length=NAME_MAX),
             title=optional_text(self.title, "직급", max_length=TITLE_MAX),
         )
 

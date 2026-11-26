@@ -2572,8 +2572,15 @@
             "$ref": "#/components/schemas/QuoteResponse"
           },
           "revenue_amount": {
-            "title": "Revenue Amount",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Amount"
           },
           "revenue_date": {
             "format": "date",
@@ -2620,8 +2627,15 @@
             "type": "string"
           },
           "users": {
-            "title": "Users",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
           },
           "vendor": {
             "anyOf": [
@@ -2934,8 +2948,15 @@
             "$ref": "#/components/schemas/QuoteResponse"
           },
           "revenue_amount": {
-            "title": "Revenue Amount",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Amount"
           },
           "revenue_date": {
             "format": "date",
@@ -2982,8 +3003,15 @@
             "type": "string"
           },
           "users": {
-            "title": "Users",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
           },
           "vendor": {
             "anyOf": [

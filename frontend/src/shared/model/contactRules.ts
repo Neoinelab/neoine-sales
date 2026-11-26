@@ -49,7 +49,6 @@ export function hasWhitespace(text: string): boolean {
 export function validateContactInput(input: ContactInput): ContactFieldErrors {
   const errors: ContactFieldErrors = {}
   if (input.company === '') errors.company = '회사명을 입력하세요.'
-  else if (hasWhitespace(input.company)) errors.company = WHITESPACE_MESSAGE
   if (input.name === '') errors.name = '담당자명을 입력하세요.'
   else if (hasWhitespace(input.name)) errors.name = WHITESPACE_MESSAGE
   if (input.email !== null) {

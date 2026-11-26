@@ -136,7 +136,7 @@ export function seedActivity(
         log(deal.code, actedAt, deal.ownerId, 'forecast', 'Forecast', names.forecast(previous.forecastKey), `${names.forecast(draft.forecastKey)}${note}`)
       }
       if (closing) {
-        const expected = Math.round((deal.revenueAmount * 1.1) / 1_000_000) * 1_000_000
+        const expected = Math.round(((deal.revenueAmount ?? 0) * 1.1) / 1_000_000) * 1_000_000
         log(deal.code, actedAt, deal.ownerId, 'amount', AMOUNT_LABEL, formatWon(expected), formatWon(deal.revenueAmount))
         log(deal.code, actedAt, deal.ownerId, 'expectedClose', 'Expected Close', addDays(deal.revenueDate, 20), deal.revenueDate)
       }

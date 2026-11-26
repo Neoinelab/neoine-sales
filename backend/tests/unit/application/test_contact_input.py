@@ -55,7 +55,9 @@ def test_valid_input_becomes_details_with_value_objects() -> None:
     assert details.phone == PhoneNumber("010-1234-5678")
 
 
-@pytest.mark.parametrize(("field", "value"), WHITESPACE_PARAMS)
+@pytest.mark.parametrize(
+    ("field", "value"), [(field, value) for field, value in WHITESPACE_PARAMS if field != "company"]
+)
 def test_any_whitespace_in_company_name_email_or_phone_is_rejected(field: str, value: str) -> None:
     """회사명·담당자명·이메일·전화에 공백 문자가 하나라도 있으면 잘라 내지 않고 거절한다.
 

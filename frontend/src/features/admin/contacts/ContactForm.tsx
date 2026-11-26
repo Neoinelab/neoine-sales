@@ -142,7 +142,7 @@ export function ContactForm({ contact, onSaved, onCancel }: Props) {
         <Field label="이메일" field="email" type="email" value={values.email} error={shown('email')} onChange={(v) => setGuarded('email', v)} />
         <Field label="전화" field="phone" type="tel" value={values.phone} error={shown('phone')} onChange={(v) => setGuarded('phone', v)} />
       </div>
-      <p className="hint">회사명·담당자명·이메일·전화에는 공백을 입력할 수 없습니다. 이메일은 없어도 됩니다.</p>
+      <p className="hint">담당자명·이메일·전화에는 공백을 입력할 수 없습니다. 이메일은 없어도 됩니다.</p>
       <div className="actions">
         <button type="submit" className="primary" disabled={mutation.isPending}>
           저장

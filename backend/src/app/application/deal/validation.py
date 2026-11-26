@@ -62,10 +62,14 @@ async def validate_form(
     vendor_id = await _vendor_choice(uow, values.vendor_id, check="vendor_id" in provided)
     product = check_product(values.product)
     owner_id = await _owner(uow, values.owner_user_id, "owner_user_id" in provided)
-    amount = check_amount(values.revenue_amount)
+    amount = (
+        check_amount(values.revenue_amount)
+        if values.revenue_amount is not None or "revenue_amount" in provided
+        else None
+    )
     if values.revenue_date is None:
         raise InvalidValueError(EXPECTED_CLOSE_REQUIRED)
-    users = check_users(values.users)
+    users = check_users(values.users) if values.users is not None or "users" in provided else None
     sync = await _sync(uow, values, provided)
     bant = await check_bant(uow, values.bant, check="bant" in provided)
     procurement = check_procurement(values.procurement)

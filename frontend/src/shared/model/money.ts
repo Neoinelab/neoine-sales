@@ -15,8 +15,8 @@ export function isValidAmount(value: unknown): value is number {
 }
 
 /** 원 콤마 숫자(단위 글자 없음, 반올림 없음). 표시와 편집 시작값에 모두 쓴다. */
-export function formatWon(won: number): string {
-  return won.toLocaleString('en-US')
+export function formatWon(won: number | null): string {
+  return won === null ? '-' : won.toLocaleString('en-US')
 }
 
 function shortened(value: number, unit: number, suffix: string): string {

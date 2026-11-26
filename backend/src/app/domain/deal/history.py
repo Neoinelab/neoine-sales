@@ -187,8 +187,8 @@ def _money_pairs(before: DealDetails, after: DealDetails) -> list[_Pair]:
         (
             HistoryCategory.AMOUNT,
             AMOUNT_TARGET,
-            format_won(before.revenue_amount.value),
-            format_won(after.revenue_amount.value),
+            format_won(before.revenue_amount.value) if before.revenue_amount else "",
+            format_won(after.revenue_amount.value) if after.revenue_amount else "",
         ),
         (
             HistoryCategory.EXPECTED_CLOSE,

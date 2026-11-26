@@ -99,8 +99,8 @@ export function DealFacts({ deal, canWrite, onNotice }: DealFactsProps) {
         label="Users count"
         canEdit={canWrite}
         kind="number"
-        display={String(deal.users)}
-        initial={String(deal.users)}
+        display={deal.users === null ? '-' : String(deal.users)}
+        initial={deal.users === null ? '' : String(deal.users)}
         onSave={saveUsers}
       />,
     ],

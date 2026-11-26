@@ -119,7 +119,7 @@ export function SummaryBar({ deal, canWrite, onNotice }: SummaryBarProps) {
                 canEdit={canWrite}
                 kind="amount"
                 display={<AmountText amount={deal.revenueAmount} />}
-                initial={formatWon(deal.revenueAmount)}
+                initial={deal.revenueAmount === null ? '' : formatWon(deal.revenueAmount)}
                 onSave={saveAmount}
               />
             </dd>

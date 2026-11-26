@@ -155,7 +155,7 @@ export function listDeals(ctx: MockContext, query: DealListQuery): Page<DealRow>
       case 'name':
         return compareText(a.name, b.name)
       case 'revenueAmount':
-        return a.revenueAmount - b.revenueAmount
+        return (a.revenueAmount ?? 0) - (b.revenueAmount ?? 0)
       case 'revenueDate':
         return a.revenueDate.localeCompare(b.revenueDate)
       case 'statusKey':

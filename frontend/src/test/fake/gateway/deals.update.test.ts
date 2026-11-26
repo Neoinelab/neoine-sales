@@ -29,7 +29,7 @@ describe('deals.update', () => {
     const historyBefore = (await gateway.history.list(code, {})).length
 
     // when: 현재 값과 같은 값으로 수정한다
-    await gateway.deals.update(code, { name: before.name, revenueAmount: before.revenueAmount })
+    await gateway.deals.update(code, { name: before.name, revenueAmount: before.revenueAmount ?? undefined })
 
     // then: 이력 수와 updatedAt이 그대로다
     expect((await gateway.history.list(code, {})).length).toBe(historyBefore)

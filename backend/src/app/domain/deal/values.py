@@ -146,8 +146,8 @@ class DealDetails:
     owner_user_id: UserId
     vendor_id: VendorId
     product: str
-    users: int
-    revenue_amount: RevenueAmount
+    users: int | None
+    revenue_amount: RevenueAmount | None
     revenue_date: date
     quote: Quote
     poc: Poc
@@ -158,7 +158,7 @@ class DealDetails:
             self,
             name=check_name(self.name),
             product=check_product(self.product),
-            users=check_users(self.users),
+            users=None if self.users is None else check_users(self.users),
             procurement=check_procurement(self.procurement),
         )
 
@@ -170,8 +170,8 @@ class DealDetails:
         owner_user_id: UserId,
         vendor_id: VendorId,
         product: str,
-        users: int,
-        revenue_amount: RevenueAmount,
+        users: int | None,
+        revenue_amount: RevenueAmount | None,
         revenue_date: date,
         quote: Quote,
         poc: Poc,

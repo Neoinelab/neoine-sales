@@ -44,7 +44,7 @@ class SqlForecastTallyRepository:
         )
         result = await self._session.execute(statement)
         return [
-            ForecastBucket(UserId(owner), forecast_key, Tally(int(count), int(amount)))
+            ForecastBucket(UserId(owner), forecast_key, Tally(int(count), int(amount or 0)))
             for owner, forecast_key, count, amount in result
         ]
 
@@ -62,7 +62,7 @@ class SqlForecastTallyRepository:
         result = await self._session.execute(statement)
         return [
             MonthlyBucket(
-                int(y), int(m), UserId(owner), forecast_key, Tally(int(count), int(amount))
+                int(y), int(m), UserId(owner), forecast_key, Tally(int(count), int(amount or 0))
             )
             for y, m, owner, forecast_key, count, amount in result
         ]

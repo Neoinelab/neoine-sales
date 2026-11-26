@@ -19,7 +19,7 @@ async function ledger(gateway: Gateway, query: DealListQuery): Promise<ForecastC
     items.push(...page.items)
     if (items.length >= page.total || page.items.length === 0) break
   }
-  return { count: items.length, amount: items.reduce((sum, d) => sum + d.revenueAmount, 0) }
+  return { count: items.length, amount: items.reduce((sum, d) => sum + (d.revenueAmount ?? 0), 0) }
 }
 
 const sum = (cells: ForecastCell[]): ForecastCell =>

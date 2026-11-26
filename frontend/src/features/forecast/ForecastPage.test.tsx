@@ -43,7 +43,7 @@ async function ledger(query: { year: number; quarter?: 1 | 2 | 3 | 4; month?: nu
 
 function sumOf(deals: DealRow[], pick: (d: DealRow) => boolean): { count: number; amount: number } {
   const hit = deals.filter(pick)
-  return { count: hit.length, amount: hit.reduce((s, d) => s + d.revenueAmount, 0) }
+  return { count: hit.length, amount: hit.reduce((s, d) => s + (d.revenueAmount ?? 0), 0) }
 }
 
 const OPEN = new Set(['pipeline', 'best', 'most_likely', 'commit'])
@@ -96,7 +96,7 @@ describe('Forecast 요약 표', () => {
     const cells = readRow('합계')
     const openSum = sumOf(deals, (d) => OPEN.has(d.forecastKey))
     expect(cells[4]).toBe(cellText(openSum.count, openSum.amount))
-    expect(cells[5]).toBe(cellText(won.length, won.reduce((s, d) => s + d.revenueAmount, 0)))
+    expect(cells[5]).toBe(cellText(won.length, won.reduce((s, d) => s + (d.revenueAmount ?? 0), 0)))
     // Lost를 더했다면 건수가 달라진다.
     expect(openSum.count + won.length + lost.length).toBe(deals.length)
     expect(screen.queryByRole('columnheader', { name: 'Lost' })).not.toBeInTheDocument()
@@ -120,7 +120,7 @@ describe('Forecast 요약 표', () => {
     await client.invalidateQueries()
 
     // then: 2026 Q4 표에는 12/31 Deal만 있다
-    await waitFor(() => expect(readRow('이영업')[3]).toBe(cellText(1, dec.revenueAmount)))
+    await waitFor(() => expect(readRow('이영업')[3]).toBe(cellText(1, (dec.revenueAmount ?? 0))))
     expect(readRow('이영업')[3]).toBe('1건 · 650,000,000')
 
     // when: 2027 Q1로 바꾼다

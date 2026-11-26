@@ -45,7 +45,7 @@ describe('공백 규칙', () => {
     const errors = validateContactInput({ company: '한 빛', name: '정 민수', title: '수석 과장', email: 'a b@c.d', phone: '010 1234' })
 
     // then: 네 칸은 공백 오류이고 직급은 오류가 없다
-    expect(errors.company).toBe(WHITESPACE_MESSAGE)
+    expect(errors.company).toBeUndefined()
     expect(errors.name).toBe(WHITESPACE_MESSAGE)
     expect(errors.email).toBe(WHITESPACE_MESSAGE)
     expect(errors.phone).toBe(WHITESPACE_MESSAGE)

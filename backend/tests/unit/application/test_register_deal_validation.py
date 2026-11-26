@@ -307,7 +307,6 @@ async def test_a_read_only_user_cannot_be_the_owner(env: DealEnv, ctx: Ctx) -> N
 @pytest.mark.parametrize(
     ("customer", "expected"),
     [
-        (make_draft(company="네 오인"), "공백은 입력할 수 없습니다."),
         (make_draft(name="김 철수"), "공백은 입력할 수 없습니다."),
         (make_draft(email="no-at-sign"), EMAIL),
         (make_draft(phone="abc"), "전화번호 형식이 올바르지 않습니다."),

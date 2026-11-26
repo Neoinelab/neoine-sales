@@ -120,12 +120,12 @@ export function forecastContract(make: MakeGateway): void {
       const openDeals = deals.filter((d) => open.has(d.forecastKey))
       expect(summary.totalRow.total).toEqual({
         count: openDeals.length,
-        amount: openDeals.reduce((sum, d) => sum + d.revenueAmount, 0),
+        amount: openDeals.reduce((sum, d) => sum + (d.revenueAmount ?? 0), 0),
       })
       const wonDeals = deals.filter((d) => d.forecastKey === 'won')
       expect(summary.totalRow.cells.won).toEqual({
         count: wonDeals.length,
-        amount: wonDeals.reduce((sum, d) => sum + d.revenueAmount, 0),
+        amount: wonDeals.reduce((sum, d) => sum + (d.revenueAmount ?? 0), 0),
       })
     })
 

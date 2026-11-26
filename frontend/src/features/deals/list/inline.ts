@@ -14,7 +14,7 @@ export const INLINE_LABEL: Record<InlineField, string> = {
 
 /** 편집 시작 값(입력란에 보여 줄 문자열). */
 export function initialDraft(row: DealRow, field: InlineField): string {
-  if (field === 'revenueAmount') return formatWon(row.revenueAmount)
+  if (field === 'revenueAmount') return row.revenueAmount === null ? '' : formatWon(row.revenueAmount)
   return row[field]
 }
 

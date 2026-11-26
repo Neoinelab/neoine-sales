@@ -36,7 +36,7 @@ def apply_fields(row: DealRow, deal: Deal) -> None:
     row.status_key = deal.sync.status_key
     row.forecast_key = deal.sync.forecast_key
     row.status_changed_on = deal.status_entry.changed_on
-    row.revenue_amount = details.revenue_amount.value
+    row.revenue_amount = details.revenue_amount.value if details.revenue_amount else None
     row.revenue_date = details.revenue_date
     row.customer_id = deal.customer_id
     row.quote_submitted = details.quote.submitted.value if details.quote.submitted else None
@@ -76,7 +76,7 @@ def _details(row: DealRow) -> DealDetails:
         vendor_id=VendorId(row.vendor_id),
         product=row.product,
         users=row.users,
-        revenue_amount=RevenueAmount(int(row.revenue_amount)),
+        revenue_amount=None if row.revenue_amount is None else RevenueAmount(row.revenue_amount),
         revenue_date=row.revenue_date,
         quote=Quote(
             QuoteSubmitted(row.quote_submitted) if row.quote_submitted else None,

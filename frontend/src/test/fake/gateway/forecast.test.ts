@@ -14,7 +14,7 @@ async function ledger(gw: Gw, query: ForecastQuery) {
   const items = (await gw.deals.list({ ...rest, ...(quarter ? { quarters: [quarter] } : {}), limit: 200 })).items
   const sum = (filter: (d: (typeof items)[number]) => boolean) => {
     const rows = items.filter(filter)
-    return { count: rows.length, amount: rows.reduce((s, d) => s + d.revenueAmount, 0) }
+    return { count: rows.length, amount: rows.reduce((s, d) => s + (d.revenueAmount ?? 0), 0) }
   }
   return { items, sum }
 }

@@ -9,7 +9,7 @@ from app.infra.db.models import AuditColumns
 
 _KINDS = ", ".join(f"'{kind.value}'" for kind in ContactKind)
 # 공백 문자(\s)가 없어야 한다. NULL은 비교 결과가 NULL이라 CHECK를 통과한다.
-_NO_SPACE = r"company !~ '\s' and name !~ '\s' and email !~ '\s' and phone !~ '\s'"
+_NO_SPACE = r"name !~ '\s' and email !~ '\s' and phone !~ '\s'"
 
 
 class ContactRow(AuditColumns, Base):

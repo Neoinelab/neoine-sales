@@ -78,10 +78,10 @@ class DealRowResponse(BaseModel):
     owner: UserRef
     vendor: NamedRefResponse | None
     product: str
-    users: int
+    users: int | None
     status_key: str
     forecast_key: str
-    revenue_amount: int  # JSON 정수(2^53-1 이하가 도메인에서 보장된다)
+    revenue_amount: int | None  # JSON 정수(2^53-1 이하) 또는 가져오기 데이터의 미상 값
     revenue_date: date
     customer: ContactResponse
     active_partner: ContactResponse | None
@@ -150,7 +150,7 @@ def _row_fields(view: DealView) -> dict[str, object]:
         "users": details.users,
         "status_key": deal.sync.status_key,
         "forecast_key": deal.sync.forecast_key,
-        "revenue_amount": details.revenue_amount.value,
+        "revenue_amount": details.revenue_amount.value if details.revenue_amount else None,
         "revenue_date": details.revenue_date,
         "customer": ContactResponse.from_entity(view.customer),
         "active_partner": (

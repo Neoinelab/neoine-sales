@@ -212,11 +212,11 @@ export interface Deal {
   /** Product 자유 텍스트(필수, 200자 이내, Vendor와 무관). 예전 데이터는 빈 문자열일 수 있다. */
   product: string
   /** 견적 단위 사용자 수(Users count). 필수, 0 이상. */
-  users: number
+  users: number | null
   statusKey: string
   forecastKey: string
   /** 매출금액(KRW 정수 ≥ 1). Won이면 실제 값. */
-  revenueAmount: number
+  revenueAmount: number | null
   /** 매출일 = Expected Close. Won이면 실제 매출일. */
   revenueDate: string
   customerContactId: number

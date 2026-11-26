@@ -17,6 +17,7 @@ export function useWhitespaceGuard() {
   }, [])
 
   const guard = useCallback((field: string, raw: string): string => {
+    if (field === 'company') return raw
     const stripped = stripWhitespace(raw)
     if (stripped !== raw) {
       const timer = timers.current[field]

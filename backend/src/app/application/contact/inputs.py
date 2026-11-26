@@ -24,9 +24,11 @@ class ContactInput:
 
     def to_details(self) -> ContactDetails:
         """공백 검사를 먼저 하고(이메일·전화 포함), ""는 없는 값으로 본 뒤 형식을 검증한다."""
-        for value in (self.company, self.name, self.email, self.phone):
+        for value in (self.name, self.email, self.phone):
             if value is not None and has_whitespace(value):
                 raise InvalidValueError(WHITESPACE_MESSAGE)
+        if not self.name:
+            raise InvalidValueError("담당자명을 입력하세요.")
         return ContactDetails(
             company=self.company,
             name=self.name,

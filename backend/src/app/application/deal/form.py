@@ -106,7 +106,9 @@ class FormValues:
             status_key=pick("status_key", patch.status_key or "", sync.status_key),
             forecast_key=pick("forecast_key", patch.forecast_key or "", sync.forecast_key),
             revenue_amount=pick(
-                "revenue_amount", patch.revenue_amount, details.revenue_amount.value
+                "revenue_amount",
+                patch.revenue_amount,
+                details.revenue_amount.value if details.revenue_amount else None,
             ),
             revenue_date=pick("revenue_date", patch.revenue_date, details.revenue_date),
             customer=(patch.customer or _EMPTY_DRAFT) if "customer" in sent else None,

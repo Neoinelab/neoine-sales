@@ -2292,7 +2292,7 @@ export interface components {
             product: string;
             quote: components["schemas"]["QuoteResponse"];
             /** Revenue Amount */
-            revenue_amount: number;
+            revenue_amount: number | null;
             /**
              * Revenue Date
              * Format: date
@@ -2317,7 +2317,7 @@ export interface components {
              */
             updated_at: string;
             /** Users */
-            users: number;
+            users: number | null;
             vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**
@@ -2395,7 +2395,7 @@ export interface components {
             product: string;
             quote: components["schemas"]["QuoteResponse"];
             /** Revenue Amount */
-            revenue_amount: number;
+            revenue_amount: number | null;
             /**
              * Revenue Date
              * Format: date
@@ -2420,7 +2420,7 @@ export interface components {
              */
             updated_at: string;
             /** Users */
-            users: number;
+            users: number | null;
             vendor: components["schemas"]["NamedRefResponse"] | null;
         };
         /**

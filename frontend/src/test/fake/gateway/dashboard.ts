@@ -23,7 +23,7 @@ const zero = (): ForecastCell => ({ count: 0, amount: 0 })
 
 function add(cell: ForecastCell, deal: Deal): void {
   cell.count += 1
-  cell.amount += deal.revenueAmount
+  cell.amount += deal.revenueAmount ?? 0
 }
 
 function sumOf(cells: ForecastCell[]): ForecastCell {

@@ -33,7 +33,7 @@ class SqlDashboardTallyRepository:
             .group_by(DealRow.status_key)
         )
         result = await self._session.execute(statement)
-        return {key: Tally(int(count), int(amount)) for key, count, amount in result}
+        return {key: Tally(int(count), int(amount or 0)) for key, count, amount in result}
 
     async def tally_by_quarter(self, query: DealQuery) -> Sequence[QuarterBucket]:
         if query.year is None or query.quarters is not None or query.month is not None:
@@ -48,5 +48,5 @@ class SqlDashboardTallyRepository:
         quarters: dict[tuple[int, str], Tally] = {}
         for m, forecast_key, count, amount in result:
             key = ((int(m) - 1) // 3 + 1, forecast_key)
-            quarters[key] = quarters.get(key, Tally.ZERO).add(Tally(int(count), int(amount)))
+            quarters[key] = quarters.get(key, Tally.ZERO).add(Tally(int(count), int(amount or 0)))
         return [QuarterBucket(q, key, tally) for (q, key), tally in quarters.items()]

@@ -53,7 +53,7 @@ def _row(view: DealView, names: dict[CodeKind, dict[str, str]]) -> tuple[str, ..
         neutralize_formula(details.product),
         neutralize_formula(names[CodeKind.STATUS].get(status, status)),
         neutralize_formula(names[CodeKind.FORECAST].get(forecast, forecast)),
-        f"{details.revenue_amount.value:,}",
+        f"{details.revenue_amount.value:,}" if details.revenue_amount else "",
         _iso(details.revenue_date),
         _iso(view.item.last_updated_on),
         neutralize_formula(action.text) if action else "",

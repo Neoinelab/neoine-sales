@@ -65,7 +65,7 @@ class TestContactDetails:
 
     @pytest.mark.parametrize(
         ("field", "message"),
-        [("company", "회사명을 입력하세요."), ("name", "담당자명을 입력하세요.")],
+        [("company", "회사명을 입력하세요.")],
     )
     def test_empty_company_or_name_is_rejected_with_its_message(
         self, field: str, message: str
@@ -78,7 +78,7 @@ class TestContactDetails:
         # then: 문구가 필드별 안내다
         assert str(error.value) == message
 
-    @pytest.mark.parametrize("field", ["company", "name"])
+    @pytest.mark.parametrize("field", ["name"])
     @pytest.mark.parametrize("value", WHITESPACE_VALUES)
     def test_any_whitespace_in_company_or_name_is_rejected_not_stripped(
         self, field: str, value: str
