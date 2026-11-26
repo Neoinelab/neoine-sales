@@ -22,7 +22,6 @@ import {
   PREVIOUS_NEXT_ACTION_CHANGED,
   STATUS_FORBIDDEN,
   STATUS_LABEL,
-  checkStatusComment,
   statusesOf,
 } from './nextActionStatus'
 import { actionView, findDeal, nextActionBasisOf, userRef } from './views'
@@ -310,7 +309,7 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         const user = requireWrite(ctx)
         const record = findAction(ctx, actionId)
         if (!canEditAction(viewerOf(user), record.actorId)) throw forbidden(STATUS_FORBIDDEN)
-        const note = checkStatusComment(input.status, input.comment)
+        const note = trimmedBody(input.comment)
         if (record.nextAction === null || record.nextActionStatus === null) throw conflict(NO_NEXT_ACTION)
         const before: NextActionStatus = record.nextActionStatus
         if (before === input.status) throw conflict(`이미 ${STATUS_LABEL[before]} 상태입니다.`)
@@ -318,7 +317,6 @@ export function createActionsGateway(ctx: MockContext): ActionsGateway {
         record.nextActionStatus = input.status
         record.nextActionClosedOn = input.status === 'open' ? null : serverDate(ctx.clock.now(), offsetMinutes(ctx.clock.now()))
         logHistory(ctx, record.dealCode, user.id, 'action', 'Next Action', planned, STATUS_LABEL[input.status])
-        // 서버 CM-R15: Next Action 줄 다음에 종료 Comment 등록 줄. 작성자는 요청자다.
         if (note !== '') storeComment(ctx, { dealCode: record.dealCode, actionId: record.id, authorId: user.id, body: note })
         return actionView(ctx.store.data, record)
       }),

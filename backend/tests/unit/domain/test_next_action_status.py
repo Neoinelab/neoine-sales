@@ -181,20 +181,14 @@ class TestReopen:
             before=NextActionStatus.DONE, after=NextActionStatus.OPEN, note=""
         )
 
-    def test_reopen_with_note_raises_invalid_value(self) -> None:
-        """Open으로 되돌리며 Comment를 보내면 InvalidValueError이고 종료 상태가 그대로다.
-
-        테스트 코드: NA-006
-        """
-        # given: 종료(수행)된 Action
+    def test_reopen_returns_the_trimmed_note(self) -> None:
         action = make_deal_action()
         action.change_next_action_status(NextActionStatus.DONE, "", later(10))
-        # when·then: Comment "메모"와 함께 open으로 바꾸면 해당 문구의 InvalidValueError다
-        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."):
-            action.change_next_action_status(NextActionStatus.OPEN, "메모", later(20))
-        # then: 종료(수행) 상태가 그대로다
-        assert action.next_action_state is not None
-        assert action.next_action_state.status is NextActionStatus.DONE
+
+        change = action.change_next_action_status(NextActionStatus.OPEN, "  메모  ", later(20))
+
+        assert change.note == "메모"
+        assert action.next_action_state == NextActionState.open()
 
     def test_reopen_with_blank_note_is_allowed(self) -> None:
         """Open으로 되돌릴 때 공백뿐인 Comment는 허용된다.
@@ -251,15 +245,9 @@ class TestRejections:
         # then: 상태는 없는 그대로다
         assert action.next_action_state is None
 
-    def test_open_with_note_is_reported_before_missing_next_action(self) -> None:
-        """Open+Comment 검사가 Next Action 없음 검사보다 먼저다.
-
-        테스트 코드: NA-010
-        """
-        # given: 진행사항만 Action
+    def test_open_with_note_still_requires_a_next_action(self) -> None:
         action = make_deal_action(next_action="", due_date=None)
-        # when·then: open+Comment를 보내면 409가 아니라 InvalidValueError(Open+Comment)다
-        with raises_with(InvalidValueError, "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."):
+        with raises_with(InvalidStateError, NO_NEXT_ACTION):
             action.change_next_action_status(NextActionStatus.OPEN, "메모", later(10))
 
     def test_nul_note_is_reported_before_same_status(self) -> None:

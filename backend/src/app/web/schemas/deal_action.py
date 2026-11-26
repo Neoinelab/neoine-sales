@@ -198,8 +198,6 @@ class DealActionUpdateRequest(ActionContentRequest):
 
 
 class NextActionStatusRequest(RequestModel):
-    """Next Action 상태 변경. comment는 종료할 때 그 Action에 남길 Comment(open과는 함께 불가)."""
-
     status: NextActionStatus
     comment: str = ""
 

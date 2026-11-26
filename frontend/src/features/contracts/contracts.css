@@ -20,8 +20,14 @@
 .contract-table td.expiry-warning { background: #facc15; color: #422006; font-weight: 600; }
 .contract-table td.status-issued { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
 .contract-table td.status-ended { background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
+.modal.contract-edit-dialog { width: min(960px, 100%); }
 .contract-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; }
 .contract-files { display: grid; gap: 8px; margin-top: 12px; }
+.contract-upload { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.contract-upload .field, .contract-upload input { min-width: 0; }
+.contract-upload input { width: 100%; }
+.contract-upload .dd-count { justify-self: end; }
+.contract-upload button { white-space: nowrap; }
 @media (prefers-color-scheme: dark) {
   .contract-table td.expiry-danger { background: #7f1d1d; color: #fee2e2; }
   .contract-table td.expiry-warning { background: #a16207; color: #fef9c3; }

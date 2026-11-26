@@ -23,7 +23,6 @@ interface ActionDetailDialogProps {
   me: Viewer | null
   /** 상태 변경·삭제 요청이 진행 중이다(닫기·삭제·상태 버튼을 끈다). */
   pending: boolean
-  /** 삭제·상태 되돌리기 같은 팝업 밖 동작의 오류(팝업 안에 보인다). */
   error: unknown
   onChangeStatus: (action: DealAction, status: NextActionStatus) => void
   onDelete: (action: DealAction) => void

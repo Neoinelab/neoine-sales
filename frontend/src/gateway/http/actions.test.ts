@@ -605,7 +605,7 @@ describe('actions.changeNextActionStatus over HTTP', () => {
     [404, 'not-found', 'Action을 찾을 수 없습니다.', 'not-found'],
     [409, 'invalid-state', '이미 Open 상태입니다.', 'conflict'],
     [409, 'invalid-state', 'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.', 'conflict'],
-    [422, 'invalid-value', 'Open으로 되돌릴 때는 Comment를 남길 수 없습니다.', 'validation'],
+    [422, 'invalid-value', 'Comment에는 NUL 문자를 쓸 수 없습니다', 'validation'],
   ])('shows the %s answer with the server message', async (status, serverKind, detail, kind) => {
     // given: 서버가 거절 응답을 준다.
     stubFetch(problem(status, serverKind, detail))

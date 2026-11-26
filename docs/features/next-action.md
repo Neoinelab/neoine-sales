@@ -2,7 +2,7 @@
 
 > 이 문서는 **이미 구현된 동작**을 정본 명세로 옮긴 것입니다(2026-11-10). 근거는 작업 트리의 코드입니다.
 > - backend: `domain/deal_action/{next_action_status.py,entities.py(change_next_action_status·ensure_status_changeable_by),errors.py,policy.py,history.py(next_action_status_draft)}`, `application/deal_action/{change_next_action_status.py,list_deal_actions.py,inputs.py}`, `application/ports/deal_action_repository.py`(`DealActionQuery`·`DealActionSort`·`NextActionStatusFilter`), `domain/common/validation.py`, `infra/db/{deal_action_repository.py(_filtered),deal_action_order.py,like.py}`, `web/routers/deal_actions.py`, `web/schemas/deal_action.py`(`NextActionStatusRequest`·`DealActionSearchParams`), `web/permissions.py`
-> - frontend: `features/deals/detail/{ActionsTab.tsx,ActionSearchBar.tsx,NextActionStatusCell.tsx,NextActionCloseDialog.tsx,actionSort.ts,ActionTable.tsx(머리글 정렬·상태 칸),useLatest.ts}`, `shared/model/{nextActionStatus.ts,periodChoice.ts}`, `shared/ui/PeriodField.tsx`, `data/actions.ts`, `gateway/http/{actions.ts,mappers/nextActionStatus.ts}`, `test/fake/gateway/{actions.ts,nextActionStatus.ts}`
+> - frontend: `features/deals/detail/{ActionsTab.tsx,ActionSearchBar.tsx,NextActionStatusCell.tsx,NextActionStatusDialog.tsx,actionSort.ts,ActionTable.tsx(머리글 정렬·상태 칸),useLatest.ts}`, `shared/model/{nextActionStatus.ts,periodChoice.ts}`, `shared/ui/PeriodField.tsx`, `data/actions.ts`, `gateway/http/{actions.ts,mappers/nextActionStatus.ts}`, `test/fake/gateway/{actions.ts,nextActionStatus.ts}`
 >
 > Next Action 상태 분리(2026-10-20)와 Action 머리글 정렬·기간 프리셋 계획의 결정을 따른다. 계획과 코드가 다른 곳은 코드를 따랐다. 코드와 Fake·테스트가 어긋나던 점은 2026-11-10 사용자 결정으로 정리했다: Fake 게이트웨이는 서버 동작에 맞추고(NA-R30), Due Date 범위의 1900~2999 미검사는 현행대로 둔다(NA-R16). 결정 목록은 `artifacts/10-analysis/na-plan.md`에 있다.
 
@@ -62,7 +62,7 @@
 Next Action 상태 변경(backend)
 - **NA-R1** 상태는 Next Action이 있는 Action에만 있다. Action 응답의 `next_action_status`·`next_action_closed_on`은 진행사항만 Action이면 둘 다 null, Open이면 `"open"`·null, 종료면 상태 값과 종료일이다.
 - **NA-R2** `PUT /deal-actions/{action_id}/next-action-status` 본문 `{"status": "open"|"done"|"not_done", "comment": "<문자열>"}`(comment는 선택, 기본 `""`). 예전 `memo` 키는 422 `request-validation`이다. 지금 상태와 **다른** 상태로는 어느 쪽이든 바꿀 수 있다: Open→종료(수행)·종료(미수행), 종료(수행)⇄종료(미수행), 종료→Open. 성공하면 200과 바뀐 Action(응답 모양은 AC-R20)이다.
-- **NA-R3** 종료 Comment는 CM-R15·CM-R1을 따른다. 비었거나 공백뿐이면 Comment를 만들지 않는다. 종료 상태로 바꿀 때 비어 있지 않으면 그 Action의 Action Comment 1건(작성자 = 요청자)을 만든다. Open으로 되돌리며 비어 있지 않은 Comment를 보내면 422 `invalid-value` "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."이다(공백뿐이면 허용). NUL이 있으면 422 `invalid-value` "Comment에는 NUL 문자를 쓸 수 없습니다"이다. 길이 제한은 없다. Action 내용은 바뀌지 않는다.
+- **NA-R3** 상태 변경 Comment는 CM-R15·CM-R1을 따른다. 종료하거나 Open으로 되돌릴 때 입력한 내용이 있으면 그 Action에 Comment 1건(작성자 = 요청자)을 남긴다. 빈 값이나 공백만 있으면 Comment를 만들지 않는다. NUL이 있으면 422 `invalid-value` "Comment에는 NUL 문자를 쓸 수 없습니다"이다. 길이 제한은 없다. Action 내용은 바뀌지 않는다.
 - **NA-R4** 종료일: 종료 상태로 바꾸면 그 요청의 업무 날짜(오늘)다. 종료(수행)⇄종료(미수행) 전환도 그 요청의 오늘로 다시 정한다(같은 날이면 값이 같다). Open으로 되돌리면 null이 되고, 그때 만든 Comment는 그대로 남는다. Action 등록 때 이전 Next Action 종료의 종료일도 수행일과 무관하게 오늘이다(AC-R36).
 - **NA-R32** 기존 데이터 변환(리비전 `b4d7e2a9c613`, SC-R20): `next_action_closed_on`은 저장된 `next_action_closed_at`을 업무 시간대(서버 OS 로컬)로 바꾼 날짜다. 값이 없던 행은 계속 null이다. 상태·종료일 CHECK(종료 상태일 때만 값)는 새 컬럼 기준으로 다시 만든다. 행 수는 그대로이고 시각만 버린다. downgrade는 종료일의 업무 시간대 00:00으로 되살린다.
 - **NA-R5** 상태 변경은 상태·종료 시각과 Action `updated_at`만 바꾼다(Comment는 CM-R15).
@@ -74,12 +74,12 @@ Next Action 상태 변경(backend)
   2. 요청 형식 422 `request-validation`: id 경로 형식(PL-R15), `status` 누락·null·세 값 밖(`closed`·`notDone`·`DONE` 등 대소문자 구분), `comment`가 문자열 아님, 예전 `memo` 키, 모르는 필드(예: `closed_at`)
   3. 없는 Action 404 `not-found` "Action을 찾을 수 없습니다."
   4. 작성자·admin 아님 403(NA-R6)
-  5. Comment NUL 422 → Open으로 되돌리며 Comment 422(NA-R3)
+  5. Comment NUL 422(NA-R3)
   6. Next Action 없음 409 `invalid-state` "Next Action이 없는 Action은 상태를 바꿀 수 없습니다." → 같은 상태 409 `invalid-state` "이미 {라벨} 상태입니다."(예: "이미 Open 상태입니다.", "이미 종료(수행) 상태입니다.")
 - **NA-R8** 이력: 성공하면 그 Deal의 History에 Next Action 줄 정확히 1건을 남긴다.
   - 구분 `action`, 대상 `Next Action`, 변경자 요청자, 변경 시각 요청 시각.
   - 변경 전: `"<Next Action> (Due <YYYY-MM-DD>) · <이전 라벨>"`. 예: "요구사항 문서 전달 (Due 2027-01-15) · Open".
-  - 변경 후: 항상 `"<새 라벨>"`(종료 Comment는 이어서 CM-R13의 Comment 등록 줄로 남으므로, Comment가 있는 성공은 History 2건이다). 이전에 남은 이력의 " / Memo: …"는 그대로다.
+  - 변경 후: 항상 `"<새 라벨>"`(상태 변경 Comment는 이어서 CM-R13의 Comment 등록 줄로 남으므로, Comment가 있는 성공은 History 2건이다). 이전에 남은 이력의 " / Memo: …"는 그대로다.
   - 긴 값은 History 길이 규칙(DD-R20)으로 잘린다.
   - Action 등록 때 이전 Next Action 종료(AC-R7 ④)도 이 형식으로 1건을 남긴다: 변경 전 `"<Next Action> (Due <YYYY-MM-DD>) · Open"`, 변경 후 `"종료(수행)"`(Comment 없음). 이 문구 형식은 NA가 소유하고 AC-R11은 이 규칙을 가리킨다(2026-11-10 결정). 등록 경로의 결과·저장 순서는 AC-037이 검증한다.
 - **NA-R9** 원자성: 거절되면(4xx) Action의 상태·종료 시각·Comment와 History가 모두 그대로다.
@@ -138,7 +138,7 @@ Action 검색(backend)
     - 성공해야 팝업이 닫힌다.
     - 실패하면 팝업과 입력한 Comment가 그대로이고 팝업 안 오류 배너에 서버 `detail`을 보인다.
   - "취소"와 Esc는 요청 없이 닫는다(입력한 Comment는 버린다).
-- **NA-R23** Action 상세 팝업의 "Open으로"는 별도의 확인 없이 Comment `""`로 요청한다. 실패하면 상세 팝업의 오류 배너에 서버 `detail`을 표시한다.
+- **NA-R23** Action 상세 팝업에서 "Open으로"를 누르면 "Next Action Open" 팝업이 열린다. Comment는 선택 사항이다. 팝업에서 "Open으로"를 누르면 상태 변경과 Comment를 함께 요청한다. 성공하면 확인 팝업만 닫힌다. 실패하면 팝업에서 오류를 표시하고 입력값을 유지한다. "취소"와 Esc는 요청 없이 확인 팝업을 닫는다.
 - **NA-R24** 상태 변경에 성공하면 Action 목록, 그 Deal의 History, Deal(목록·상세), Forecast, Action 유형, 라이선스 계약 캐시를 무효화한다. 그래서 행의 라벨, 상세 팝업(AC-R49)의 Comment 영역·Comments 탭과 읽지 않은 수(CM-R44), 요약 바의 Next Action 상태(RK-R17)가 새 값으로 바뀐다(Comment 목록·읽지 않은 수도 무효화, CM-R44).
 - **NA-R25** 검색 바(`role="search"`, 이름 "Action 검색")
   - 칸 순서:
@@ -176,7 +176,7 @@ Action 검색(backend)
 - **NA-R30** 게이트웨이 요청
   - HTTP `actions.list`는 `GET /api/v1/deals/{code}/actions`에 채운 조건만 쿼리로 보낸다(`offset`·`limit`·구 `action_type` 없음). 정렬은 열·방향을 `sort` 값으로 바꾼다(예: `type`+`asc` → `action_type_asc`, `nextActionStatus`+`desc` → `next_action_status_desc`).
   - HTTP `actions.changeNextActionStatus`는 `PUT /api/v1/deal-actions/{id}/next-action-status`에 `{status, comment}`(화면 `notDone` → `not_done`)를 보내고 응답을 화면 Action으로 바꾼다.
-  - Fake 게이트웨이는 같은 상태 변경 규칙(권한·검사 순서·종료 Comment·이력, CM-R15)과 검색·정렬 규칙을 따른다. 서버와 달랐던 곳은 **Fake를 서버 동작에 맞춘다(2026-11-10 결정)**: 수행일 1900~2999 범위 밖 422 `invalid-value`(NA-R15), 검색어 NUL 422 `invalid-value`(NA-R14), 종료 Comment NUL 422 "Comment에는 NUL 문자를 쓸 수 없습니다", Open+Comment 422 "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."(CM-R15).
+  - Fake 게이트웨이는 같은 상태 변경 규칙(권한·검사 순서·종료 Comment·이력, CM-R15)과 검색·정렬 규칙을 따른다. 서버와 달랐던 곳은 **Fake를 서버 동작에 맞춘다(2026-11-10 결정)**: 수행일 1900~2999 범위 밖 422 `invalid-value`(NA-R15), 검색어 NUL 422 `invalid-value`(NA-R14), 종료 Comment NUL 422 "Comment에는 NUL 문자를 쓸 수 없습니다"(CM-R15).
 - **NA-R31** 게이트웨이 오류: HTTP 게이트웨이는 4xx를 서버 상태·`detail` 그대로의 `ApiError`로 넘긴다(범위 역전 422, 없는 Deal 404, 같은 상태 409 등).
 
 ### 2.4 상태와 전이
@@ -184,8 +184,8 @@ Action 검색(backend)
 | 지금 \ 요청 | `open` | `done` | `not_done` |
 | --- | --- | --- | --- |
 | Open | 409 이미 Open | 종료(수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) | 종료(미수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) |
-| 종료(수행) | Open, 종료일 null(Comment 있으면 422) | 409 이미 종료(수행) | 종료(미수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) |
-| 종료(미수행) | Open, 종료일 null(Comment 있으면 422) | 종료(수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) | 409 이미 종료(미수행) |
+| 종료(수행) | Open, 종료일 null(내용이 있으면 Action Comment 등록) | 409 이미 종료(수행) | 종료(미수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) |
+| 종료(미수행) | Open, 종료일 null(내용이 있으면 Action Comment 등록) | 종료(수행), 종료일=오늘, 종료 Comment 등록(비어 있지 않을 때) | 409 이미 종료(미수행) |
 | 상태 없음(진행사항만) | 409 Next Action 없음 | 409 Next Action 없음 | 409 Next Action 없음 |
 
 다른 feature가 일으키는 전이(AC 2.4 소유):
@@ -244,7 +244,6 @@ NA-R21~R31.
 | 없는·형식이 틀린 Deal의 Action 목록 | 404 `not-found` | Deal을 찾을 수 없습니다. |
 | Next Action 없는 Action의 상태 변경 | 409 `invalid-state` | Next Action이 없는 Action은 상태를 바꿀 수 없습니다. |
 | 지금과 같은 상태 | 409 `invalid-state` | 이미 Open 상태입니다. / 이미 종료(수행) 상태입니다. / 이미 종료(미수행) 상태입니다. |
-| Open으로 되돌리며 Comment | 422 `invalid-value` | Open으로 되돌릴 때는 Comment를 남길 수 없습니다. |
 | 종료 Comment NUL | 422 `invalid-value` | Comment에는 NUL 문자를 쓸 수 없습니다 |
 | 검색어 NUL | 422 `invalid-value` | 검색어에는 NUL 문자를 쓸 수 없습니다 |
 | 수행일 범위 역전 | 422 `invalid-value` | 수행일 범위의 시작은 끝보다 늦을 수 없습니다. |
@@ -266,9 +265,9 @@ NA-R21~R31.
 ### NA-UC2 종료한 Next Action 되돌리기
 - 행위자: 작성자 본인(sales) 또는 admin
 - 사전 조건: 종료 상태인 Action이 있다
-- 기본 흐름: Action 상세 팝업에서 "Open으로"를 누르면 별도의 확인 없이 Open이 되고 종료 시각이 지워진다. 만든 Comment는 그대로 남는다(NA-R4, R23).
-- 예외: API로 Comment를 함께 보내면 422
-- 결과: History에 "… · 종료(수행)" → "Open" 1건
+- 기본 흐름: Action 상세 팝업에서 "Open으로"를 누르고 확인 팝업에서 Comment를 선택적으로 입력해 확정한다. 상태가 Open이 되고 종료일이 비워진다(NA-R4, R23).
+- 예외: NUL이 포함된 Comment는 422
+- 결과: History에 상태 변경 1건과, 내용을 입력했다면 Comment 등록 1건
 
 ### NA-UC3 상태 변경 거절
 - 행위자: 권한 없는 사용자, 또는 규칙에 맞지 않는 요청
@@ -297,11 +296,11 @@ NA-R21~R31.
 | NA-003 | (폐기 2026-11-17) 종료 메모의 Memo 덧붙임 — CM-031·CM-033이 대신함 | NA-R3 | backend | — |
 | NA-004 | 종료(수행)에서 종료(미수행)으로 바로 바꾸면 종료일이 그 요청의 오늘로 다시 정해진다 | NA-R2, NA-R4, NA-UC1 | backend | `domain/test_next_action_status.py` |
 | NA-005 | Open으로 되돌리면 종료 시각이 없어지고 만든 Comment가 남는다 | NA-R4, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
-| NA-006 | Open으로 되돌리며 Comment를 보내면 422이고 종료 상태가 그대로이며, 공백뿐인 Comment는 허용된다 | NA-R3, NA-R9, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
+| NA-006 | Open으로 되돌리며 Comment를 함께 남길 수 있고 공백뿐이면 Comment를 저장하지 않는다 | NA-R3, NA-R9, NA-UC2 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-007 | 지금과 같은 상태로 바꾸면 409 "이미 … 상태입니다."이고 Comment 수·History가 그대로다 | NA-R7, NA-R9, NA-UC3 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-008 | Next Action이 없는 Action의 상태를 바꾸면 409이고 Comment 수·History가 그대로다 | NA-R1, NA-R7, NA-UC3 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-009 | 종료 Comment에 NUL 문자가 있으면 422 invalid-value이고 Action이 그대로다 | NA-R3, NA-UC3 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py`, `test/fake/gateway/nextActionStatus.rules.test.ts` |
-| NA-010 | 도메인 검사는 NUL → Open+Comment → Next Action 없음 → 같은 상태 순서다 | NA-R7, NA-UC3 | backend | `domain/test_next_action_status.py` |
+| NA-010 | 도메인 검사는 NUL → Next Action 없음 → 같은 상태 순서다 | NA-R7, NA-UC3 | backend | `domain/test_next_action_status.py` |
 | NA-011 | 상태 변경은 다른 내용·수행 정보·스냅숏과 Deal 수정 시각을 바꾸지 않는다 | NA-R5, NA-UC1 | backend | `application/test_change_next_action_status.py`, `domain/test_next_action_status.py` |
 | NA-012 | admin은 다른 사람의 Action 상태를 바꿀 수 있고 History 변경자는 admin이다 | NA-R6, NA-R8, NA-UC1 | backend | `application/test_change_next_action_status.py`, `domain/test_deal_action_entity.py` |
 | NA-013 | 작성자가 아닌 sales는 403 고정 문구이고 Action·History가 그대로다 | NA-R6, NA-R9, NA-UC3 | backend | `application/test_change_next_action_status.py`, `domain/test_deal_action_entity.py` |
@@ -340,7 +339,7 @@ NA-R21~R31.
 | NA-046 | 화면: 종료 행의 버튼은 다른 종료 상태와 "Open으로"다 | NA-R21, NA-UC1, NA-UC2 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
 | NA-047 | 화면: 종료 대화상자를 거쳐 입력한 Comment로 종료하고 행에 새 상태가, 상세 팝업에 새 Comment가 보인다 | NA-R22, NA-R24, NA-UC1 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
 | NA-048 | 화면: 팝업의 취소와 Esc는 상태를 바꾸지 않는다 | NA-R22, NA-UC1 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
-| NA-049 | 화면: "Open으로"는 팝업 없이 바로 되돌린다 | NA-R23, NA-UC2 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
+| NA-049 | 화면에서 "Open으로"를 누르면 Comment를 선택적으로 입력하는 확인 팝업이 열린다 | NA-R23, NA-UC2 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
 | NA-050 | 화면: 서버가 거절하면 팝업이 열린 채 Comment가 남고 서버 문구가 보이며 성공해야 닫힌다 | NA-R22, NA-R23, NA-UC1 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
 | NA-051 | 화면: 상태를 바꾸면 요약 바의 Next Action 상태도 바뀐다 | NA-R24, NA-UC1 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx` |
 | NA-052 | 화면: 검색 바는 정해진 칸과 버튼을 갖고 정렬 입력이 없다 | NA-R25, NA-UC4 | frontend | `features/deals/detail/ActionsTab.nextActionStatus.test.tsx`, `features/deals/detail/ActionsTab.sort.test.tsx`, `features/deals/detail/ActionsTab.test.tsx` |
@@ -387,7 +386,7 @@ NA-R21~R31.
 ### NA-006 Open으로 되돌리며 Comment를 보낸다
 - Given 종료(수행)된 Action이 있다
 - When 작성자가 `open`, `comment` "되돌리며 Comment"로 바꾼다
-- Then 422 `invalid-value` "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."이고 상태·종료 시각·Comment 수·History가 그대로다. 같은 요청을 `comment` "   "로 보내면 Open이 된다
+- Then 상태는 `open`, 종료일은 null이며 그 Action의 Comment와 상태 변경·Comment 등록 이력을 남긴다
 
 ### NA-007 같은 상태로 바꾼다
 - Given Open Action과, 종료 Comment "첫 종료"로 종료(수행)된 Action이 있다
@@ -407,7 +406,7 @@ NA-R21~R31.
 ### NA-010 도메인 검사 순서
 - Given 진행사항만 Action과 Open Action이 있다
 - When 진행사항만 Action에 `open`+Comment, Open Action에 `open`+NUL Comment를 보낸다
-- Then 진행사항만 Action은 409가 아니라 422(Open+Comment)이고, Open Action은 409(같은 상태)가 아니라 422(NUL)다
+- Then 진행사항만 Action은 Next Action이 없어 409이고, Open Action은 409(같은 상태)가 아니라 422(NUL)다
 
 ### NA-011 상태 외 값은 그대로다
 - Given 작성자 kim의 Open Action(진행사항·Next Action·Due·유형·수행일·스냅숏 Status/Forecast)과 그 Deal의 수정 시각 D가 있다
@@ -589,12 +588,12 @@ NA-R21~R31.
 ### NA-049 화면: Open으로
 - Given 종료(수행)된 kim의 Action 행이 있다
 - When "Open으로"를 누른다
-- Then 팝업 없이 행이 "Open"이 된다
+- Then 확인 팝업에서 Comment를 선택적으로 작성할 수 있고, 확정하면 행이 "Open"이 된다
 
 ### NA-050 화면: 거절된 종료
 - Given 종료 팝업에 "잃으면 안 되는 Comment"를 쓴 사이 그 Action이 이미 종료(수행)됐다
 - When "종료"를 누른다
-- Then 팝업 안에 "이미 종료(수행) 상태입니다."가 보이고 팝업과 Comment가 그대로다. 성공한 종료는 팝업을 닫는다. "Open으로"가 거절되면 탭 오류 배너에 서버 문구가 보인다
+- Then 팝업 안에 "이미 종료(수행) 상태입니다."가 보이고 팝업과 Comment가 그대로다. 성공한 종료는 팝업을 닫는다. "Open으로"가 거절되면 상태 변경 팝업 안에 서버 문구가 보이고 입력값을 유지한다
 
 ### NA-051 화면: 요약 바 상태
 - Given 기준 행이 Open인 Deal의 Actions 탭이다
@@ -673,7 +672,7 @@ NA-R21~R31.
 - Then 그 상태와 문구 그대로의 오류가 된다
 
 ### NA-068 Fake 게이트웨이 규칙
-- When Fake로 종료·되돌림·전환·같은 상태·Next Action 없음·Open+Comment·없는 Action·user·admin을, 그리고 상태 필터·Due/상태 정렬·검색어 길이·검색 오류 순서를, 또 종료 Comment NUL·검색어 NUL·1900~2999 밖 수행일을 실행한다
+- When Fake로 종료·Comment와 함께 되돌림·전환·같은 상태·Next Action 없음·없는 Action·user·admin을, 그리고 상태 필터·Due/상태 정렬·검색어 길이·검색 오류 순서를, 또 상태 변경 Comment NUL·검색어 NUL·1900~2999 밖 수행일을 실행한다
 - Then 결과(상태·종료 시각·생긴 Comment·History 건수, 409·422·404·403, 결과 순서, 422가 404보다 먼저)가 NA-R2~R9, R14~R18, R20과 같다. 종료 Comment NUL은 422 "Comment에는 NUL 문자를 쓸 수 없습니다", 검색어 NUL은 422 "검색어에는 NUL 문자를 쓸 수 없습니다", 범위 밖 수행일은 422 "acted_from은(는) 1900-01-01부터 2999-12-31 사이여야 합니다"(`acted_to`도 같음)이고 Action·History가 그대로다(Fake를 서버 동작에 맞춤, 2026-11-10 결정)
 
 ### NA-069 주 키가 같은 정렬의 동률은 수행일 내림차순 다음 id 내림차순이다

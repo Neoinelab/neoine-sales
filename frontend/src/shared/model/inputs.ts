@@ -190,7 +190,6 @@ export type ActionUpdateInput = Omit<ActionInput, 'comment' | 'statusChanges' | 
   actedOn?: string | null
 }
 
-/** Next Action 상태 변경. comment는 종료할 때만(Open으로 되돌릴 때는 빈 문자열). */
 export interface NextActionStatusInput {
   status: NextActionStatus
   comment: string

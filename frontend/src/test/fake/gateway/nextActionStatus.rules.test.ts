@@ -15,9 +15,8 @@ const input = (over: Partial<ActionInput> = {}): ActionInput => ({
 const PROGRESS_ONLY = { nextAction: '', dueDate: '' } as const
 
 describe('actions.changeNextActionStatus: 상태 전이와 종료 Comment', () => {
-  // Fake는 종료 Comment를 그 Action의 새 Comment로 남기고(작성자 요청자), 공백뿐인 Comment는 만들지 않으며, Open으로 되돌리면 종료일이 없어지고 Comment는 남는다.
   // 테스트 코드: NA-068, CM-082
-  it('creates the closing comment as a new action comment, creates none for a blank one and clears the closed time on reopen', async () => {
+  it('records comments on close and reopen, skips blank comments, and clears the closed date on reopen', async () => {
     // given: Open Action 둘이 있다.
     const { gateway, clock } = await mockAs('kim')
     const withNote = await gateway.actions.create(dealCode(2), input())
@@ -31,10 +30,10 @@ describe('actions.changeNextActionStatus: 상태 전이와 종료 Comment', () =
     expect((await gateway.comments.list(dealCode(2), { actionId: withNote.id })).map((c) => [c.body, c.author.name])).toEqual([['전달 완료', '김영업']])
     expect(await gateway.comments.list(dealCode(2), { actionId: blank.id })).toEqual([])
     // when: 종료(수행)한 Action을 Open으로 되돌린다.
-    const reopened = await gateway.actions.changeNextActionStatus(withNote.id, { status: 'open', comment: '' })
-    // then: 종료일이 없어지고 만든 Comment는 남는다.
+    const reopened = await gateway.actions.changeNextActionStatus(withNote.id, { status: 'open', comment: '  일정 재확인  ' })
     expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null })
-    expect(await gateway.comments.list(dealCode(2), { actionId: withNote.id })).toHaveLength(1)
+    const comments = await gateway.comments.list(dealCode(2), { actionId: withNote.id })
+    expect(comments.map((comment) => comment.body).sort()).toEqual(['일정 재확인', '전달 완료'])
   })
 
   // Fake는 종료(수행)에서 종료(미수행)으로 바로 바꾸고 종료일을 그 날의 업무 날짜로 새로 정한다.
@@ -53,9 +52,8 @@ describe('actions.changeNextActionStatus: 상태 전이와 종료 Comment', () =
     expect((await gateway.comments.list(dealCode(2), { actionId: created.id })).map((c) => c.body)).toEqual(['취소됨'])
   })
 
-  // 같은 상태, Next Action 없음, Open+Comment는 서버와 같은 상태·문구로 거절하고 Action과 History를 바꾸지 않는다.
   // 테스트 코드: NA-068
-  it('refuses the same status, a missing Next Action and a comment on reopen, changing nothing', async () => {
+  it('refuses the same status and actions without a Next Action, changing nothing', async () => {
     // given: Open Action, 종료(수행) Action, 진행사항만 Action이 있다.
     const { gateway } = await mockAs('kim')
     const code = dealCode(2)
@@ -64,7 +62,6 @@ describe('actions.changeNextActionStatus: 상태 전이와 종료 Comment', () =
     await gateway.actions.changeNextActionStatus(closed.id, { status: 'done', comment: '' })
     const plain = await gateway.actions.create(code, input(PROGRESS_ONLY))
     const base = (await gateway.history.list(code, {})).length
-    // when·then: 같은 상태는 409, Next Action 없음은 409, Open+Comment는 422다.
     await expectApiError(gateway.actions.changeNextActionStatus(open.id, { status: 'open', comment: '' }), 409, '이미 Open 상태입니다.')
     await expectApiError(gateway.actions.changeNextActionStatus(closed.id, { status: 'done', comment: '또' }), 409, '이미 종료(수행) 상태입니다.')
     await expectApiError(
@@ -73,9 +70,9 @@ describe('actions.changeNextActionStatus: 상태 전이와 종료 Comment', () =
       'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.',
     )
     await expectApiError(
-      gateway.actions.changeNextActionStatus(closed.id, { status: 'open', comment: '되돌리며' }),
-      422,
-      'Open으로 되돌릴 때는 Comment를 남길 수 없습니다.',
+      gateway.actions.changeNextActionStatus(plain.id, { status: 'open', comment: '되돌리며' }),
+      409,
+      'Next Action이 없는 Action은 상태를 바꿀 수 없습니다.',
     )
     // then: History가 늘지 않았다.
     expect(await gateway.history.list(code, {})).toHaveLength(base)

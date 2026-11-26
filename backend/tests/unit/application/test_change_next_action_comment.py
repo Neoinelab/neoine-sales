@@ -1,7 +1,7 @@
 """ChangeNextActionStatus의 종료 Comment: 작성자 규칙과 검사 순서.
 
 종료 Comment는 그 Action의 Action Comment가 된다(작성자 = 요청자). 검사 순서는
-Comment NUL -> Open+Comment -> Next Action 없음 -> 같은 상태이고, 거절되면 Comment가 생기지 않는다.
+Comment NUL -> Next Action 없음 -> 같은 상태이고, 거절되면 Comment가 생기지 않는다.
 """
 
 from typing import TYPE_CHECKING
@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from app.domain.deal_action.value_objects import DealActionId
     from tests.unit.application.action_env import ActionEnv
 
-OPEN_WITH_COMMENT = "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."
 NUL = "Comment에는 NUL 문자를 쓸 수 없습니다"
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
 
@@ -75,10 +74,6 @@ async def test_the_original_author_cannot_delete_a_comment_an_admin_left_when_cl
 async def test_the_checks_run_in_the_documented_order_and_a_rejection_makes_no_comment(
     action_env: ActionEnv,
 ) -> None:
-    """검사는 NUL -> Open+Comment -> Next Action 없음 -> 같은 상태 순서이고 거절되면 Comment가 없다.
-
-    테스트 코드: CM-035
-    """
     # given: 진행사항만 Action P, Open Action A, 종료(수행) Action Q
     progress_only = await action_env.act(KIM, next_action="")
     open_action = await action_env.act(KIM)
@@ -86,8 +81,7 @@ async def test_the_checks_run_in_the_documented_order_and_a_rejection_makes_no_c
     await action_env.set_status(closed.id, KIM, "done")
     rows = await action_env.rows()
 
-    # when·then: P에 open+Comment는 Open+Comment 422(Next Action 없음 409가 아니다)
-    with raises_with(InvalidValueError, OPEN_WITH_COMMENT):
+    with raises_with(InvalidStateError, NO_NEXT_ACTION):
         await action_env.set_status(progress_only.id, KIM, "open", "메모")
     # when·then: Open인 A에 open+NUL은 NUL 422(같은 상태 409가 아니다)
     with raises_with(InvalidValueError, NUL):

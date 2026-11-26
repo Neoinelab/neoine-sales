@@ -118,9 +118,8 @@ describe('팝업에서 Next Action 종료', () => {
 })
 
 describe('팝업의 상태 버튼 권한과 Open으로', () => {
-  // "Open으로"는 대화상자 없이 팝업에서 바로 Open으로 되돌린다.
   // 테스트 코드: AC-145
-  it('reopens a closed next action straight from the popup without a dialog', async () => {
+  it('reopens a closed next action after confirming an optional comment', async () => {
     // given: 종료(수행)된 KIM의 Action A 팝업
     const view = await openActionsTab()
     const created = await addAction(view, A_INPUT)
@@ -131,15 +130,17 @@ describe('팝업의 상태 버튼 권한과 Open으로', () => {
 
     // when: 팝업에서 "Open으로"를 누른다
     await view.user.click(within(dialog).getByRole('button', { name: 'Open으로' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Next Action Open' })
+    await view.user.type(within(confirm).getByRole('textbox', { name: 'Comment에 남길 내용(선택)' }), '후속 미팅 필요')
+    await view.user.click(within(confirm).getByRole('button', { name: 'Open으로' }))
 
-    // then: 대화상자 없이 상태가 Open이 되고 팝업은 열려 있다
     await waitFor(() => expect(fieldValue(detail(), 'Next Action 상태')).toHaveTextContent(/^Open/))
+    expect(await within(dialog).findByText('후속 미팅 필요')).toBeVisible()
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
   })
 
-  // "Open으로"가 거절되면 상세 팝업 안 오류 배너에 서버 문구가 보인다.
   // 테스트 코드: AC-144
-  it('shows the server message in the detail dialog when reopening is refused', async () => {
+  it('keeps the comment and shows the server message in the confirmation dialog when reopening is refused', async () => {
     // given: 종료(수행)된 Action A 팝업, 서버가 되돌리기를 거절한다
     const view = await openActionsTab()
     const created = await addAction(view, A_INPUT)
@@ -151,10 +152,13 @@ describe('팝업의 상태 버튼 권한과 Open으로', () => {
 
     // when: "Open으로"를 누른다
     await view.user.click(within(dialog).getByRole('button', { name: 'Open으로' }))
+    const confirm = within(await screen.findByRole('dialog', { name: 'Next Action Open' }))
+    const comment = confirm.getByRole('textbox', { name: 'Comment에 남길 내용(선택)' })
+    await view.user.type(comment, '후속 미팅 필요')
+    await view.user.click(confirm.getByRole('button', { name: 'Open으로' }))
 
-    // then: 팝업 안 배너에 서버 문구가 보이고 대화상자는 열리지 않는다
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(await confirm.findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
+    expect(comment).toHaveValue('후속 미팅 필요')
   })
 
   // 다른 sales의 Next Action은 라벨만 보이고 상태 버튼이 없다.

@@ -80,9 +80,8 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // Open으로 되돌리면 종료 시각이 없어지고 만든 Comment는 남는다.
     // 테스트 코드: NA-068, CM-082
-    it('reopens a closed action: the closed time is cleared and the comment stays', async () => {
+    it('reopens a closed action and records its new comment alongside the closing comment', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       // given: Comment "끝"을 붙여 종료(수행)한 Action이 있다.
@@ -90,11 +89,10 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '끝' })
 
       // when: open으로 바꾼다.
-      const reopened = await sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '' })
+      const reopened = await sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '다시 진행' })
 
-      // then: 상태 open, 종료 시각 null이고 Comment "끝"이 남아 있다.
       expect(reopened).toMatchObject({ nextActionStatus: 'open', nextActionClosedOn: null })
-      expect((await sales.comments.list(deal.code, { actionId: created.id })).map((c) => c.body)).toEqual(['끝'])
+      expect((await sales.comments.list(deal.code, { actionId: created.id })).map((c) => c.body).sort()).toEqual(['끝', '다시 진행'])
       await sales.deals.remove(deal.code, deal.code)
     })
 
@@ -140,17 +138,15 @@ export function actionsStatusContract(make: MakeGateway): void {
       await sales.deals.remove(deal.code, deal.code)
     })
 
-    // Open으로 되돌리며 Comment를 보내면 422이고 없는 Action은 404다.
     // 테스트 코드: NA-068
-    it('answers 422 when reopening with a comment and 404 for an unknown action', async () => {
+    it('answers 422 for an invalid reopening comment and 404 for an unknown action', async () => {
       const sales = await make('sales')
       const deal = await newDeal(sales)
       // given: 종료(수행)된 Action이 있다.
       const created = await sales.actions.create(deal.code, action())
       await sales.actions.changeNextActionStatus(created.id, { status: 'done', comment: '' })
 
-      // when·then: open+Comment는 422다.
-      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '메모' }), 422)
+      await expectRejects(sales.actions.changeNextActionStatus(created.id, { status: 'open', comment: '메\u0000모' }), 422)
       // when·then: 없는 Action은 404 "Action을 찾을 수 없습니다."다.
       await expectRejects(sales.actions.changeNextActionStatus(NO_SUCH_ID, { status: 'done', comment: '' }), 404, 'Action을 찾을 수 없습니다.')
 

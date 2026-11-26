@@ -94,7 +94,7 @@ export function ContractEditDialog({ contract, today, onDone, onClose }: Contrac
   return (
     <Modal
       title={`계약 수정 - ${contract.dealName}`}
-      wide
+      className="contract-edit-dialog"
       onClose={onClose}
       footer={
         <>

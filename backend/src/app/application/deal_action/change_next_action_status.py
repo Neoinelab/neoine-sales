@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class ChangeNextActionStatus:
     """Next Action 상태를 바꾼다. 판정 순서는 없음(404) -> 담당자 아님(403) -> 422/409.
 
-    바뀌면 Deal 이력에 한 건 남기고, 종료 Comment가 있으면 Action Comment와 이력 한 건을
+    바뀌면 Deal 이력에 한 건 남기고, Comment가 있으면 Action Comment와 이력 한 건을
     더한다. 실패하면 저장도 이력도 없다.
     """
 

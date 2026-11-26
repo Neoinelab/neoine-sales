@@ -236,8 +236,8 @@ export interface ActionsGateway {
   /** 담당자 본인(sales)과 admin만. 다른 sales는 403 "본인 Action 또는 admin만 삭제할 수 있습니다.". History 기록. */
   remove(actionId: number): Promise<void>
   /**
-   * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 종료할 때 comment가 있으면 그 Action의 Comment로 남는다.
-   * 같은 상태 409, Next Action이 없는 Action 409, Open으로 되돌리면서 comment를 주면 422.
+   * Next Action 상태 변경(작성자 본인·admin만, 아니면 403). 입력한 comment는 그 Action에 남는다.
+   * 같은 상태 또는 Next Action이 없는 Action은 409.
    */
   changeNextActionStatus(actionId: number, input: NextActionStatusInput): Promise<DealAction>
 }

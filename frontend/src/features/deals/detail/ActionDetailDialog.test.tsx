@@ -221,6 +221,8 @@ describe('행 안의 상태 칸 버튼', () => {
     await view.user.click(within(row).getByRole('link'))
     const dialog = await screen.findByRole('dialog', { name: 'Action 상세' })
     await view.user.click(within(dialog).getByRole('button', { name: 'Open으로' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Next Action Open' })
+    await view.user.click(within(confirm).getByRole('button', { name: 'Open으로' }))
 
     await waitFor(() => expect(within(bodyRows(view.table)[0]!).getByRole('button', { name: '종료(수행)' })).toBeVisible())
     expect(screen.getAllByRole('dialog')).toEqual([dialog])

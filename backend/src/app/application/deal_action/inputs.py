@@ -35,8 +35,6 @@ class ActionContentInput:
 
 @dataclass(frozen=True, slots=True)
 class NextActionStatusInput:
-    """Next Action 상태 변경 입력. comment는 종료할 때 남길 Action Comment다(선택)."""
-
     status: NextActionStatus
     comment: str = ""
 

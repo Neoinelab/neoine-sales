@@ -271,6 +271,11 @@ describe('Next Action 종료 팝업', () => {
 
     const detail = await openActionDetail(user, bodyRows(table)[0]!)
     await user.click(within(detail).getByRole('button', { name: 'Open으로' }))
+    const confirm = within(await screen.findByRole('dialog', { name: 'Next Action Open' }))
+    await user.click(confirm.getByRole('button', { name: '취소' }))
+    expect(bodyRows(table)[0]).toHaveTextContent('종료(수행)')
+    await user.click(within(detail).getByRole('button', { name: 'Open으로' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Next Action Open' })).getByRole('button', { name: 'Open으로' }))
 
     await waitFor(() => expect(bodyRows(table)[0]).toHaveTextContent('Open'))
     expect(screen.getAllByRole('dialog')).toEqual([detail])
@@ -373,7 +378,7 @@ describe('Next Action 종료 실패', () => {
   })
 
   // 테스트 코드: NA-050
-  it('shows the server message in the detail dialog when reopening a stale action is refused', async () => {
+  it('shows the server message in the confirmation dialog when reopening a stale action is refused', async () => {
     // given: 작성자가 Action을 종료(수행)했고, 화면이 모르는 사이 다른 경로에서 이미 Open으로 되돌렸다.
     const code = await dealCodeOf(1)
     const { user, table } = await openActions()
@@ -385,7 +390,9 @@ describe('Next Action 종료 실패', () => {
     const [first] = await gateway.actions.list(code, {})
     await gateway.actions.changeNextActionStatus(first!.id, { status: 'open', comment: '' })
     await user.click(reopen)
-    expect(await within(detail).findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
+    const confirm = within(await screen.findByRole('dialog', { name: 'Next Action Open' }))
+    await user.click(confirm.getByRole('button', { name: 'Open으로' }))
+    expect(await confirm.findByRole('alert')).toHaveTextContent('이미 Open 상태입니다.')
   })
 
   // 성공한 종료만 팝업을 닫는다.

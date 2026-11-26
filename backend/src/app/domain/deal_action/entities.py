@@ -99,12 +99,9 @@ class DealAction(AuditedEntity[DealActionId]):
     ) -> NextActionStatusChange:
         """Next Action 상태를 바꾼다. Action 내용은 바뀌지 않는다.
 
-        note는 종료 Comment다(결과의 note는 trim한 값, Comment 생성은 호출자 몫).
-        검사 순서: Comment NUL -> Open으로 되돌리며 Comment -> Next Action 없음 -> 같은 상태.
+        결과의 note는 앞뒤 공백을 제거한 Comment다. Comment 저장은 호출자가 맡는다.
         """
         note = optional_comment(note) or ""
-        if status is NextActionStatus.OPEN and note:
-            raise InvalidValueError("Open으로 되돌릴 때는 Comment를 남길 수 없습니다.")
         current = self.next_action_state
         if current is None:
             raise InvalidStateError("Next Action이 없는 Action은 상태를 바꿀 수 없습니다.")

@@ -271,28 +271,29 @@ async def test_post_with_a_comment_returns_the_action_without_memo_and_creates_t
     assert item["author"]["label"] == "사용자 kim"
 
 
-async def test_status_change_with_a_comment_returns_the_action_and_creates_the_comment() -> None:
-    """종료 Comment와 함께 상태를 바꾸면 200이고 응답에 memo가 없으며 Action Comment가 생긴다.
-
-    테스트 코드: CM-031
-    """
-    # given: KIM이 남긴 Open Action
+@pytest.mark.parametrize("status", ["done", "open"])
+async def test_status_change_with_a_comment_returns_the_action_and_creates_the_comment(
+    status: str,
+) -> None:
     use_cases = await _use_cases_with_deal()
     async with clients(use_cases, USERS) as c:
         created = await _register(c["kim"])
-        # when: KIM이 done, comment "  전달 완료 "로 바꾸고 Comment 목록을 읽는다
+        url = f"{SINGLE}/{created['id']}/next-action-status"
+        if status == "open":
+            closed = await c["kim"].put(url, json={"status": "done"})
+            assert closed.status_code == 200, closed.text
+
         response = await c["kim"].put(
-            f"{SINGLE}/{created['id']}/next-action-status",
-            json={"status": "done", "comment": "  전달 완료 "},
+            url,
+            json={"status": status, "comment": "  후속 일정 확인 "},
         )
         listed = await c["kim"].get(f"/api/v1/deals/{CODE}/comments")
 
-    # then: 200이고 상태가 done이며 memo 키가 없고 진행사항·Next Action은 그대로다
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["next_action_status"] == "done"
+    assert body["next_action_status"] == status
+    assert (body["next_action_closed_on"] is None) == (status == "open")
     assert "memo" not in body
     assert (body["action"], body["next_action"]) == (created["action"], created["next_action"])
-    # then: Action Comment "전달 완료" 한 건이 그 Action에 생겼다
     (item,) = listed.json()["items"]
-    assert (item["action_id"], item["body"]) == (created["id"], "전달 완료")
+    assert (item["action_id"], item["body"]) == (created["id"], "후속 일정 확인")

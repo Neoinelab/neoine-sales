@@ -14,7 +14,7 @@ import { DEFAULT_ACTION_SORT, nextActionSort, type ActionSortState } from './act
 import { ActionTable } from './ActionTable'
 import { useActionDeepLink } from './useActionDeepLink'
 import { messageOf } from './detailHelpers'
-import { NextActionCloseDialog } from './NextActionCloseDialog'
+import { NextActionStatusDialog } from './NextActionStatusDialog'
 import { useLatest } from './useLatest'
 import './detail.css'
 
@@ -36,8 +36,8 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
   // 표의 Comment 아이콘으로 열었으면 팝업이 Comment 입력 칸에 포커스를 둔다.
   const [focusComment, setFocusComment] = useState(false)
   const [target, setTarget] = useState<DealAction | null>(null)
-  const [closing, setClosing] = useState<{ action: DealAction; status: Exclude<NextActionStatus, 'open'> } | null>(null)
-  const [closingError, setClosingError] = useState<unknown>(null)
+  const [statusTarget, setStatusTarget] = useState<{ action: DealAction; status: NextActionStatus } | null>(null)
+  const [statusError, setStatusError] = useState<unknown>(null)
   const [error, setError] = useState<unknown>(null)
   const list = useActions(deal.code, { ...query, ...sort })
   // 기본 정렬로 조회해 조건 없는 목록과 쿼리 키를 맞춘다(같은 GET을 두 번 보내지 않는다).
@@ -73,36 +73,27 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
     setTarget(null)
   }
 
-  /** 성공하면 true. 실패하면 오류를 보이고 팝업과 입력한 Comment를 그대로 둔다. */
-  async function setStatus(action: DealAction, status: NextActionStatus, comment: string): Promise<boolean> {
+  async function confirmStatus(comment: string) {
+    if (!statusTarget) return
+    const { action, status } = statusTarget
     setError(null)
-    setClosingError(null)
+    setStatusError(null)
     try {
       await changeStatus.mutateAsync({ dealCode: deal.code, actionId: action.id, input: { status, comment } })
-      return true
+      setStatusTarget(null)
     } catch (caught) {
-      if (status === 'open') setError(caught)
-      else setClosingError(caught)
-      return false
+      setStatusError(caught)
     }
   }
 
-  async function confirmClose(comment: string) {
-    if (closing && (await setStatus(closing.action, closing.status, comment))) setClosing(null)
+  function cancelStatus() {
+    setStatusTarget(null)
+    setStatusError(null)
   }
 
-  function cancelClose() {
-    setClosing(null)
-    setClosingError(null)
-  }
-
-  /** 종료는 종료 대화상자를 거치고, Open으로 되돌리는 것은 팝업 없이 바로 바꾼다. */
   function requestStatus(action: DealAction, status: NextActionStatus) {
-    if (status === 'open') void setStatus(action, status, '')
-    else {
-      setClosingError(null)
-      setClosing({ action, status })
-    }
+    setStatusError(null)
+    setStatusTarget({ action, status })
   }
 
   function done(message: string) {
@@ -171,14 +162,14 @@ export function ActionsTab({ deal, canWrite, me, onNotice }: ActionsTabProps) {
           onClose={() => setOpened(null)}
         />
       )}
-      {closing && (
-        <NextActionCloseDialog
-          status={closing.status}
-          nextAction={closing.action.nextAction ?? ''}
+      {statusTarget && (
+        <NextActionStatusDialog
+          status={statusTarget.status}
+          nextAction={statusTarget.action.nextAction ?? ''}
           busy={changeStatus.isPending}
-          error={closingError}
-          onConfirm={(comment) => void confirmClose(comment)}
-          onCancel={cancelClose}
+          error={statusError}
+          onConfirm={(comment) => void confirmStatus(comment)}
+          onCancel={cancelStatus}
         />
       )}
       {target && (

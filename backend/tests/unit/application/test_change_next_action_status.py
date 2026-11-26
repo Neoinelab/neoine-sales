@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 KST = timezone(timedelta(hours=9))
 STATUS_FORBIDDEN = "본인 Action 또는 admin만 Next Action 상태를 바꿀 수 있습니다."
 NO_NEXT_ACTION = "Next Action이 없는 Action은 상태를 바꿀 수 없습니다."
-OPEN_WITH_COMMENT = "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."
 NUL_COMMENT = "Comment에는 NUL 문자를 쓸 수 없습니다"
 DUE = "(Due 2026-01-15)"
 
@@ -312,24 +311,20 @@ async def test_action_without_next_action_conflicts_without_change(
     assert await action_env.rows() == rows
 
 
-async def test_open_with_a_comment_is_a_validation_error(action_env: ActionEnv) -> None:
-    """Open으로 되돌리며 Comment를 보내면 422이고 상태·종료 시각·Comment 수·History가 그대로다.
-
-    테스트 코드: NA-006, CM-034
-    """
-    # given: 종료(수행)된 Action
+async def test_reopening_saves_a_comment_and_both_history_entries(action_env: ActionEnv) -> None:
     action = await action_env.act(KIM)
     await action_env.set_status(action.id, KIM, "done")
-    before = await action_env.stored(action.id)
     rows = await action_env.rows()
-    # when·then: 작성자가 open, Comment "되돌림"으로 바꾸면 422 문구다
-    with raises_with(InvalidValueError, OPEN_WITH_COMMENT):
-        await action_env.set_status(action.id, KIM, "open", "되돌림")
-    # then: 상태·종료 시각·Comment 수·History가 그대로다
+
+    await action_env.set_status(action.id, KIM, "open", "  되돌림  ")
+
     stored = await action_env.stored(action.id)
-    assert stored.next_action_state == before.next_action_state
-    assert await _comments_of(action_env, action.id) == []
-    assert await action_env.rows() == rows
+    assert stored.next_action_state == NextActionState.open()
+    assert await _comments_of(action_env, action.id) == ["되돌림"]
+    assert (await action_env.rows())[len(rows) :] == [
+        ("action", "Next Action", f"요구사항 문서 전달 {DUE} · 종료(수행)", "Open"),
+        ("comment", f"Action Comment ({action.acted_on.isoformat()} 미팅)", "", "등록: 되돌림"),
+    ]
 
 
 async def test_open_with_a_blank_comment_is_allowed(action_env: ActionEnv) -> None:

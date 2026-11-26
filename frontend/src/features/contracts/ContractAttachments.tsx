@@ -95,7 +95,14 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
     <section aria-labelledby="contract-files" className="contract-files">
       <h3 id="contract-files">첨부 파일</h3>
       {canWrite && (
-        <form aria-label="파일 업로드" className="dd-upload" onSubmit={submit} noValidate>
+        <form aria-label="파일 업로드" className="contract-upload" onSubmit={submit} noValidate>
+          <label className="field">
+            <span>설명</span>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </label>
+          <span className={count > MAX_FILE_DESCRIPTION ? 'dd-count over' : 'dd-count'}>
+            {count}/{MAX_FILE_DESCRIPTION}
+          </span>
           <label className="field">
             <span>파일</span>
             <input
@@ -107,13 +114,6 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
               }}
             />
           </label>
-          <label className="field">
-            <span>설명</span>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </label>
-          <span className={count > MAX_FILE_DESCRIPTION ? 'dd-count over' : 'dd-count'}>
-            {count}/{MAX_FILE_DESCRIPTION}
-          </span>
           <button type="submit" className="primary" disabled={upload.isPending}>
             업로드
           </button>

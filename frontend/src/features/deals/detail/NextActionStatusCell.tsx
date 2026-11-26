@@ -9,7 +9,6 @@ interface NextActionStatusCellProps {
   /** 행의 Next Action 칸 id. 같은 이름의 버튼을 행별로 구분하도록 설명으로 연결한다(버튼 이름은 그대로). */
   describedBy?: string
   surface: 'table' | 'dialog'
-  /** 종료(수행)·종료(미수행)(전환 포함)는 Comment 종료 대화상자를 거치고, Open으로는 바로 바꾼다. */
   onChange: (action: DealAction, status: NextActionStatus) => void
 }
 

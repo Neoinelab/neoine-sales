@@ -125,7 +125,7 @@ Deal History
 
 Action과의 연동
 - **CM-R14** Action 등록 요청(AC-R2)의 선택 필드 `comment`(문자열, 생략하면 ""): CM-R1(선택)을 통과해 비지 않으면 새 Action의 Action Comment 1건을 같은 트랜잭션에서 만든다(작성자 = 요청자, `created_at` = `updated_at` = 요청 시각 — 수행일과 무관). 판정 위치는 내용 422(AC-R3) 바로 다음, 수행일 422(AC-R35) 앞이다. History는 Action 등록 줄 다음에 Comment 등록 줄(CM-R13, 대상 "Action Comment (<새 Action 수행일> <유형>)")이 같은 시각으로 남는다(그래서 History 맨 위는 Comment 등록 줄). 등록이 어떤 이유로든 거절되면 Comment도 남지 않는다. 예전 `memo` 키는 422 `request-validation`이다. 등록자가 그 순간의 Deal Owner이면 그 Comment는 읽음으로 생긴다(CM-R26).
-- **CM-R15** 종료 Comment: Next Action 상태 변경 본문(NA-R2)의 `memo`가 `comment`(문자열, 생략하면 "")로 바뀐다. 종료 상태로 바꾸며 `comment`가 비지 않으면 그 Action의 Action Comment 1건을 같은 트랜잭션에서 만든다(작성자 = 요청자 — admin이 남의 Action을 닫으면 admin, 시각 = 요청 시각). Action 내용은 바뀌지 않는다. History는 Next Action 줄(NA-R8, 변경 후는 라벨만) 다음에 Comment 등록 줄이 같은 시각으로 남는다. Open으로 되돌리며 비지 않은 `comment`를 보내면 422 `invalid-value` "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."(공백뿐이면 허용). 검사 순서: Comment NUL → Open+Comment → Next Action 없음 409 → 같은 상태 409(NA-R7). 거절되면 Comment가 생기지 않는다. 예전 `memo` 키는 422 `request-validation`이다. Action 등록 때 이전 Next Action 종료(AC-R7 ④)는 Comment를 만들지 않는다. 상태를 바꾸는 사람이 Deal Owner이면 읽음으로 생긴다. admin이나 Owner가 아닌 Action 작성자가 닫으면 읽지 않음으로 생긴다.
+- **CM-R15** Next Action 상태 변경 Comment: Next Action 상태 변경 본문(NA-R2)의 `memo`가 `comment`(문자열, 생략하면 "")로 바뀐다. 종료하거나 Open으로 되돌리며 `comment`가 비지 않으면 그 Action의 Action Comment 1건을 같은 트랜잭션에서 만든다(작성자 = 요청자 — admin이 남의 Action 상태를 변경하면 admin, 시각 = 요청 시각). Action 내용은 바뀌지 않는다. History는 Next Action 줄(NA-R8, 변경 후는 라벨만) 다음에 Comment 등록 줄이 같은 시각으로 남는다. 검사 순서: Comment NUL → Next Action 없음 409 → 같은 상태 409(NA-R7). 거절되면 Comment가 생기지 않는다. 예전 `memo` 키는 422 `request-validation`이다. Action 등록 때 이전 Next Action 종료(AC-R7 ④)는 Comment를 만들지 않는다. 상태를 바꾸는 사람이 Deal Owner이면 읽음으로 생긴다. admin이나 Owner가 아닌 Action 작성자가 상태를 바꾸면 읽지 않음으로 생긴다.
 - **CM-R16** Action 삭제(AC-R16): 그 Action의 Action Comment가 DB CASCADE로 같은 트랜잭션에서 함께 지워진다. Deal Comment와 다른 Action의 Comment는 그대로다. Action 삭제 History 줄의 변경 후는 함께 지운 Comment가 없으면 "삭제", 1건 이상이면 "삭제 (Comment <N>건 함께 삭제)"다.
 - **CM-R17** Action 수정(AC-R13)은 Comment를 바꾸지 않는다. 수정 요청의 `memo`·`comment` 키는 422 `request-validation`이다. Action 응답(AC-R20)에는 `memo`도 Comment 필드도 없다(Comment는 CM-R7로 읽고, 읽지 않은 수는 CM-R29로 읽는다).
 - **CM-R18** Deal 삭제(DD-R25): 그 Deal 소속 Comment 전부가 함께 지워진다. `GET /deals/{code}/deletion-impact` 응답에 `comment_count`(그 Deal 소속 Comment 수, 다른 Deal 제외)가 추가된다(DD-R22).
@@ -280,7 +280,7 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
   - 예전 Memo 줄은 없다.
   - 요청 중(저장·삭제)에는 팝업의 "닫기"·"삭제"가 꺼지고 Esc를 무시한다(AC-R50과 같음).
 - **CM-R42** Action 추가 팝업(AC-R23)에는 Comment 칸(라벨 "Comment", 여러 줄, 선택)이 있다. 등록 요청의 `comment`로 보낸다(AC-R32). Owner가 등록하면 읽음으로, 다른 사람이 등록하면 읽지 않음으로 생긴다.
-- **CM-R43** 종료 대화상자(NA-R22)의 글 칸은 "Comment에 남길 내용(선택)"이고, 요청의 `comment`로 보낸다(NA-R30). 성공 뒤 상세 팝업이 열려 있으면 Comment 영역 맨 위에 새 Comment가 보인다.
+- **CM-R43** 상태 변경 대화상자(NA-R22·R23)의 글 칸은 "Comment에 남길 내용(선택)"이고, 요청의 `comment`로 보낸다(NA-R30). 성공 뒤 상세 팝업이 열려 있으면 Comment 영역 맨 위에 새 Comment가 보인다.
 - **CM-R44** 캐시:
   - Comment 작성·삭제가 성공하면 그 Deal의 Comment 목록, 읽지 않은 수, Deal History와 Deal 목록(모든 조건, 키 `['deals','list']`)을 다시 읽는다(목록 배지 CM-R48, 2026-11-18). Deal 상세 응답은 화면이 이 값을 쓰지 않으므로 다시 읽지 않는다. Action 목록도 다시 읽지 않는다.
   - Action 등록·삭제·상태 변경이 성공하면 기존 무효화(AC·NA)에 Comment 목록과 읽지 않은 수를 더한다.
@@ -321,7 +321,6 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | 연결 Action이 이 Deal에 없음 | 422 `invalid-value` | 선택한 Action이 이 Deal에 없습니다. |
 | 없는 Comment | 404 `not-found` | Comment를 찾을 수 없습니다. |
 | 남의 Comment 삭제 | 403 `forbidden` | 본인 Comment 또는 admin만 삭제할 수 있습니다. |
-| Open으로 되돌리며 Comment | 422 `invalid-value` | Open으로 되돌릴 때는 Comment를 남길 수 없습니다. |
 | 없는 Deal | 404 `not-found` | Deal을 찾을 수 없습니다. |
 | user 쓰기 | 403 `forbidden` | PL-R6 문구 |
 | 요청 형식(모르는 키·`memo` 포함) | 422 `request-validation` | PL 형식 |
@@ -366,10 +365,10 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - 기본 흐름: `POST /deals/{code}/actions`에 `comment` → Action과 Action Comment가 한 번에 저장, History는 Action 등록 → Comment 등록 순(CM-R14)
 - 예외: Comment NUL 422, 등록이 다른 이유로 거절되면 Comment도 없음
 
-### CM-UC7 Next Action을 종료하며 Comment 남기기
+### CM-UC7 Next Action의 상태를 바꾸며 Comment 남기기
 - 행위자: Action 작성자 sales, admin
-- 기본 흐름: `PUT /deal-actions/{id}/next-action-status` `{status: done|not_done, comment}` → 상태 변경과 Action Comment 1건, History는 Next Action 줄 → Comment 등록 줄(CM-R15)
-- 예외: Open + Comment 422, 같은 상태 409(Comment 없음)
+- 기본 흐름: `PUT /deal-actions/{id}/next-action-status` `{status: open|done|not_done, comment}` → 상태 변경과 Action Comment 1건, History는 Next Action 줄 → Comment 등록 줄(CM-R15)
+- 예외: NUL이 포함된 Comment는 422, 같은 상태는 409(Comment 없음)
 
 ### CM-UC8 Action·Deal 삭제와 Comment
 - 행위자: Action 삭제 권한자(AC-R17), Deal 삭제 권한자(DD)
@@ -445,8 +444,8 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 | CM-031 | 종료 Comment와 함께 Next Action을 종료하면 Action Comment 1건이 생기고 Action 내용은 그대로다 | CM-R15, CM-UC7 | backend | `application/test_change_next_action_status.py`, `domain/test_deal_comment_values.py`, `domain/test_next_action_status.py`, `web/test_deal_action_routes.py`, `web/test_next_action_status_request.py` |
 | CM-032 | admin이 남의 Action을 종료 Comment와 함께 닫으면 Comment 작성자는 admin이다 | CM-R15, CM-UC7 | backend | `application/test_change_next_action_comment.py` |
 | CM-033 | 종료 Comment를 생략·빈 값·공백으로 보내면 Comment가 없고 Next Action 이력만 남는다 | CM-R15, CM-UC7 | backend | `application/test_change_next_action_status.py`, `application/test_next_action_status_filter.py`, `domain/test_deal_comment_values.py`, `domain/test_next_action_status.py`, `web/test_next_action_status_request.py` |
-| CM-034 | Open으로 되돌리며 Comment를 보내면 422이고 공백뿐인 Comment는 허용된다 | CM-R15, CM-UC7 | backend | `application/test_change_next_action_status.py` |
-| CM-035 | 종료 Comment 검사는 NUL → Open+Comment → Next Action 없음 → 같은 상태 순서이고 거절되면 Comment가 없다 | CM-R15, CM-R1 | backend | `application/test_change_next_action_comment.py`, `domain/test_deal_comment_values.py` |
+| CM-034 | Open으로 되돌리며 Comment를 저장하고 공백뿐이면 Comment를 남기지 않는다 | CM-R15, CM-UC7 | backend | `application/test_change_next_action_status.py` |
+| CM-035 | 종료 Comment 검사는 NUL → Next Action 없음 → 같은 상태 순서이고 거절되면 Comment가 없다 | CM-R15, CM-R1 | backend | `application/test_change_next_action_comment.py`, `domain/test_deal_comment_values.py` |
 | CM-036 | 상태 변경 요청의 memo 키는 422 request-validation이다 | CM-R15 | backend | `web/test_deal_action_routes.py`, `web/test_next_action_status_request.py` |
 | CM-037 | Action을 지우면 그 Action Comment만 함께 지워지고 이력에 함께 지운 건수가 붙는다 | CM-R16, CM-UC8 | backend | `application/test_delete_deal_action.py`, `domain/test_action_history.py`, `repositories/test_deal_comment_repository_contract.py` |
 | CM-038 | Action 수정은 Comment를 바꾸지 않고 Action 응답에 memo가 없다 | CM-R17 | backend | `application/test_update_deal_action.py`, `domain/test_action_content.py` |
@@ -638,15 +637,15 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - When KIM이 A를 `{"status": "done"}`으로 바꾸고, 다른 Open Action 둘을 `comment` `""`·`"   "`로 바꾼다
 - Then 모두 200이고 Comment가 생기지 않으며 각각 History는 Next Action 줄 1건뿐이고 변경 후는 "종료(수행)"이다
 
-### CM-034 Open으로 되돌리며 Comment를 보내면 422이고 공백뿐인 Comment는 허용된다
+### CM-034 Open으로 되돌리며 Comment를 저장하고 공백뿐이면 Comment를 남기지 않는다
 - Given 종료(수행)된 KIM의 Action
-- When KIM이 `{"status": "open", "comment": "되돌림"}`, 이어서 `{"status": "open", "comment": "   "}`로 바꾼다
-- Then 첫째는 422 `invalid-value` "Open으로 되돌릴 때는 Comment를 남길 수 없습니다."이고 상태·Comment·History가 그대로다. 둘째는 200 Open이고 Comment가 없다
+- When KIM이 종료된 두 Action을 Open으로 되돌리며 각각 `comment`에 "되돌림"과 공백만 보낸다
+- Then 둘 다 Open으로 바뀐다. 첫째 Action에만 Comment "되돌림"과 Comment 등록 이력이 남는다
 
-### CM-035 종료 Comment 검사는 NUL → Open+Comment → Next Action 없음 → 같은 상태 순서이고 거절되면 Comment가 없다
+### CM-035 종료 Comment 검사는 NUL → Next Action 없음 → 같은 상태 순서이고 거절되면 Comment가 없다
 - Given 진행사항만 Action P, Open Action A, 종료(수행) Action Q
 - When KIM이 P에 `open`+"메모", A에 `open`+"가\x00나", Q에 `done`+"또 종료"를 보낸다
-- Then P는 422(Open+Comment, 409 아님), A는 422 NUL(같은 상태 409 아님), Q는 409 "이미 종료(수행) 상태입니다."이고 세 경우 모두 Comment가 생기지 않는다
+- Then P는 Next Action이 없어 409, A는 422 NUL(같은 상태 409 아님), Q는 409 "이미 종료(수행) 상태입니다."이고 세 경우 모두 Comment가 생기지 않는다
 
 ### CM-036 상태 변경 요청의 memo 키는 422 request-validation이다
 - When KIM이 A에 `{"status": "done", "memo": "전달 완료"}`를 보낸다
