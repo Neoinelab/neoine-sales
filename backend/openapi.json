@@ -3119,11 +3119,12 @@
       },
       "DirectorySettingsRequest": {
         "additionalProperties": false,
-        "description": "최초 설정 본문: 바인드 비밀번호 필수.",
         "properties": {
           "bind_account": {
+            "format": "password",
             "title": "Bind Account",
-            "type": "string"
+            "type": "string",
+            "writeOnly": true
           },
           "bind_password": {
             "format": "password",
@@ -3156,30 +3157,17 @@
           "host",
           "port",
           "security",
-          "bind_account",
           "user_filter",
+          "bind_account",
           "bind_password"
         ],
         "title": "DirectorySettingsRequest",
         "type": "object"
       },
       "DirectorySettingsResponse": {
-        "description": "저장된 설정. 비밀번호는 어떤 형태로도 담지 않는다.",
         "properties": {
           "base_dn": {
             "title": "Base Dn",
-            "type": "string"
-          },
-          "bind_account": {
-            "title": "Bind Account",
-            "type": "string"
-          },
-          "bind_credential_status": {
-            "enum": [
-              "ok",
-              "unreadable"
-            ],
-            "title": "Bind Credential Status",
             "type": "string"
           },
           "connect_timeout_seconds": {
@@ -3225,8 +3213,6 @@
           "host",
           "port",
           "security",
-          "bind_account",
-          "bind_credential_status",
           "user_filter",
           "connect_timeout_seconds",
           "base_dn",
@@ -3237,27 +3223,9 @@
         "title": "DirectorySettingsResponse",
         "type": "object"
       },
-      "DirectorySettingsTestRequest": {
+      "DirectorySettingsSaveRequest": {
         "additionalProperties": false,
-        "description": "연결 테스트 본문: 접속 정보 + 바인드 비밀번호(생략·null이면 저장된 값 유지) +\n현재 로그인한 admin의 비밀번호(스키마상 선택이지만 없으면 유스케이스가 422로 거절).",
         "properties": {
-          "bind_account": {
-            "title": "Bind Account",
-            "type": "string"
-          },
-          "bind_password": {
-            "anyOf": [
-              {
-                "format": "password",
-                "type": "string",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bind Password"
-          },
           "connect_timeout_seconds": {
             "default": 5,
             "title": "Connect Timeout Seconds",
@@ -3267,18 +3235,57 @@
             "title": "Host",
             "type": "string"
           },
-          "password": {
-            "anyOf": [
-              {
-                "format": "password",
-                "type": "string",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Password"
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "security": {
+            "$ref": "#/components/schemas/SecurityMode"
+          },
+          "test_token": {
+            "format": "password",
+            "title": "Test Token",
+            "type": "string",
+            "writeOnly": true
+          },
+          "user_filter": {
+            "title": "User Filter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "security",
+          "user_filter",
+          "test_token"
+        ],
+        "title": "DirectorySettingsSaveRequest",
+        "type": "object"
+      },
+      "DirectorySettingsTestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bind_account": {
+            "format": "password",
+            "title": "Bind Account",
+            "type": "string",
+            "writeOnly": true
+          },
+          "bind_password": {
+            "format": "password",
+            "title": "Bind Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "connect_timeout_seconds": {
+            "default": 5,
+            "title": "Connect Timeout Seconds",
+            "type": "integer"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
           },
           "port": {
             "title": "Port",
@@ -3296,33 +3303,16 @@
           "host",
           "port",
           "security",
+          "user_filter",
           "bind_account",
-          "user_filter"
+          "bind_password"
         ],
         "title": "DirectorySettingsTestRequest",
         "type": "object"
       },
       "DirectorySettingsUpdateRequest": {
         "additionalProperties": false,
-        "description": "저장 본문: 테스트 본문 + 낙관적 잠금용 revision(키 필수, null이면 설정 없을 때 생성).",
         "properties": {
-          "bind_account": {
-            "title": "Bind Account",
-            "type": "string"
-          },
-          "bind_password": {
-            "anyOf": [
-              {
-                "format": "password",
-                "type": "string",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bind Password"
-          },
           "connect_timeout_seconds": {
             "default": 5,
             "title": "Connect Timeout Seconds",
@@ -3344,25 +3334,18 @@
             "title": "Host",
             "type": "string"
           },
-          "password": {
-            "anyOf": [
-              {
-                "format": "password",
-                "type": "string",
-                "writeOnly": true
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Password"
-          },
           "port": {
             "title": "Port",
             "type": "integer"
           },
           "security": {
             "$ref": "#/components/schemas/SecurityMode"
+          },
+          "test_token": {
+            "format": "password",
+            "title": "Test Token",
+            "type": "string",
+            "writeOnly": true
           },
           "user_filter": {
             "title": "User Filter",
@@ -3373,8 +3356,8 @@
           "host",
           "port",
           "security",
-          "bind_account",
           "user_filter",
+          "test_token",
           "expected_revision"
         ],
         "title": "DirectorySettingsUpdateRequest",
@@ -3411,13 +3394,25 @@
           "success": {
             "title": "Success",
             "type": "boolean"
+          },
+          "test_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Token"
           }
         },
         "required": [
           "success",
           "stage",
           "message",
-          "base_dn"
+          "base_dn",
+          "test_token"
         ],
         "title": "DirectoryTestResultResponse",
         "type": "object"
@@ -8053,7 +8048,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DirectorySettingsRequest"
+                "$ref": "#/components/schemas/DirectorySettingsSaveRequest"
               }
             }
           },

@@ -1,8 +1,7 @@
 import { BIND_PASSWORD } from '../../directoryFixtures'
 import { describe, expect, it } from 'vitest'
-import { dealCode, expectApiError, mockAs, newMock, TEST_NOW } from '../testing'
+import { dealCode, expectApiError, mockAs, TEST_NOW } from '../testing'
 import { NO_SUCH_ID, USER_ID } from '../seed/ids'
-import { SEED_PASSWORD } from '../seed/users'
 
 describe('codes', () => {
   // 코드 변경은 admin만 할 수 있고 읽기는 모든 역할이 한다.
@@ -326,91 +325,37 @@ describe('settings', () => {
     }
   })
 
-  // AD 설정 저장은 revision을 올리고 수정자·시각을 기록하며 비밀번호를 응답에 싣지 않는다.
-  it('AD 설정 저장은 revision을 올리고 수정자·시각을 기록하며 비밀번호는 응답에 없다', async () => {
-    // given: admin 로그인과 저장된 AD 설정
+  it('stores endpoint settings using a successful proof without credentials', async () => {
     const { gateway } = await mockAs('root')
     const before = await gateway.settings.getDirectory()
-    expect(before).toMatchObject({ host: 'dc1.corp.test', port: 636, security: 'ssl', bindCredentialStatus: 'ok', baseDn: 'dc=corp,dc=test' })
-    // when: 비밀번호를 생략하고 타임아웃을 바꿔 저장한다
-    const saved = await gateway.settings.saveDirectory({ ...validInput, bindPassword: null, connectTimeoutSeconds: 9 }, { password: SEED_PASSWORD, expectedRevision: before?.revision ?? 1 })
-    // then: revision이 1 오르고 수정자·시각이 기록되며 응답에 비밀번호가 없다
-    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, connectTimeoutSeconds: 9, baseDn: 'dc=corp,dc=test', bindCredentialStatus: 'ok', updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root } })
-    expect(JSON.stringify(saved)).not.toContain(validInput.bindPassword)
-    expect(Object.keys(saved).some((key) => /password/i.test(key))).toBe(false)
+    const input = { ...validInput, connectTimeoutSeconds: 9 }
+    const tested = await gateway.settings.testDirectory(input)
+    const saved = await gateway.settings.saveDirectory({ ...input, testToken: tested.testToken }, { expectedRevision: before?.revision ?? 1 })
+    expect(saved).toMatchObject({ revision: (before?.revision ?? 0) + 1, connectTimeoutSeconds: 9, updatedAt: TEST_NOW, updatedBy: { id: USER_ID.root } })
+    expect(saved).not.toHaveProperty('bindAccount')
+    expect(JSON.stringify(saved)).not.toContain(BIND_PASSWORD)
   })
-
-  // AD 설정 저장은 필수 값·포트·타임아웃 범위를 검증한다.
-  it('AD 설정 저장 검증: 필수 값·포트·타임아웃 범위는 422', async () => {
-    // given: admin 로그인
-    const { gateway } = await mockAs('root')
-    const keep = { ...validInput, bindPassword: null }
-    // when·then: 호스트 비움·계정 비움·포트 0·65536·타임아웃 31로 저장한다 → 모두 422다
-    await expectApiError(gateway.settings.saveDirectory({ ...keep, host: '' }, { password: null, expectedRevision: 1 }), 422)
-    await expectApiError(gateway.settings.saveDirectory({ ...keep, bindAccount: '' }, { password: null, expectedRevision: 1 }), 422)
-    await expectApiError(gateway.settings.saveDirectory({ ...keep, port: 0 }, { password: null, expectedRevision: 1 }), 422)
-    await expectApiError(gateway.settings.saveDirectory({ ...keep, port: 65536 }, { password: null, expectedRevision: 1 }), 422)
-    await expectApiError(gateway.settings.saveDirectory({ ...keep, connectTimeoutSeconds: 31 }, { password: null, expectedRevision: 1 }), 422)
-  })
-
-  // 서버나 계정을 바꾸면서 바인드 비밀번호를 생략하면 거절한다.
-  it('서버·바인드 계정을 바꾸면서 바인드 비밀번호를 생략하면 422(비밀번호 재입력)', async () => {
-    // given: admin 로그인과 저장된 AD 설정
+  it('requires a new test after endpoint edits and preserves the existing revision', async () => {
     const { gateway } = await mockAs('root')
     const before = await gateway.settings.getDirectory()
-    const auth = { password: SEED_PASSWORD, expectedRevision: before?.revision ?? 1 }
-    // when: 호스트·포트·보안 연결·계정을 하나씩 바꾸고 비밀번호는 생략해 저장한다
-    for (const change of [{ host: 'dc9.corp.test' }, { port: 3269 }, { security: 'starttls' as const }, { bindAccount: 'CORP\\other' }]) {
-      await expectApiError(gateway.settings.saveDirectory({ ...validInput, bindPassword: null, ...change }, auth), 422, /비밀번호/)
+    const tested = await gateway.settings.testDirectory(validInput)
+    for (const change of [{ host: 'other.corp.test' }, { port: 389 }, { security: 'starttls' as const }, { userFilter: '(uid={login_id})' }, { connectTimeoutSeconds: 9 }]) {
+      await expectApiError(gateway.settings.saveDirectory({ ...validInput, ...change, testToken: tested.testToken }, { expectedRevision: before?.revision ?? 1 }), 422)
     }
-    // then: 모두 422(비밀번호 재입력)이고 revision은 그대로다
     expect((await gateway.settings.getDirectory())?.revision).toBe(before?.revision)
   })
-
-  // 새 바인드 비밀번호를 주면 서버를 바꿔 저장할 수 있다.
-  it('새 바인드 비밀번호를 주면 서버를 바꿔 저장할 수 있다', async () => {
-    // given: admin 로그인과 저장된 AD 설정
+  it('rejects stale revisions and failed test connections', async () => {
     const { gateway } = await mockAs('root')
-    const before = await gateway.settings.getDirectory()
-    // when: 새 호스트와 새 바인드 비밀번호로 저장한다
-    const saved = await gateway.settings.saveDirectory({ ...validInput, host: 'dc9.corp.test' }, { password: SEED_PASSWORD, expectedRevision: before?.revision ?? 1 })
-    // then: 호스트가 바뀌고 자격 증명 상태는 ok다
-    expect(saved).toMatchObject({ host: 'dc9.corp.test', bindCredentialStatus: 'ok' })
+    const tested = await gateway.settings.testDirectory(validInput)
+    await expectApiError(gateway.settings.saveDirectory({ ...validInput, testToken: tested.testToken }, { expectedRevision: 2 }), 409)
+    await expectApiError(gateway.settings.testDirectory({ ...validInput, host: 'fail.test' }), 422)
   })
+})
 
-  // expectedRevision이 null이면 설정이 없을 때만 새로 만든다.
-  it('expectedRevision이 null이면 설정이 없을 때만 새로 만든다(비밀번호 필수), 있으면 409', async () => {
-    // given: 설정이 없는 최초 설정 상태의 admin
-    const mock = newMock()
-    const { gateway } = mock
-    mock.control.restartSetup()
-    await mock.gateway.auth.login('root', SEED_PASSWORD)
-    // when·then: 비밀번호 없이·있이 새로 만들고 한 번 더 만든다 → 비밀번호 없으면 422, 만들면 revision 1, 이미 있으면 409다
-    await expectApiError(gateway.settings.saveDirectory({ ...validInput, bindPassword: null }, { password: SEED_PASSWORD, expectedRevision: null }), 422, /비밀번호/)
-    const created = await gateway.settings.saveDirectory(validInput, { password: SEED_PASSWORD, expectedRevision: null })
-    expect(created.revision).toBe(1)
-    await expectApiError(gateway.settings.saveDirectory(validInput, { password: SEED_PASSWORD, expectedRevision: null }), 409)
-  })
-
-  // 연결 테스트는 성공하면 찾은 Base DN을, 실패하면 connect 단계 오류를 돌려준다.
-  it('연결 테스트: 성공하면 찾은 Base DN을 돌려주고, 호스트에 fail이 들어가면 directory-verification-failed(stage connect)', async () => {
-    // given: admin 로그인
-    const { gateway } = await mockAs('root')
-    // when: 정상 호스트와 fail 호스트로 연결 테스트한다
-    const result = await gateway.settings.testDirectory(validInput, SEED_PASSWORD)
-    // then: 정상은 Base DN을 돌려주고 fail은 directory-verification-failed(stage connect) 422다
-    expect(result).toEqual({ baseDn: 'dc=corp,dc=test' })
-    const error = await expectApiError(gateway.settings.testDirectory({ ...validInput, host: 'fail.corp.test' }, SEED_PASSWORD), 422, /연결 단계에서 실패했습니다/)
-    expect(error.kind).toBe('directory-verification-failed')
-    expect(error.stage).toBe('connect')
-  })
-
-  // 파일 저장 위치는 절대 경로만 받고 쓸 수 없는 위치는 거절하며 테스트는 저장하지 않는다.
-  it('파일 저장 위치: 절대 경로 아니면 422, /readonly는 쓰기 실패, 테스트는 저장하지 않는다', async () => {
-    // given: admin 로그인과 기본 저장 위치
+describe('storage settings', () => {
+  it('validates storage paths and changes the location only when saved', async () => {
     const { gateway } = await mockAs('root')
     expect((await gateway.settings.getStorage())?.path).toBe('/data/neoine-sales/files')
-    // when·then: 상대 경로·읽기 전용 경로로 저장하고 새 경로를 테스트한 뒤 저장한다 → 상대 경로는 422, 읽기 전용은 쓰기 실패 422, 테스트는 저장하지 않고 저장하면 바뀐다
     await expectApiError(gateway.settings.saveStorage('files'), 422, '절대 경로를 입력하세요.')
     await expectApiError(gateway.settings.testStorage('files'), 422, '절대 경로를 입력하세요.')
     await expectApiError(gateway.settings.saveStorage('/readonly/x'), 422, '해당 위치에 쓸 수 없습니다.')

@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 from app.application.auth.messages import DIRECTORY_MODE_ONLY
-from app.domain.auth.credentials import Password
 from app.domain.auth.mode import AuthMode
 from app.domain.common.errors import InvalidStateError, NotFoundError
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.settings import DirectorySettingsDraft
-from tests.factories_directory import make_directory_connection
-from tests.fakes.admin_stack import ADMIN_ACTOR, ADMIN_PASSWORD, OTHER_ADMIN_ACTOR
+from tests.factories_directory import make_directory_connection, make_directory_settings
+from tests.fakes.admin_stack import ADMIN_ACTOR, OTHER_ADMIN_ACTOR
 from tests.support.auth_seed import seed_auth_mode, seed_directory
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ IP = "10.0.0.1"
 def _draft() -> DirectorySettingsDraft:
     return DirectorySettingsDraft(
         connection=make_directory_connection(host="dc2.corp.test"),
-        bind_password=Password("New-bind-pw-2!"),
+        test_token=SealedSecret("not-a-proof"),
     )
 
 
@@ -52,8 +52,6 @@ async def test_update_directory_settings_in_local_mode_is_invalid_state(
             actor=OTHER_ADMIN_ACTOR,
             draft=_draft(),
             expected_revision=None,
-            password=None,
-            client_ip=IP,
         )
 
     assert str(caught.value) == DIRECTORY_MODE_ONLY
@@ -81,8 +79,6 @@ async def test_update_directory_settings_in_local_mode_keeps_an_old_row_unchange
             actor=ADMIN_ACTOR,
             draft=_draft(),
             expected_revision=stored.revision,
-            password=Password(ADMIN_PASSWORD),
-            client_ip=IP,
         )
 
     # then: InvalidStateError이고 행은 그대로다
@@ -101,9 +97,7 @@ async def test_test_directory_settings_in_local_mode_is_invalid_state(
     with pytest.raises(InvalidStateError) as caught:
         await admin.test_settings.execute(
             actor=ADMIN_ACTOR,
-            draft=_draft(),
-            password=Password(ADMIN_PASSWORD),
-            client_ip=IP,
+            settings=make_directory_settings(),
         )
 
     # then: 고정 문구의 InvalidStateError이고 AD 탐색 호출이 0회다

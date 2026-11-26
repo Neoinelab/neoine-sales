@@ -19,7 +19,6 @@ from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError, InvalidValueError
 from tests.factories import NOW
-from tests.factories_auth import BIND_PASSWORD
 from tests.fakes.auth_stack import MAX_PER_ACCOUNT
 from tests.support.auth_seed import (
     account_key,
@@ -91,7 +90,7 @@ async def test_an_ad_verified_account_becomes_the_first_admin_and_is_signed_in(
     call = auth.directory.authenticate_calls[0]
     assert (call.settings.connection, call.base_dn) == (stored.connection, stored.base_dn)
     assert call.password == "pw-kim"  # noqa: S105 - 가짜 값
-    assert call.settings.bind_password.reveal() == BIND_PASSWORD
+    assert call.settings.credentials is None
     # then: 진행 상태는 모두 끝났고 AD 설정이 있으며 실패 횟수는 없다
     status = await auth.status.execute()
     assert (status.needs_directory_setup, status.needs_storage_setup, status.needs_admin_setup) == (
@@ -168,7 +167,8 @@ async def test_a_directory_outage_is_raised_without_fallback_and_not_counted(
     # 비밀번호를 복호화할 수 없다
     if isinstance(failure, DirectoryCredentialUnreadableError):
         await seed_auth_mode(uow_factory, AuthMode.AD)
-        await seed_directory(uow_factory, unreadable=True)
+        await seed_directory(uow_factory)
+        auth.directory.authenticate_fails_with = failure
         await seed_storage(uow_factory)
     else:
         await seed_setup_prerequisites(uow_factory)

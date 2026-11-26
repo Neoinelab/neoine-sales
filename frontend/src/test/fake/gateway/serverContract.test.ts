@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import { LOCKED_KEYS } from '../../../shared/model/constants'
 import { expectApiError, mockAs } from '../testing'
 import { BIND_PASSWORD } from '../../directoryFixtures'
-import { SEED_PASSWORD } from '../seed/users'
 
 describe('auth.config', () => {
   it('mock은 설정이 끝난 시스템의 인증 방식만 알려 준다(빠른 로그인 항목 없음)', async () => {
@@ -128,7 +127,7 @@ describe('AD 설정 저장·테스트 인자', () => {
     const before = await gateway.settings.getDirectory()
 
     // when: 비밀번호와 expectedRevision을 넘겨 저장한다
-    const saved = await gateway.settings.saveDirectory({ ...input, bindPassword: null }, { password: SEED_PASSWORD, expectedRevision: before?.revision ?? 1 })
+    const saved = await gateway.settings.saveDirectory({ ...input, ...await gateway.settings.testDirectory(input) }, { expectedRevision: before?.revision ?? 1 })
 
     // then: revision이 1 오른다
     expect(saved.revision).toBe((before?.revision ?? 0) + 1)
@@ -139,12 +138,12 @@ describe('AD 설정 저장·테스트 인자', () => {
     const { gateway } = await mockAs('root')
 
     // when: 비밀번호와 함께 테스트한다
-    const result = await gateway.settings.testDirectory(input, SEED_PASSWORD)
+    const result = await gateway.settings.testDirectory(input)
 
     // then: baseDn이 돌아온다
-    expect(result).toEqual({ baseDn: expect.any(String) })
+    expect(result).toEqual({ baseDn: expect.any(String), testToken: expect.any(String) })
 
     // when·then: 실패하는 호스트로 테스트하면 422다
-    await expectApiError(gateway.settings.testDirectory({ ...input, host: 'fail.test' }, SEED_PASSWORD), 422)
+    await expectApiError(gateway.settings.testDirectory({ ...input, host: 'fail.test' }), 422)
   })
 })

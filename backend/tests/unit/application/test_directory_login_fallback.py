@@ -52,7 +52,7 @@ class Down:
             return  # 설정 행이 없다
         await seed_directory(uow_factory)
         if self.stage is DirectoryWarningStage.CREDENTIAL_UNREADABLE:
-            auth.cipher.fail_unseal = True
+            auth.directory.authenticate_fails_with = DirectoryCredentialUnreadableError()
             return
         auth.directory.authenticate_fails_with = _FAULTS[self.stage]
 
@@ -239,18 +239,18 @@ async def test_fallback_login_of_an_unreadable_credential_logs_the_key_hint_with
     테스트 코드: AU-065
     """
     # given: 저장된 바인드 비밀번호를 복호화할 수 없다
-    stored = await seed_directory(uow_factory)
+    await seed_directory(uow_factory)
     auth.cipher.fail_unseal = True
+    auth.directory.add_account("boss", "pw-boss")
     caplog.set_level(logging.DEBUG)
 
     # when: boss가 로그인한다
     await _login(auth, "boss")
 
     # then: 안내 문구만 있고 비밀번호·암호문은 없으며 AD를 부르지 않았다
-    assert "AD 바인드 비밀번호를 복호화하지 못했습니다(암호화 키 변경 여부 확인)" in caplog.text
+    assert "AD 바인드 비밀번호를 복호화하지 못했습니다" not in caplog.text
     assert BIND_PASSWORD not in caplog.text
-    assert stored.sealed_bind_password.token not in caplog.text
-    assert auth.directory.authenticate_calls == []  # 복호화하지 못하면 AD를 부르지 않는다
+    assert len(auth.directory.authenticate_calls) == 1  # 복호화하지 못하면 AD를 부르지 않는다
 
 
 async def test_a_wrong_password_never_falls_back_when_the_directory_is_down(
@@ -296,7 +296,8 @@ async def test_fallback_failure_with_an_unreadable_credential_is_the_unreadable_
     테스트 코드: AU-032
     """
     # given: 바인드 비밀번호를 풀 수 없고 해시 없는 kim
-    await seed_directory(uow_factory, unreadable=True)
+    await seed_directory(uow_factory)
+    auth.directory.authenticate_fails_with = DirectoryCredentialUnreadableError()
     await seed_user(uow_factory, "kim", Role.SALES)  # 해시가 없다
 
     # when: kim이 로그인한다

@@ -10,7 +10,9 @@ from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
-from tests.factories_directory import make_directory_settings
+from app.domain.common.secret import SealedSecret
+from app.domain.directory.settings import DirectorySettingsDraft
+from tests.factories_directory import make_directory_connection
 from tests.support.auth_seed import (
     active_admin_logins,
     seed_auth_mode,
@@ -29,7 +31,12 @@ Operation = Callable[["AuthStack", "StorageStack"], Awaitable[None]]
 
 
 async def _register_directory(auth: AuthStack, _: StorageStack) -> None:
-    await auth.register_directory.execute(make_directory_settings(host="dc9.corp.test"))
+    await auth.register_directory.execute(
+        DirectorySettingsDraft(
+            make_directory_connection(host="dc9.corp.test"),
+            SealedSecret("invalid-proof"),
+        )
+    )
 
 
 async def _register_storage(_: AuthStack, storage: StorageStack) -> None:

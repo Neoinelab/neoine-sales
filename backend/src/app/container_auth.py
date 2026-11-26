@@ -12,6 +12,8 @@ from app.application.auth.logout import Logout
 from app.application.auth.setup_directory import RegisterSetupDirectory, TestSetupDirectory
 from app.application.auth.setup_first_admin import SetupFirstAdmin
 from app.application.auth.throttle import LoginThrottle
+from app.application.directory.connection_proof import DirectoryConnectionProof
+from app.application.directory.verify_settings import VerifyDirectorySettings
 from app.domain.auth.login_failure import FailurePolicy
 
 if TYPE_CHECKING:
@@ -48,7 +50,8 @@ class AuthAssembly:
         self._uow_factory = uow_factory
         self._clock = clock
         self._directory = directory
-        self._cipher = cipher
+        self._proof = DirectoryConnectionProof(cipher, clock)
+        self._verify = VerifyDirectorySettings(directory, self._proof)
         self._deps = AuthDeps(uow_factory, clock, directory, throttle, cipher, hasher)
         self._issue_session = IssueSession(
             uow_factory, clock, timedelta(hours=settings.session_ttl_hours)
@@ -62,10 +65,10 @@ class AuthAssembly:
         return GetAuthStatus(self._uow_factory)
 
     def register_setup_directory(self) -> RegisterSetupDirectory:
-        return RegisterSetupDirectory(self._uow_factory, self._clock, self._directory, self._cipher)
+        return RegisterSetupDirectory(self._uow_factory, self._clock, self._proof)
 
     def test_setup_directory(self) -> TestSetupDirectory:
-        return TestSetupDirectory(self._uow_factory, self._directory)
+        return TestSetupDirectory(self._uow_factory, self._verify)
 
     def setup_first_admin(self) -> SetupFirstAdmin:
         return SetupFirstAdmin(self._deps, self._issue_session)

@@ -16,7 +16,7 @@ from app.application.auth.issue_session import IssuedSession
 from app.application.auth.messages import FALLBACK_MESSAGES
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidValueError
-from app.domain.directory.settings import DirectorySettings, DirectorySettingsDraft, SecurityMode
+from app.domain.directory.settings import DirectorySettings, SecurityMode
 from app.web.schemas.auth import (
     DirectoryWarningResponse,
     LoginResponse,
@@ -67,8 +67,9 @@ def test_setup_request_converts_to_domain_settings() -> None:
     assert isinstance(settings, DirectorySettings)
     assert (settings.connection.host, settings.connection.port) == ("dc1.corp.test", 636)
     assert settings.connection.security is SecurityMode.SSL
-    assert settings.connection.bind_account == BIND_ACCOUNT
-    assert settings.bind_password.reveal() == BIND_PASSWORD
+    assert settings.credentials is not None
+    assert settings.credentials.account == BIND_ACCOUNT
+    assert settings.credentials.password.reveal() == BIND_PASSWORD
     assert BIND_PASSWORD not in repr(request)  # SecretStr 마스킹
 
 
@@ -197,40 +198,21 @@ def test_value_violations_are_domain_errors_naming_the_field(
     assert field in str(caught.value)
 
 
-def test_test_request_without_bind_password_means_keep() -> None:
-    """연결 테스트 요청에 바인드 비밀번호가 없으면 저장된 값을 유지한다는 뜻이다."""
-    # given: 바인드 비밀번호 없는 테스트 요청
-    request = DirectorySettingsTestRequest.model_validate(_body())
-
-    # when: 초안으로 바꾼다
-    draft = request.to_draft()
-
-    # then: 초안의 비밀번호와 별도 비밀번호가 None이다
-    assert isinstance(draft, DirectorySettingsDraft)
-    assert draft.bind_password is None
-    assert request.to_password() is None
-
-
-def test_test_request_with_null_bind_password_also_means_keep() -> None:
-    """바인드 비밀번호가 null이어도 저장된 값을 유지한다는 뜻이다."""
-    # when: 초안으로 바꾼다
-    draft = DirectorySettingsTestRequest.model_validate(_body(bind_password=None)).to_draft()
-
-    # then: 초안의 비밀번호가 None이다
-    assert draft.bind_password is None
+@pytest.mark.parametrize("value", [None, ""])
+def test_test_request_requires_credentials(value: str | None) -> None:
+    if value is None:
+        with pytest.raises(ValidationError):
+            DirectorySettingsTestRequest.model_validate(_body(bind_password=value))
+    else:
+        with pytest.raises(InvalidValueError):
+            DirectorySettingsTestRequest.model_validate(_body(bind_password=value)).to_domain()
 
 
 def test_test_request_with_a_bind_password_carries_it() -> None:
-    """바인드 비밀번호를 주면 초안이 그 값을 가지고 repr에는 드러나지 않는다."""
-    # when: 초안과 비밀번호를 꺼낸다
-    request = DirectorySettingsTestRequest.model_validate(
-        _body(bind_password=BIND_PASSWORD, password="pw-root")  # noqa: S106 - 가짜 값
-    )
-
-    # then: 값이 전달되고 repr에는 없다
-    assert request.to_draft().bind_password is not None
-    assert request.to_draft().bind_password.reveal() == BIND_PASSWORD  # type: ignore[union-attr]
-    assert request.to_password() is not None
+    request = DirectorySettingsTestRequest.model_validate(_body(bind_password=BIND_PASSWORD))
+    settings = request.to_domain()
+    assert settings.credentials is not None
+    assert settings.credentials.password.reveal() == BIND_PASSWORD
     assert BIND_PASSWORD not in repr(request)
 
 
@@ -244,7 +226,7 @@ def test_an_empty_bind_password_is_a_value_violation_not_keep(empty: str) -> Non
     request = DirectorySettingsTestRequest.model_validate(_body(bind_password=empty))
 
     with pytest.raises(InvalidValueError) as caught:
-        request.to_draft()
+        request.to_domain()
 
     # then: bind_password 문구의 InvalidValueError다
     assert "bind_password" in str(caught.value)
@@ -260,11 +242,16 @@ def test_test_request_has_no_expected_revision() -> None:
         DirectorySettingsTestRequest.model_validate(_body(expected_revision=1))
 
 
+def _save_body(**extra: object) -> dict[str, object]:
+    return {k: v for k, v in {**_body(), "test_token": "proof", **extra}.items()
+            if k not in {"bind_account", "bind_password"}}
+
+
 def test_update_request_accepts_a_null_revision_for_creating() -> None:
     """신규 등록 수정 요청은 revision null을 받는다."""
     # when: revision을 null로 검증한다
     request = DirectorySettingsUpdateRequest.model_validate(
-        _body(bind_password=BIND_PASSWORD, expected_revision=None)
+        _save_body(expected_revision=None)
     )
 
     # then: expected_revision이 None이다
@@ -275,7 +262,7 @@ def test_update_request_accepts_an_integer_revision() -> None:
     """수정 요청은 정수 revision을 받는다."""
     # when: revision 3으로 검증한다
     expected_revision = DirectorySettingsUpdateRequest.model_validate(
-        _body(expected_revision=3)
+        _save_body(expected_revision=3)
     ).expected_revision
     # then: expected_revision이 3이다
     assert expected_revision == 3
@@ -321,8 +308,6 @@ def test_settings_response_has_the_documented_fields_and_no_password() -> None:
         "host",
         "port",
         "security",
-        "bind_account",
-        "bind_credential_status",
         "user_filter",
         "connect_timeout_seconds",
         "base_dn",
@@ -346,6 +331,7 @@ def test_test_result_response_carries_the_discovered_base_dn() -> None:
         "stage",
         "message",
         "base_dn",
+        "test_token",
     }
 
 

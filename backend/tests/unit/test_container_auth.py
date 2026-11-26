@@ -149,6 +149,6 @@ async def test_container_builds_the_ldap_adapter_with_the_configured_login_domai
         assert directory.user_bind_domain == domain
         assert built.directory_login()._deps.directory is directory
         assert built.setup_first_admin()._deps.directory is directory
-        assert built.test_directory_settings()._verify._deps.directory is directory
+        assert built.test_directory_settings()._verify._directory is directory
     finally:
         await built.dispose()

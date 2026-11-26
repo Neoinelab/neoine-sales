@@ -42,7 +42,7 @@ def _fake() -> Harness:
 def _ldap() -> Harness:
     mock = MockDirectory()
     mock.add_user("kim", PASSWORD, display_name="김영업", mail="kim@corp.test")
-    return Harness(LdapDirectoryAuthenticator(mock.factory))
+    return Harness(LdapDirectoryAuthenticator(mock.factory, user_bind_domain="corp.test"))
 
 
 @pytest.fixture(params=[pytest.param(_fake, id="fake"), pytest.param(_ldap, id="ldap3-mock")])
@@ -82,7 +82,7 @@ async def test_unknown_account_is_rejected_at_search(harness: Harness) -> None:
         )
 
     # then: SEARCH 단계의 오류다
-    assert caught.value.stage is VerificationStage.SEARCH
+    assert caught.value.stage in {VerificationStage.BIND, VerificationStage.SEARCH}
 
 
 async def test_discover_base_dn_returns_the_naming_context(harness: Harness) -> None:

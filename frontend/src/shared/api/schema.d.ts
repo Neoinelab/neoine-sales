@@ -2460,12 +2460,12 @@ export interface components {
             /** License Contract Count */
             license_contract_count: number;
         };
-        /**
-         * DirectorySettingsRequest
-         * @description 최초 설정 본문: 바인드 비밀번호 필수.
-         */
+        /** DirectorySettingsRequest */
         DirectorySettingsRequest: {
-            /** Bind Account */
+            /**
+             * Bind Account
+             * Format: password
+             */
             bind_account: string;
             /**
              * Bind Password
@@ -2485,20 +2485,10 @@ export interface components {
             /** User Filter */
             user_filter: string;
         };
-        /**
-         * DirectorySettingsResponse
-         * @description 저장된 설정. 비밀번호는 어떤 형태로도 담지 않는다.
-         */
+        /** DirectorySettingsResponse */
         DirectorySettingsResponse: {
             /** Base Dn */
             base_dn: string;
-            /** Bind Account */
-            bind_account: string;
-            /**
-             * Bind Credential Status
-             * @enum {string}
-             */
-            bind_credential_status: "ok" | "unreadable";
             /** Connect Timeout Seconds */
             connect_timeout_seconds: number;
             /** Host */
@@ -2517,16 +2507,8 @@ export interface components {
             /** User Filter */
             user_filter: string;
         };
-        /**
-         * DirectorySettingsTestRequest
-         * @description 연결 테스트 본문: 접속 정보 + 바인드 비밀번호(생략·null이면 저장된 값 유지) +
-         *     현재 로그인한 admin의 비밀번호(스키마상 선택이지만 없으면 유스케이스가 422로 거절).
-         */
-        DirectorySettingsTestRequest: {
-            /** Bind Account */
-            bind_account: string;
-            /** Bind Password */
-            bind_password?: string | null;
+        /** DirectorySettingsSaveRequest */
+        DirectorySettingsSaveRequest: {
             /**
              * Connect Timeout Seconds
              * @default 5
@@ -2534,23 +2516,44 @@ export interface components {
             connect_timeout_seconds: number;
             /** Host */
             host: string;
-            /** Password */
-            password?: string | null;
+            /** Port */
+            port: number;
+            security: components["schemas"]["SecurityMode"];
+            /**
+             * Test Token
+             * Format: password
+             */
+            test_token: string;
+            /** User Filter */
+            user_filter: string;
+        };
+        /** DirectorySettingsTestRequest */
+        DirectorySettingsTestRequest: {
+            /**
+             * Bind Account
+             * Format: password
+             */
+            bind_account: string;
+            /**
+             * Bind Password
+             * Format: password
+             */
+            bind_password: string;
+            /**
+             * Connect Timeout Seconds
+             * @default 5
+             */
+            connect_timeout_seconds: number;
+            /** Host */
+            host: string;
             /** Port */
             port: number;
             security: components["schemas"]["SecurityMode"];
             /** User Filter */
             user_filter: string;
         };
-        /**
-         * DirectorySettingsUpdateRequest
-         * @description 저장 본문: 테스트 본문 + 낙관적 잠금용 revision(키 필수, null이면 설정 없을 때 생성).
-         */
+        /** DirectorySettingsUpdateRequest */
         DirectorySettingsUpdateRequest: {
-            /** Bind Account */
-            bind_account: string;
-            /** Bind Password */
-            bind_password?: string | null;
             /**
              * Connect Timeout Seconds
              * @default 5
@@ -2560,11 +2563,14 @@ export interface components {
             expected_revision: number | null;
             /** Host */
             host: string;
-            /** Password */
-            password?: string | null;
             /** Port */
             port: number;
             security: components["schemas"]["SecurityMode"];
+            /**
+             * Test Token
+             * Format: password
+             */
+            test_token: string;
             /** User Filter */
             user_filter: string;
         };
@@ -2578,6 +2584,8 @@ export interface components {
             stage: string | null;
             /** Success */
             success: boolean;
+            /** Test Token */
+            test_token: string | null;
         };
         /**
          * DirectoryWarningResponse
@@ -4706,7 +4714,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DirectorySettingsRequest"];
+                "application/json": components["schemas"]["DirectorySettingsSaveRequest"];
             };
         };
         responses: {

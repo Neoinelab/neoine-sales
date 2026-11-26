@@ -13,6 +13,7 @@ from ldap3 import SIMPLE, Connection, Server, Tls
 from ldap3.core.exceptions import LDAPException
 
 from app.application.ports.directory import DirectoryError, VerificationStage
+from app.domain.common.errors import InvalidValueError
 from app.domain.directory.settings import RECEIVE_TIMEOUT_SECONDS, SecurityMode
 from app.infra.auth.ldap_errors import failure_stage, service_bind_failure, unavailable
 
@@ -78,9 +79,10 @@ def service_session(
     connect: ConnectionFactory, settings: DirectorySettings
 ) -> Iterator[Connection]:
     """서비스 계정으로 바인드한 연결. 어떤 경우에도 닫는다."""
-    connection = connect(
-        settings, settings.connection.bind_account, settings.bind_password.reveal()
-    )
+    credentials = settings.credentials
+    if credentials is None:
+        raise InvalidValueError("연결 테스트 계정과 비밀번호를 입력하세요.")
+    connection = connect(settings, credentials.account, credentials.password.reveal())
     try:
         open_secure(connection, settings)
         if not guarded(connection.bind):

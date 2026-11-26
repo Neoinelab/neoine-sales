@@ -21,6 +21,7 @@ from app.domain.common.errors import InvalidStateError
 from tests.factories_auth import BIND_PASSWORD
 from tests.factories_directory import make_directory_settings
 from tests.support.auth_seed import seed_auth_mode, seed_directory, seed_user
+from tests.unit.application.test_setup_directory_cases import register
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
@@ -119,7 +120,7 @@ async def test_a_stored_directory_setting_is_neither_used_nor_changed(
     테스트 코드: SU-067
     """
     # given: AD 서버(dc1.corp.test)가 revision 1로 등록되어 있다
-    await auth.register_directory.execute(make_directory_settings())
+    await register(auth, make_directory_settings())
     async with uow_factory() as uow:
         before = await uow.directory_settings.get()
         mode_before = await uow.auth_settings.get()

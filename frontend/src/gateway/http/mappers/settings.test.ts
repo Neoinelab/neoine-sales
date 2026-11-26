@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Schemas } from '../../../shared/api/client'
-import { BIND_PASSWORD, DIRECTORY_INPUT } from '../../../test/directoryFixtures'
+import { DIRECTORY_INPUT } from '../../../test/directoryFixtures'
 import { toDirectoryRequest, toDirectorySettings } from './settings'
 
 describe('toDirectoryRequest', () => {
@@ -14,8 +14,6 @@ describe('toDirectoryRequest', () => {
       host: 'dc1.corp.test',
       port: 636,
       security: 'ssl',
-      bind_account: 'CORP\\svc-sales',
-      bind_password: BIND_PASSWORD,
       user_filter: '(sAMAccountName={login_id})',
       connect_timeout_seconds: 5,
     })
@@ -25,12 +23,12 @@ describe('toDirectoryRequest', () => {
   // 테스트 코드: IN-082
   it('leaves the bind_password key out when the stored password is kept', () => {
     // when: 요청 본문으로 바꾼다 (전제: 바인드 비밀번호 null인 입력)
-    const request = toDirectoryRequest({ ...DIRECTORY_INPUT, bindPassword: null })
+    const request = toDirectoryRequest(DIRECTORY_INPUT)
 
     // then: bind_password 키가 없고 나머지 6개만 있다
     expect(request).not.toHaveProperty('bind_password')
     expect(Object.keys(request).sort()).toEqual(
-      ['bind_account', 'connect_timeout_seconds', 'host', 'port', 'security', 'user_filter'].sort(),
+      ['connect_timeout_seconds', 'host', 'port', 'security', 'user_filter'].sort(),
     )
   })
 
@@ -60,7 +58,6 @@ describe('toDirectorySettings', () => {
     host: 'dc1.corp.test',
     port: 389,
     security: 'starttls',
-    bind_account: 'svc@corp.test',
     bind_credential_status: 'unreadable',
     user_filter: '(x={login_id})',
     connect_timeout_seconds: 9,
@@ -80,8 +77,6 @@ describe('toDirectorySettings', () => {
       host: 'dc1.corp.test',
       port: 389,
       security: 'starttls',
-      bindAccount: 'svc@corp.test',
-      bindCredentialStatus: 'unreadable',
       userFilter: '(x={login_id})',
       connectTimeoutSeconds: 9,
       baseDn: 'ou=staff,dc=corp,dc=test',

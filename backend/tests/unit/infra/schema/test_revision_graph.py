@@ -32,6 +32,7 @@ PRODUCT_RENAME_REVISION = "a9d3f5c7e214"
 COMMENT_REVISION = "d2f6b8a4c931"
 READ_AT_REVISION = "e7c1a5b9d482"
 HISTORY_CATEGORY_REVISION = "b3a8d1f6c527"
+CREDENTIAL_CLEANUP_REVISION = "b6e1f8a3d902"
 # ondelete·onupdate 같은 FK 규칙 인자는 단어 경계로 구분한다
 FORBIDDEN_IN_UPGRADE = (
     r"\bdelete\b",
@@ -84,9 +85,9 @@ def test_the_history_has_the_baseline_as_base_and_the_history_category_revision_
     heads, bases = script.get_heads(), script.get_bases()
 
     # then: head는 구분 CHECK 리비전(부모는 읽음 리비전), base는 기준선이고 리비전은 8개다
-    assert heads == [HISTORY_CATEGORY_REVISION]
+    assert heads == [CREDENTIAL_CLEANUP_REVISION]
     assert bases == [BASELINE]
-    assert len(list(script.walk_revisions())) == 8
+    assert len(list(script.walk_revisions())) == 13
     # then: 날짜 전환 → 사용자 컬럼 정리 → Vendor 필수 → Product → Comment → 읽음 → 구분 CHECK다
     dates = script.get_revision(DATE_REVISION)
     users = script.get_revision(USER_COLUMNS_REVISION)
@@ -461,7 +462,8 @@ def test_the_history_category_revision_follows_the_read_at_revision_as_head() ->
     # then: 부모는 읽음 리비전, 브랜치 라벨은 없고 head는 이 리비전 하나다
     assert revision.down_revision == READ_AT_REVISION
     assert not revision.branch_labels
-    assert script.get_heads() == [revision.revision]
+    assert script.get_heads() == [CREDENTIAL_CLEANUP_REVISION]
+    assert script.get_revision("c9f2a6b8d401").down_revision == revision.revision
     # then: 파일 이름은 YYYYMMDD_<리비전 id>_<목적>.py이고 upgrade·downgrade 함수가 있다
     name = revision.path.rsplit("/", 1)[-1]
     assert re.fullmatch(rf"\d{{8}}_{revision.revision}_\w+\.py", name)

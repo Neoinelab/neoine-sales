@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.main import create_app
 from tests.factories import NOW
@@ -67,6 +68,7 @@ async def test_setup_storage_saves_and_returns_the_settings_without_a_saver() ->
     # given: AD 서버가 등록되었다
     use_cases = FakeUseCases()
     await use_cases.seed_directory()
+    await use_cases.seed_auth_mode(AuthMode.AD)
     async with _client(use_cases) as http:
         response = await http.put(SETUP_STORAGE, json={"path": " /data//neoine/files/ "})
 

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { DirectorySettingsInput } from '../../../shared/model/types'
 import { DIRECTORY_INPUT } from '../../directoryFixtures'
 import type { SeedData } from '../store'
 import { buildSampleSeed } from '../../fixtures/sampleSeed'
 import { expectApiError, mockAs, newMock } from '../testing'
 
-const DIRECTORY: DirectorySettingsInput = DIRECTORY_INPUT
+const DIRECTORY = DIRECTORY_INPUT
 
 const ADMIN_EXISTS = '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다'
 
@@ -116,7 +115,7 @@ describe('최초 설정 저장 위치 단계 (R-24)', () => {
     const mock = newMock()
     mock.control.restartSetup()
     const { setup } = mock.gateway
-    await setup.saveDirectory(DIRECTORY)
+    await setup.saveDirectory({ ...DIRECTORY, ...await mock.gateway.setup.testDirectory(DIRECTORY) })
     await setup.saveStorage('/data/first')
     // when: 저장 위치를 두 번 저장하고 관리자를 등록한다
     await setup.saveStorage('/data/second')
@@ -133,7 +132,7 @@ describe('최초 설정 저장 위치 단계 (R-24)', () => {
     const mock = newMock()
     mock.control.restartSetup()
     // when: 읽기 전용 경로를 저장한다
-    await mock.gateway.setup.saveDirectory(DIRECTORY)
+    await mock.gateway.setup.saveDirectory({ ...DIRECTORY, ...await mock.gateway.setup.testDirectory(DIRECTORY) })
     // then: 422이고 저장 위치 단계는 끝나지 않는다
     await expectApiError(mock.gateway.setup.saveStorage('/readonly/x'), 422, '해당 위치에 쓸 수 없습니다.')
     expect((await mock.gateway.setup.status()).storageDone).toBe(false)
@@ -145,7 +144,7 @@ describe('최초 설정 저장 위치 단계 (R-24)', () => {
     const mock = newMock()
     mock.control.restartSetup()
     // when: 관리자를 등록한다
-    await mock.gateway.setup.saveDirectory(DIRECTORY)
+    await mock.gateway.setup.saveDirectory({ ...DIRECTORY, ...await mock.gateway.setup.testDirectory(DIRECTORY) })
     // then: 409 문구로 저장 위치를 먼저 설정하라고 한다
     await expectApiError(mock.gateway.setup.registerAdmin('root', 'pw'), 409, '파일 저장 위치를 먼저 설정하세요.')
   })
@@ -201,7 +200,7 @@ describe('auth.config.needsSetup 는 저장 단계를 포함한다', () => {
     const { setup, auth } = mock.gateway
     // then: 마지막 단계 뒤에만 설정 필요가 false다
     expect((await auth.config()).needsSetup).toBe(true)
-    await setup.saveDirectory(DIRECTORY)
+    await setup.saveDirectory({ ...DIRECTORY, ...await mock.gateway.setup.testDirectory(DIRECTORY) })
     expect((await auth.config()).needsSetup).toBe(true)
     await setup.saveStorage('/data/x')
     expect((await auth.config()).needsSetup).toBe(true)

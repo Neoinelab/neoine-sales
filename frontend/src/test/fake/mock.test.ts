@@ -193,9 +193,9 @@ describe('최초 설정(setup)', () => {
     await expectApiError(setup.saveStorage('/data/files'), 409)
     await expectApiError(setup.registerAdmin('root', 'pw'), 409)
     const input = { host: 'dc1.corp.test', port: 636, security: 'ssl' as const, bindAccount: 'CORP\\svc-sales', bindPassword: BIND_PASSWORD, userFilter: '(sAMAccountName={login_id})', connectTimeoutSeconds: 5 }
-    await expectApiError(setup.saveDirectory({ ...input, bindPassword: '' }), 422, /비밀번호/)
+    await expectApiError(setup.testDirectory({ ...input, bindPassword: '' }), 422, /비밀번호/)
     expect((await setup.status()).directoryDone).toBe(false)
-    await setup.saveDirectory(input)
+    await setup.saveDirectory({ ...input, ...await setup.testDirectory(input) })
     expect((await setup.status()).directoryDone).toBe(true)
     await expectApiError(setup.saveStorage('relative/path'), 422, '절대 경로를 입력하세요.')
     await expectApiError(setup.saveStorage('/readonly/files'), 422, '해당 위치에 쓸 수 없습니다.')

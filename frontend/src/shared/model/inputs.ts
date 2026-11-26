@@ -284,11 +284,19 @@ export interface DirectorySettingsInput {
   host: string
   port: number
   security: DirectorySecurity
-  bindAccount: string
-  /** null이면 저장된 비밀번호를 유지한다(설정 화면에서 손대지 않았을 때). */
-  bindPassword: string | null
   userFilter: string
   connectTimeoutSeconds: number
+}
+
+/** 연결 테스트 중에만 쓰는 자격 증명. 저장 입력과 분리한다. */
+export interface DirectoryTestInput extends DirectorySettingsInput {
+  readonly bindAccount: string
+  readonly bindPassword: string
+}
+
+/** 현재 접속 정보로 발급받은 연결 테스트 확인 토큰. */
+export interface DirectorySaveInput extends DirectorySettingsInput {
+  readonly testToken: string
 }
 
 // ───────────────────────── Forecast ─────────────────────────

@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 from app.application.auth.credential_check import parse_login_id, verify_credentials
 from app.application.auth.messages import DIRECTORY_FIRST, STORAGE_FIRST
 from app.application.auth.mode import ensure_directory_mode, ensure_setup_open
-from app.application.directory.credentials import unseal_settings
 from app.application.directory.errors import DirectoryCredentialUnreadableError
 from app.application.ids import new_user_id
 from app.domain.auth.mode import AuthMode
 from app.domain.auth.principal import Role
 from app.domain.common.errors import AlreadyExistsError, InvalidStateError
+from app.domain.directory.settings import DirectorySettings
 from app.domain.user.entities import User
 from app.domain.user.errors import AmbiguousLoginIdError
 from app.domain.user.retired_login_ids import ensure_not_reserved_login_id
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from app.application.ports.directory import DirectoryUser
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.auth.password_hash import PasswordHash
-    from app.domain.directory.settings import DirectorySettings
 
 
 class SetupFirstAdmin:
@@ -59,7 +58,7 @@ class SetupFirstAdmin:
                 or settings.progress.storage_pending
             ):
                 raise InvalidStateError(STORAGE_FIRST)
-        return unseal_settings(self._deps.cipher, stored), stored.base_dn
+        return DirectorySettings(stored.connection), stored.base_dn
 
     async def _register(
         self, account: LoginId, profile: DirectoryUser, password_hash: PasswordHash

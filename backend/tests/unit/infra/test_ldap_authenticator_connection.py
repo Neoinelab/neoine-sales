@@ -189,7 +189,7 @@ async def test_settings_are_read_per_call(directory: MockDirectory) -> None:
     await adapter.authenticate(second, "dc=corp,dc=test", LoginId("kim"), Password(PASSWORD))
 
     # then: 연결 생성에 각 호출의 설정이 쓰였다
-    assert [call[0] for call in directory.factory_calls] == [first, first, second, second]
+    assert [call[0] for call in directory.factory_calls] == [first, second]
 
 
 def test_error_hierarchy_distinguishes_credentials_from_availability() -> None:

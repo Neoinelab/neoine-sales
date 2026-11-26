@@ -12,6 +12,7 @@ from app.web.schemas.auth import AuthModeRequest, PrincipalResponse, SetupAdminR
 from app.web.schemas.auth_directory import (
     DirectorySettingsRequest,
     DirectorySettingsResponse,
+    DirectorySettingsSaveRequest,
     directory_response,
 )
 from app.web.schemas.password_field import to_new_password
@@ -41,9 +42,9 @@ async def setup_auth_mode(body: AuthModeRequest, provider: Provider) -> Response
 
 @router.put("/setup/directory", responses={409: PROBLEM, 422: PROBLEM})
 async def setup_directory(
-    body: DirectorySettingsRequest, provider: Provider
+    body: DirectorySettingsSaveRequest, provider: Provider
 ) -> DirectorySettingsResponse:
-    stored = await provider.register_setup_directory().execute(body.to_domain())
+    stored = await provider.register_setup_directory().execute(body.to_draft())
     return await directory_response(provider, stored)
 
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 import pytest_asyncio
 
-from app.domain.common.secret import SealedSecret
+from app.application.ports.directory_settings_repository import DirectorySettingsWrite
 from app.domain.directory.errors import DirectorySettingsConflictError
 from app.domain.directory.settings import SecurityMode
 from app.infra.db.directory_settings_repository import SqlDirectorySettingsRepository
@@ -29,8 +29,6 @@ if TYPE_CHECKING:
     from app.domain.directory.settings import StoredDirectorySettings
     from app.domain.user.value_objects import UserId
 
-SEALED = SealedSecret("gAAAAA-sealed-token-one")
-SEALED_2 = SealedSecret("gAAAAA-sealed-token-two")
 
 PARAMS = [
     pytest.param("fake", id="fake"),
@@ -58,16 +56,20 @@ async def _save(
     updated_by: UserId | None = None,
     **overrides: object,
 ) -> StoredDirectorySettings:
+    base_dn = overrides.get("base_dn", BASE_DN)
+    if not isinstance(base_dn, str):
+        raise TypeError("base_dn must be text")
     connection = make_directory_connection(
-        **{k: v for k, v in overrides.items() if k not in {"sealed", "base_dn"}}
+        **{k: v for k, v in overrides.items() if k not in {"base_dn"}}
     )
     return await repository.save(
-        connection,
-        overrides.get("sealed", SEALED),  # type: ignore[arg-type]
-        overrides.get("base_dn", BASE_DN),  # type: ignore[arg-type]
-        expected_revision=expected_revision,
-        updated_by=updated_by,
-        now=now,
+        DirectorySettingsWrite(
+            connection=connection,
+            base_dn=base_dn,
+            expected_revision=expected_revision,
+            updated_by=updated_by,
+            now=now,
+        )
     )
 
 
@@ -118,7 +120,6 @@ async def test_update_with_matching_revision_increments(
         repository,
         expected_revision=1,
         base_dn="dc=new,dc=test",
-        sealed=SEALED_2,
         updated_by=uid("admin1"),
         now=later(60),
     )
@@ -132,7 +133,7 @@ async def test_update_with_matching_revision_increments(
     stored = await repository.get()
     assert stored == updated
     assert stored is not None
-    assert (stored.base_dn, stored.sealed_bind_password) == ("dc=new,dc=test", SEALED_2)
+    assert stored.base_dn == "dc=new,dc=test"
 
 
 async def test_update_with_stale_revision_conflicts_and_keeps_row(
@@ -169,6 +170,7 @@ async def test_update_without_existing_row_conflicts(
     assert await repository.get() is None
 
 
+# 테스트 코드: IN-023
 async def test_revision_keeps_counting_up(repository: DirectorySettingsRepository) -> None:
     """저장할 때마다 revision이 하나씩 올라간다."""
     # given: 첫 저장이 끝난 저장소
@@ -186,17 +188,14 @@ async def test_revision_keeps_counting_up(repository: DirectorySettingsRepositor
 async def test_round_trip_keeps_all_fields(repository: DirectorySettingsRepository) -> None:
     """연결 설정의 모든 필드와 긴 암호문이 저장 후 그대로 조회된다."""
     # given: 호스트·포트·보안 연결·계정·필터·긴 암호문·Base DN을 바꿔 저장했다
-    long_token = SealedSecret("gAAAAA" + "x" * 400)
     await _save(
         repository,
         expected_revision=None,
         host="dc2.corp.test",
         port=3269,
         security=SecurityMode.STARTTLS,
-        bind_account="CORP\\svc-sales",
         user_filter="(&(objectClass=user)(userPrincipalName={login_id}@corp.test))",
         connect_timeout_seconds=7,
-        sealed=long_token,
         base_dn="ou=staff,dc=corp,dc=test",
     )
 
@@ -209,11 +208,9 @@ async def test_round_trip_keeps_all_fields(repository: DirectorySettingsReposito
         host="dc2.corp.test",
         port=3269,
         security=SecurityMode.STARTTLS,
-        bind_account="CORP\\svc-sales",
         user_filter="(&(objectClass=user)(userPrincipalName={login_id}@corp.test))",
         connect_timeout_seconds=7,
     )
-    assert stored.sealed_bind_password == long_token  # 토큰 전체가 잘리지 않는다
     assert stored.base_dn == "ou=staff,dc=corp,dc=test"
 
 

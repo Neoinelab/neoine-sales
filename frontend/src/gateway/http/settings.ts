@@ -21,16 +21,16 @@ export function createSettingsHttp(): SettingsGateway {
       toDirectorySettings(
         await unwrap(
           api.PUT('/api/v1/settings/directory', {
-            body: { ...toDirectoryRequest(input), password: auth.password, expected_revision: auth.expectedRevision },
+            body: { ...toDirectoryRequest(input), test_token: input.testToken, expected_revision: auth.expectedRevision },
           }),
         ),
       ),
     // 서버는 검증 실패도 200 { success: false }로 줄 수 있다. 화면이 한 가지 경로(오류)로 다루도록 422로 바꾼다.
-    testDirectory: async (input, password) => {
+    testDirectory: async (input) => {
       const result = await unwrap(
-        api.POST('/api/v1/settings/directory/test', { body: { ...toDirectoryRequest(input), password } }),
+        api.POST('/api/v1/settings/directory/test', { body: { ...toDirectoryRequest(input), bind_account: input.bindAccount, bind_password: input.bindPassword } }),
       )
-      if (result.success) return { baseDn: result.base_dn }
+      if (result.success && result.test_token) return { baseDn: result.base_dn, testToken: result.test_token }
       throw new ApiError(422, {
         type: FAILED_TYPE,
         title: 'Directory Verification Failed',

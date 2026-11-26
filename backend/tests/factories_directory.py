@@ -7,7 +7,12 @@
 from typing import Any
 
 from app.domain.auth.credentials import Password
-from app.domain.directory.settings import DirectoryConnection, DirectorySettings, SecurityMode
+from app.domain.directory.settings import (
+    DirectoryConnection,
+    DirectoryCredentials,
+    DirectorySettings,
+    SecurityMode,
+)
 from tests.factories_auth import BIND_ACCOUNT, BIND_PASSWORD, USER_FILTER
 
 DEFAULT_HOST = "dc1.corp.test"
@@ -19,7 +24,6 @@ def make_directory_connection(**overrides: object) -> DirectoryConnection:
         "host": DEFAULT_HOST,
         "port": 636,
         "security": SecurityMode.SSL,
-        "bind_account": BIND_ACCOUNT,
         "user_filter": USER_FILTER,
         "connect_timeout_seconds": 5,
     }
@@ -29,9 +33,11 @@ def make_directory_connection(**overrides: object) -> DirectoryConnection:
 def make_directory_settings(
     *,
     bind_password: str = BIND_PASSWORD,
+    bind_account: str = BIND_ACCOUNT,
     **overrides: Any,  # noqa: ANN401
 ) -> DirectorySettings:
     """접속 정보 + 평문 바인드 비밀번호. overrides는 접속 정보 필드를 바꾼다."""
     return DirectorySettings(
-        connection=make_directory_connection(**overrides), bind_password=Password(bind_password)
+        connection=make_directory_connection(**overrides),
+        credentials=DirectoryCredentials(bind_account, Password(bind_password)),
     )

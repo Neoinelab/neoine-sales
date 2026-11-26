@@ -6,7 +6,7 @@ const STAGE_MESSAGES: Record<string, string> = {
   service_bind: '바인드 계정으로 AD에 로그인하지 못했습니다. 바인드 계정과 바인드 비밀번호를 확인하세요.',
   base_dn: 'AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다. AD 서버 설정과 바인드 계정의 조회 권한을 확인하세요.',
   search: '사용자 검색에 실패했습니다. 사용자 필터와 바인드 계정의 검색 권한을 확인하세요.',
-  bind: '입력한 관리자 비밀번호로 AD에 로그인하지 못했습니다. 관리자 비밀번호를 확인하세요.',
+  bind: '입력한 계정으로 AD에 로그인하지 못했습니다. 계정과 비밀번호를 확인하세요.',
 }
 
 /** AD 검증이 실패한 단계에 맞는 안내. 모르는 단계면 undefined. */

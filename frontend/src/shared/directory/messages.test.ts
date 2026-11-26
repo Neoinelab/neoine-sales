@@ -23,7 +23,7 @@ describe('AD 검증 실패 단계 문구', () => {
     ['service_bind', '바인드 계정'],
     ['base_dn', 'Base DN'],
     ['search', '사용자 필터'],
-    ['bind', '관리자 비밀번호'],
+    ['bind', '계정과 비밀번호'],
   ])('explains the %s stage with what to check', (stage, hint) => {
     // when: 단계별 안내 문구를 읽는다
     const result = stageMessage(stage)

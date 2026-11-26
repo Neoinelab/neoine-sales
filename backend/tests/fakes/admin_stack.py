@@ -38,6 +38,7 @@ AD 개편 구현에 묶이지 않는다.
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from app.application.directory.connection_proof import DirectoryConnectionProof
 from app.application.user.delete_user import DeleteUser
 from app.application.user.list_user_options import ListUserOptions
 from app.application.user.list_users import ListUsers
@@ -128,7 +129,7 @@ class AdminStack:
     def get_settings(self) -> GetDirectorySettings:
         from app.application.directory.get_settings import GetDirectorySettings  # noqa: PLC0415
 
-        return GetDirectorySettings(self._uow_factory, self._auth.cipher)
+        return GetDirectorySettings(self._uow_factory)
 
     @cached_property
     def verify(self) -> VerifyDirectorySettings:
@@ -136,7 +137,9 @@ class AdminStack:
             VerifyDirectorySettings,
         )
 
-        return VerifyDirectorySettings(self._auth.deps)
+        return VerifyDirectorySettings(
+            self._auth.directory, DirectoryConnectionProof(self._auth.cipher, self._clock)
+        )
 
     @cached_property
     def test_settings(self) -> TestDirectorySettings:
@@ -144,7 +147,7 @@ class AdminStack:
             TestDirectorySettings,
         )
 
-        return TestDirectorySettings(self._uow_factory, self._auth.cipher, self.verify)
+        return TestDirectorySettings(self._uow_factory, self.verify)
 
     @cached_property
     def update_settings(self) -> UpdateDirectorySettings:
@@ -153,7 +156,7 @@ class AdminStack:
         )
 
         return UpdateDirectorySettings(
-            self._uow_factory, self._clock, self._auth.cipher, self.verify
+            self._uow_factory, self._clock, DirectoryConnectionProof(self._auth.cipher, self._clock)
         )
 
 

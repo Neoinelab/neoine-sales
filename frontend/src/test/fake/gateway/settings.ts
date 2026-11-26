@@ -1,57 +1,50 @@
 import type { SettingsGateway } from '../../../gateway/types'
-import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../../../shared/model/types'
+import type { DirectorySettings, DirectorySettingsInput, DirectoryTestInput, DirectorySaveInput, StorageSettings } from '../../../shared/model/types'
 import { conflict, directoryFailed, notFound, validation } from '../errors'
 import type { DirectoryRecord } from '../store'
-import { modeOf, passwordOf } from './accountRules'
+import { modeOf } from './accountRules'
 import { clone, read, requireAdmin, write, type MockContext } from './context'
 import { userRef } from './views'
 
 export const FAKE_BASE_DN = 'dc=corp,dc=test'
 /** 서버 문구(IN-R8·IN-R9·IN-R10·IN-R14, 2.8). 화면이 보내기 전에 막는 문구("바인드 비밀번호를 입력하세요")와는 별개다. */
-const BIND_PASSWORD_REQUIRED = 'bind_password: 바인드 비밀번호를 입력하세요'
-const BIND_PASSWORD_EMPTY = 'bind_password: 비밀번호는 비어 있을 수 없습니다'
-const BIND_PASSWORD_RETYPE = 'bind_password: 서버나 바인드 계정을 바꾸면 비밀번호를 다시 입력해야 합니다'
-const BIND_PASSWORD_UNREADABLE = 'bind_password: 저장된 비밀번호를 읽을 수 없습니다. 다시 입력하세요'
-const ADMIN_PASSWORD_REQUIRED = 'AD 설정을 확인하려면 현재 관리자의 비밀번호가 필요합니다'
 const REVISION_CONFLICT = '설정이 다른 곳에서 바뀌었습니다. 새로고침 후 다시 시도하세요'
 const DIRECTORY_MISSING = 'AD 설정을(를) 찾을 수 없습니다: directory'
-const ADMIN_BIND_FAILED = 'AD 인증에 실패했습니다. 관리자 비밀번호를 확인하세요'
 
 /** 호스트·바인드 계정 필수, 포트 1~65535, 사용자 필터 필수, 연결 제한 시간 1~30초(서버 검증과 같은 범위). */
 export function checkDirectoryInput(input: DirectorySettingsInput): void {
   if (input.host.trim() === '') throw validation('호스트를 입력하세요.')
   if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) throw validation('포트는 1~65535 사이의 정수로 입력하세요.')
-  if (input.bindAccount.trim() === '') throw validation('바인드 계정을 입력하세요.')
   if (input.userFilter.trim() === '') throw validation('사용자 필터를 입력하세요.')
   const t = input.connectTimeoutSeconds
   if (!Number.isInteger(t) || t < 1 || t > 30) throw validation('연결 제한 시간은 1~30초 사이의 정수로 입력하세요.')
 }
 
-/**
- * 바인드 비밀번호 규칙: 저장된 설정이 없으면 비밀번호가 필수이고, 있으면 null일 때 저장 값을 유지한다.
- * 다만 접속 정보(호스트·포트·보안·계정)가 저장 값과 다르거나 저장된 비밀번호를 읽을 수 없으면 새 비밀번호가 필요하다.
- */
-export function checkBindPassword(input: DirectorySettingsInput, previous: DirectoryRecord | null): void {
-  if (input.bindPassword !== null) {
-    if (input.bindPassword === '') throw validation(BIND_PASSWORD_EMPTY)
-    return
-  }
-  if (previous === null) throw validation(BIND_PASSWORD_REQUIRED)
-  const changed =
-    input.host !== previous.host ||
-    input.port !== previous.port ||
-    input.security !== previous.security ||
-    input.bindAccount !== previous.bindAccount
-  if (changed) throw validation(BIND_PASSWORD_RETYPE)
-  if (previous.bindCredentialStatus === 'unreadable') throw validation(BIND_PASSWORD_UNREADABLE)
+const proofs = new WeakMap<MockContext, Map<string, { endpoint: string; scope: string; expires: number; baseDn: string }>>()
+
+function endpoint(input: DirectorySettingsInput): string {
+  return JSON.stringify([input.host, input.port, input.security, input.userFilter, input.connectTimeoutSeconds])
 }
 
-/**
- * 현재 admin 비밀번호 확인(IN-R10·IN-R11): 없으면 422, 틀리면 bind 단계 실패.
- * 연결 단계 실패('fail' 호스트)가 먼저이고, 실제 AD 대신 admin의 로그인 비밀번호와 비교한다.
- */
-function checkAdminPassword(ctx: MockContext, adminId: number, password: string): void {
-  if (password !== passwordOf(ctx.store.data, adminId)) throw directoryFailed(ADMIN_BIND_FAILED, 'bind')
+export function testConnection(ctx: MockContext, input: DirectoryTestInput, scope: string, baseDn = FAKE_BASE_DN) {
+  checkDirectoryInput(input)
+  if (!input.bindAccount.trim() || !input.bindPassword) throw validation('바인드 계정과 비밀번호를 입력하세요.')
+  checkDirectoryReachable(input)
+  let issued = proofs.get(ctx)
+  if (!issued) { issued = new Map(); proofs.set(ctx, issued) }
+  const now = new Date(ctx.clock.now()).getTime()
+  for (const [token, proof] of issued) if (proof.expires <= now) issued.delete(token)
+  const testToken = crypto.randomUUID()
+  issued.set(testToken, { endpoint: endpoint(input), scope, expires: now + 600_000, baseDn })
+  return { baseDn, testToken }
+}
+
+export function verifyConnection(ctx: MockContext, input: DirectorySaveInput, scope: string): string {
+  const proof = proofs.get(ctx)?.get(input.testToken)
+  if (!proof || proof.endpoint !== endpoint(input) || proof.scope !== scope || proof.expires <= new Date(ctx.clock.now()).getTime()) {
+    throw validation('연결 테스트 결과가 없거나 만료되었습니다. 다시 연결 테스트를 수행하세요.')
+  }
+  return proof.baseDn
 }
 
 /** 연결 단계 실패 시뮬레이션: 호스트에 'fail'이 들어가면 연결 단계에서 실패한다. */
@@ -83,6 +76,7 @@ export function saveDirectoryRecord(
   ctx: MockContext,
   input: DirectorySettingsInput,
   updatedById: number | null,
+  baseDn = FAKE_BASE_DN,
 ): DirectoryRecord {
   const previous = ctx.store.data.directory
   // 비밀번호는 저장하지 않는다(Fake는 상태만 가진다). 새 비밀번호를 받으면 읽을 수 있는 상태로 돌아간다.
@@ -90,11 +84,9 @@ export function saveDirectoryRecord(
     host: input.host,
     port: input.port,
     security: input.security,
-    bindAccount: input.bindAccount,
     userFilter: input.userFilter,
     connectTimeoutSeconds: input.connectTimeoutSeconds,
-    bindCredentialStatus: 'ok',
-    baseDn: FAKE_BASE_DN,
+    baseDn,
     revision: (previous?.revision ?? 0) + 1,
     updatedAt: ctx.clock.now(),
     updatedById,
@@ -134,24 +126,16 @@ export function createSettingsGateway(ctx: MockContext): SettingsGateway {
         if (auth.expectedRevision === null && previous !== null) throw conflict(REVISION_CONFLICT)
         if (auth.expectedRevision !== null && previous === null) throw notFound(DIRECTORY_MISSING)
         if (auth.expectedRevision !== null && previous !== null && previous.revision !== auth.expectedRevision) throw conflict(REVISION_CONFLICT)
-        checkBindPassword(input, previous)
-        if (auth.password === null) throw validation(ADMIN_PASSWORD_REQUIRED)
-        checkDirectoryReachable(input)
-        checkAdminPassword(ctx, admin.id, auth.password)
-        const record = saveDirectoryRecord(ctx, input, admin.id)
+        const baseDn = verifyConnection(ctx, input, `admin:${admin.id}`)
+        const record = saveDirectoryRecord(ctx, input, admin.id, baseDn)
         ctx.store.data.setup.directoryDone = true
         return directoryView(ctx, record)
       }),
-    testDirectory: (input, password) =>
+    testDirectory: (input) =>
       write(ctx, () => {
         const admin = requireAdmin(ctx)
-        checkDirectoryInput(input)
         requireDirectoryMode(ctx)
-        checkBindPassword(input, ctx.store.data.directory)
-        if (password === null) throw validation(ADMIN_PASSWORD_REQUIRED)
-        checkDirectoryReachable(input)
-        checkAdminPassword(ctx, admin.id, password)
-        return { baseDn: FAKE_BASE_DN }
+        return testConnection(ctx, input, `admin:${admin.id}`)
       }),
     getStorage: () =>
       read(ctx, () => {

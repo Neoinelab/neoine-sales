@@ -1,5 +1,5 @@
 import type { AuthGateway, SetupGateway } from '../../../gateway/types'
-import type { DirectorySettingsInput, LoginResult, Me } from '../../../shared/model/types'
+import type { DirectorySaveInput, DirectoryTestInput, LoginResult, Me } from '../../../shared/model/types'
 import { conflict, unauthorized, validation } from '../errors'
 import { takeId, type UserRecord } from '../store'
 import {
@@ -14,7 +14,7 @@ import {
   setPasswordOf,
 } from './accountRules'
 import { read, requireUser, setSession, write, type MockContext } from './context'
-import { checkBindPassword, checkDirectoryInput, checkDirectoryReachable, saveDirectoryRecord, validateStoragePath } from './settings'
+import { checkDirectoryInput, testConnection, verifyConnection, saveDirectoryRecord, validateStoragePath } from './settings'
 
 /** 최초 설정 연결 테스트가 찾아 주는 Base DN(Fake). */
 export const SETUP_FAKE_BASE_DN = 'dc=found,dc=test'
@@ -90,24 +90,20 @@ export function createSetupGateway(ctx: MockContext): SetupGateway {
         // local이면 AD 단계가 없다. AD이면 AD 서버가 이미 등록돼 있을 때만 그 단계가 끝난 것이다.
         setup().directoryDone = mode === 'local' || ctx.store.data.directory !== null
       }),
-    saveDirectory: (input: DirectorySettingsInput) =>
+    saveDirectory: (input: DirectorySaveInput) =>
       write(ctx, () => {
         if (setup().adminDone) throw conflict(ADMIN_EXISTS_FOR_SETUP)
         checkDirectoryInput(input)
-        checkBindPassword(input, null)
-        checkDirectoryReachable(input)
-        saveDirectoryRecord(ctx, input, null)
+        const baseDn = verifyConnection(ctx, input, 'setup')
+        saveDirectoryRecord(ctx, input, null, baseDn)
         setup().authMode = 'ad'
         setup().directoryDone = true
       }),
     // 연결 테스트(SU-R20): 저장 없이 값 검사 → 닫힘 → 연결 확인. 실패는 게이트웨이가 바꾼 모양(422 확인 실패)으로 던진다.
-    testDirectory: (input: DirectorySettingsInput) =>
+    testDirectory: (input: DirectoryTestInput) =>
       write(ctx, () => {
-        checkDirectoryInput(input)
-        checkBindPassword(input, null)
         if (setup().adminDone) throw conflict(ADMIN_EXISTS_FOR_SETUP)
-        checkDirectoryReachable(input)
-        return { baseDn: SETUP_FAKE_BASE_DN }
+        return testConnection(ctx, input, 'setup', SETUP_FAKE_BASE_DN)
       }),
     saveStorage: (path) =>
       write(ctx, () => {

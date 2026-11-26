@@ -58,10 +58,9 @@ class DirectoryAuthenticator(Protocol):
     async def authenticate(
         self, settings: DirectorySettings, base_dn: str, login_id: LoginId, password: Password
     ) -> DirectoryUser:
-        """서비스 계정으로 사용자를 찾고(search) 찾은 DN과 비밀번호로 바인드한다(search-then-bind).
+        """사용자 계정과 비밀번호로 바인드하고 같은 연결에서 사용자 프로필을 조회한다.
 
         0건·사용자 비밀번호 거부는 InvalidCredentialsError(SEARCH|BIND), 2건 이상은
-        DirectoryMisconfiguredError(SEARCH), 서비스 계정 거부는
-        DirectoryMisconfiguredError(SERVICE_BIND), 연결·TLS는 DirectoryUnavailableError.
+        DirectoryMisconfiguredError(SEARCH), 연결·TLS는 DirectoryUnavailableError.
         """
         ...

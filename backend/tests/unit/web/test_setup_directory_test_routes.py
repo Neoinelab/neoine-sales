@@ -57,6 +57,7 @@ async def test_a_successful_test_is_200_with_the_base_dn_and_stores_nothing() ->
         "stage": None,
         "message": SUCCESS_MESSAGE,
         "base_dn": "dc=found,dc=test",
+        "test_token": response.json()["test_token"],
     }
     # then: Base DN 탐색만 1회, 사용자 인증 없음, 진행 상태는 그대로
     assert len(use_cases.directory.discover_calls) == 1
@@ -107,6 +108,7 @@ async def test_a_failed_check_is_200_with_the_stage_message_and_no_leak(
         "stage": stage,
         "message": STAGE_TEXT[stage],
         "base_dn": None,
+        "test_token": None,
     }
     # then: 원인 문구·바인드 비밀번호가 응답에 없고 저장되지 않았다
     assert LEAK not in response.text
@@ -319,5 +321,6 @@ def test_openapi_documents_the_directory_test_route_and_its_shapes() -> None:
         "stage",
         "message",
         "base_dn",
+        "test_token",
     }
     assert {"409", "422"} <= set(path["post"]["responses"])

@@ -5,9 +5,12 @@ SU-001·004·010·014·020·025·026·033·034·040·041·042.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.auth.mode import AuthMode
@@ -118,6 +121,15 @@ async def test_an_unknown_auth_mode_is_a_request_validation_error(body: dict[str
     assert config["auth_mode"] is None
 
 
+async def _save_body(http: AsyncClient) -> dict[str, object]:
+    tested = await http.post(f"{SETUP_DIRECTORY}/test", json=_directory_body())
+    body = _directory_body()
+    del body["bind_account"]
+    del body["bind_password"]
+    body["test_token"] = tested.json().get("test_token") or "invalid-proof"
+    return body
+
+
 @pytest.mark.parametrize(
     ("override", "kind"),
     [
@@ -155,7 +167,7 @@ async def test_a_malformed_directory_body_is_rejected_without_calling_the_direct
     body = _directory_body(**override)
     async with anonymous(use_cases) as http:
         # when: 칸 하나가 틀린 본문으로 AD 서버를 등록한다
-        response = await http.put(SETUP_DIRECTORY, json=body)
+        response = await http.post(f"{SETUP_DIRECTORY}/test", json=body)
         config = (await http.get(CONFIG)).json()
 
     # then: 칸 값 위반은 invalid-value, 형식 위반은 request-validation, AD 확인 0회, 상태 그대로
@@ -322,7 +334,7 @@ async def test_the_setup_routes_work_without_a_session() -> None:
     use_cases = FakeUseCases()
     async with anonymous(use_cases) as http:
         # when: AD 서버 등록, 저장 위치 등록을 부른다
-        directory = await http.put(SETUP_DIRECTORY, json=_directory_body())
+        directory = await http.put(SETUP_DIRECTORY, json=await _save_body(http))
         storage = await http.put(SETUP_STORAGE, json={"path": "/data/neoine/files"})
         me = await http.get(ME)
 
@@ -345,11 +357,11 @@ async def test_neither_password_appears_in_any_response_or_log(
     responses = []
     async with anonymous(use_cases) as http:
         # when: 바인드 비밀번호로 AD 서버 등록(성공·확인 실패)을 보낸다
-        responses.append(await http.put(SETUP_DIRECTORY, json=_directory_body()))
+        responses.append(await http.put(SETUP_DIRECTORY, json=await _save_body(http)))
         use_cases.directory.discover_fails_with = DirectoryUnavailableError(
             LEAK, stage=VerificationStage.CONNECT
         )
-        responses.append(await http.put(SETUP_DIRECTORY, json=_directory_body()))
+        responses.append(await http.put(SETUP_DIRECTORY, json=await _save_body(http)))
         use_cases.directory.discover_fails_with = None
         await http.put(SETUP_STORAGE, json={"path": "/data/neoine-sales/files"})
         # when: 같은 비밀번호로 첫 admin 등록을 오답(401)·검증 오류(422)·성공(200)으로 보낸다
@@ -420,13 +432,12 @@ def test_openapi_setup_directory_request_takes_the_seven_fields_with_a_masked_pa
         "host",
         "port",
         "security",
-        "bind_account",
-        "bind_password",
+        "test_token",
         "user_filter",
         "connect_timeout_seconds",
     }
-    assert "bind_password" in schema["required"]
-    prop = schema["properties"]["bind_password"]
+    assert "test_token" in schema["required"]
+    prop = schema["properties"]["test_token"]
     assert any(
         c.get("format") == "password" and c.get("writeOnly") is True
         for c in [prop, *prop.get("anyOf", [])]

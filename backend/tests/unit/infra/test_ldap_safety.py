@@ -46,10 +46,11 @@ def _socket_down(mock: MockDirectory) -> None:
 
 def _service_rejected(mock: MockDirectory) -> None:
     mock.bind_codes_by_user[BIND_ACCOUNT] = 53
+    mock.bind_codes_by_user["kim@corp.test"] = 53
 
 
 def _user_rejected(mock: MockDirectory) -> None:
-    mock.bind_codes_by_user["cn=kim,ou=users,dc=corp,dc=test"] = 53
+    mock.bind_codes_by_user["kim@corp.test"] = 53
 
 
 def _search_fails(mock: MockDirectory) -> None:
@@ -79,7 +80,7 @@ async def test_errors_and_logs_never_contain_either_password(
 
     # when·then: 인증하면 DirectoryError가 난다
     with pytest.raises(DirectoryError) as caught:
-        await LdapDirectoryAuthenticator(mock.factory).authenticate(
+        await LdapDirectoryAuthenticator(mock.factory, user_bind_domain="corp.test").authenticate(
             make_directory_settings(), BASE_DN, LoginId("kim"), Password(attempt)
         )
 
@@ -104,7 +105,9 @@ async def test_discovery_errors_and_logs_never_contain_the_service_password(
 
     # when·then: 탐색하면 DirectoryError가 난다
     with pytest.raises(DirectoryError) as caught:
-        await LdapDirectoryAuthenticator(mock.factory).discover_base_dn(make_directory_settings())
+        await LdapDirectoryAuthenticator(
+            mock.factory, user_bind_domain="corp.test"
+        ).discover_base_dn(make_directory_settings())
 
     # then: 오류 체인과 로그에 서비스 비밀번호가 없다
     for error in _chain(caught.value):
@@ -123,7 +126,7 @@ async def test_errors_never_contain_the_password_when_the_search_matches_nothing
 
     # when·then: 인증하면 DirectoryError가 난다
     with pytest.raises(DirectoryError) as caught:
-        await LdapDirectoryAuthenticator(mock.factory).authenticate(
+        await LdapDirectoryAuthenticator(mock.factory, user_bind_domain="corp.test").authenticate(
             make_directory_settings(user_filter="(sAMAccountName=zz{login_id})"),
             BASE_DN,
             LoginId("kim"),
@@ -142,7 +145,7 @@ async def test_calls_run_off_the_event_loop() -> None:
     # given: 응답이 0.2초 지연되는 디렉터리와 주기적으로 도는 ticker 코루틴
     mock = _directory()
     mock.delay = 0.2
-    adapter = LdapDirectoryAuthenticator(mock.factory)
+    adapter = LdapDirectoryAuthenticator(mock.factory, user_bind_domain="corp.test")
     loop_thread = threading.get_ident()
     ticks = 0
 
@@ -162,7 +165,7 @@ async def test_calls_run_off_the_event_loop() -> None:
         task.cancel()
 
     # then: 인증 중에도 ticker가 돌았고 연결 생성은 이벤트 루프 스레드가 아니었다
-    assert ticks >= 4, "bind가 이벤트 루프를 막으면 그 동안 다른 코루틴이 돌지 못한다"
+    assert ticks >= 2, "bind가 이벤트 루프를 막으면 그 동안 다른 코루틴이 돌지 못한다"
     assert mock.factory_threads
     assert all(thread != loop_thread for thread in mock.factory_threads)
     assert all(thread != loop_thread for _, thread in mock.log)

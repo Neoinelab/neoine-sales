@@ -12,8 +12,6 @@ CONNECTION_FIELDS = {
     "host",
     "port",
     "security",
-    "bind_account",
-    "bind_password",
     "user_filter",
     "connect_timeout_seconds",
 }
@@ -73,11 +71,11 @@ def test_update_and_test_requests_take_the_seven_fields_the_password_and_the_rev
     probe = _schema(spec, "POST", DIRECTORY_TEST, request=True)
 
     # then: 속성 집합, 필수 여부(expected_revision만 필수, bind_password는 필수 아님)
-    assert set(update["properties"]) == CONNECTION_FIELDS | {"password", "expected_revision"}
-    assert set(probe["properties"]) == CONNECTION_FIELDS | {"password"}
+    assert set(update["properties"]) == CONNECTION_FIELDS | {"test_token", "expected_revision"}
+    assert set(probe["properties"]) == CONNECTION_FIELDS | {"bind_account", "bind_password"}
     assert "expected_revision" in update["required"]
     assert "bind_password" not in update["required"]
-    assert "bind_password" not in probe["required"]
+    assert "bind_password" in probe["required"]
 
 
 def test_bind_password_and_password_are_masked_write_only_secrets(spec: dict[str, Any]) -> None:
@@ -86,15 +84,13 @@ def test_bind_password_and_password_are_masked_write_only_secrets(spec: dict[str
     테스트 코드: IN-042
     """
     # when: 두 요청 스키마의 비밀번호 속성을 읽는다
-    schemas = [
-        _schema(spec, "PUT", DIRECTORY, request=True),
-        _schema(spec, "POST", DIRECTORY_TEST, request=True),
-    ]
-
-    # then: 각 비밀번호 속성이 마스킹되는 쓰기 전용 값이다
-    for schema in schemas:
-        for field in ("bind_password", "password"):
-            assert _is_masked_secret(schema["properties"][field]), (field, schema["properties"])
+    update = _schema(spec, "PUT", DIRECTORY, request=True)
+    probe = _schema(spec, "POST", DIRECTORY_TEST, request=True)
+    assert _is_masked_secret(update["properties"]["test_token"])
+    assert _is_masked_secret(probe["properties"]["bind_account"])
+    assert _is_masked_secret(probe["properties"]["bind_password"])
+    assert "bind_account" not in update["properties"]
+    assert "bind_password" not in update["properties"]
 
 
 def test_response_hides_the_password_and_the_result_has_four_fields(spec: dict[str, Any]) -> None:
@@ -108,8 +104,8 @@ def test_response_hides_the_password_and_the_result_has_four_fields(spec: dict[s
 
     # then: 비밀번호 속성 없음, 상태 enum, 결과 속성 4개
     assert not any("password" in key for key in response["properties"])
-    assert set(response["properties"]["bind_credential_status"]["enum"]) == {"ok", "unreadable"}
-    assert set(result["properties"]) == {"success", "stage", "message", "base_dn"}
+    assert "bind_credential_status" not in response["properties"]
+    assert set(result["properties"]) == {"success", "stage", "message", "base_dn", "test_token"}
 
 
 @pytest.mark.parametrize(

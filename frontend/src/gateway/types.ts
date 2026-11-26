@@ -72,7 +72,8 @@ import type {
   DealPatch,
   DealRow,
   DirectorySettings,
-  DirectorySettingsInput,
+  DirectorySaveInput,
+  DirectoryTestInput,
   LicenseContract,
   LicenseContractFields,
   LicenseContractQuery,
@@ -150,9 +151,9 @@ export interface SetupGateway {
    */
   chooseAuthMode(mode: AuthMode): Promise<void>
   /** AD 단계. 항상 가능(재저장 허용, 방식은 AD가 된다). directoryDone=true. `bindPassword`가 비면 422. */
-  saveDirectory(input: DirectorySettingsInput): Promise<void>
+  saveDirectory(input: DirectorySaveInput): Promise<void>
   /** AD 연결 테스트(저장 없음). 실패는 422 `directory-verification-failed`(단계 포함), 성공하면 찾은 Base DN. */
-  testDirectory(input: DirectorySettingsInput): Promise<{ baseDn: string }>
+  testDirectory(input: DirectoryTestInput): Promise<DirectoryTestResult>
   /** 2단계. directoryDone이 false면 409. 검증은 settings.storage.save와 같다. */
   saveStorage(path: string): Promise<void>
   /** 2단계 쓰기 테스트. 로그인·1단계 불필요, 저장 없이 검증만(저장소 장애 시뮬레이션 시 503). */
@@ -460,18 +461,10 @@ export interface MeGateway {
 export interface SettingsGateway {
   /** admin만. 설정이 없으면 null. */
   getDirectory(): Promise<DirectorySettings | null>
-  /**
-   * revision +1, updatedBy/updatedAt 갱신. 검증 422(호스트·바인드 계정 필수, 포트·시간 범위). 접속 정보가 바뀌었는데
-   * `bindPassword`가 null이면 422, null이면 저장된 비밀번호를 유지한다.
-   * `auth.password`는 현재 관리자 비밀번호(새 설정으로 인증을 확인한다), `expectedRevision`은
-   * 화면이 읽은 설정 버전(낙관적 잠금, 어긋나면 409). Fake는 값을 받기만 한다.
-   */
-  saveDirectory(input: DirectorySettingsInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
-  /**
-   * 호스트에 'fail'이 들어가면 422(kind `directory-verification-failed`, stage 'connect', detail "연결 단계에서 실패했습니다").
-   * 성공하면 서버가 AD에서 찾은 Base DN을 돌려준다. `password`는 현재 관리자 비밀번호.
-   */
-  testDirectory(input: DirectorySettingsInput, password: string | null): Promise<DirectoryTestResult>
+  /** 테스트 확인 토큰과 읽은 버전으로 저장한다. 버전이 다르면 409. */
+  saveDirectory(input: DirectorySaveInput, auth: DirectorySaveAuth): Promise<DirectorySettings>
+  /** 일회성 계정으로 확인하고 저장에 필요한 토큰과 Base DN을 돌려준다. */
+  testDirectory(input: DirectoryTestInput): Promise<DirectoryTestResult>
   getStorage(): Promise<StorageSettings | null>
   /** 절대 경로 아니면 422 "절대 경로를 입력하세요.", '/readonly'로 시작하면 422 "해당 위치에 쓸 수 없습니다." */
   saveStorage(path: string): Promise<StorageSettings>
@@ -487,12 +480,12 @@ export interface AlertsGateway {
 }
 
 export interface DirectorySaveAuth {
-  password: string | null
   /** 화면이 읽은 설정 버전. null이면 설정이 없을 때 새로 만든다(있으면 409). */
   expectedRevision: number | null
 }
 
 export interface DirectoryTestResult {
+  readonly testToken: string
   /** 연결 테스트가 AD에서 찾은 Base DN. */
   baseDn: string | null
 }

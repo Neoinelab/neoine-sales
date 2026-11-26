@@ -39,7 +39,7 @@ settings = make_directory_settings(
 )
 
 async def main():
-    adapter = LdapDirectoryAuthenticator()
+    adapter = LdapDirectoryAuthenticator(user_bind_domain="corp.test")
     started = time.monotonic()
     try:
         if method == "discover":

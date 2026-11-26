@@ -123,17 +123,20 @@ async def _create_link(uow: UnitOfWork, user: User, kind: str) -> None:
         await uow.deal_actions.add(action)
     elif kind == "directory_settings":
         # 이미 설정이 있는 환경(e2e admin 앱)에서는 현재 revision으로 갱신한다.
-        from app.domain.common.secret import SealedSecret  # noqa: PLC0415
+        from app.application.ports.directory_settings_repository import (  # noqa: PLC0415
+            DirectorySettingsWrite,
+        )
         from tests.factories_directory import make_directory_connection  # noqa: PLC0415
 
         stored = await uow.directory_settings.get()
         await uow.directory_settings.save(
-            make_directory_connection(),
-            SealedSecret("sealed-dummy-token"),
-            BASE_DN,
-            expected_revision=None if stored is None else stored.revision,
-            updated_by=user.id,
-            now=NOW,
+            DirectorySettingsWrite(
+                connection=make_directory_connection(),
+                base_dn=BASE_DN,
+                expected_revision=None if stored is None else stored.revision,
+                updated_by=user.id,
+                now=NOW,
+            )
         )
     elif kind == "label_creator":
         await uow.bant_labels.add(make_label(name=f"L{uuid4().hex[:12]}", created_by=user.id))

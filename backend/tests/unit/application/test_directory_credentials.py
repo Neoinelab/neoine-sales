@@ -1,128 +1,69 @@
-"""application/directory/credentials.py: 바인드 비밀번호 복호화와 후보 설정 완성(AC4·AC10)."""
+"""연결 테스트 증명: 자격증명 없이 범위·설정·유효기간을 검증한다(IN-087)."""
 
-import logging
 
 import pytest
 
-from app.application.directory.credentials import resolve_draft, try_unseal, unseal_settings
-from app.application.directory.errors import DirectoryCredentialUnreadableError
-from app.application.ports.directory import DirectoryUnavailableError
-from app.domain.auth.credentials import Password
+from app.application.directory.connection_proof import PROOF_TTL_SECONDS, DirectoryConnectionProof
 from app.domain.common.errors import InvalidValueError
-from app.domain.directory.settings import DirectorySettingsDraft, StoredDirectorySettings
+from app.domain.common.secret import SealedSecret
+from app.domain.directory.settings import SecurityMode
 from tests.factories import NOW
-from tests.factories_auth import BASE_DN, BIND_PASSWORD
 from tests.factories_directory import make_directory_connection
 from tests.fakes.secret_cipher import FakeSecretCipher, foreign_secret
+from tests.fakes.unit_of_work import FixedClock
 
 
-def _stored(cipher: FakeSecretCipher, *, readable: bool = True) -> StoredDirectorySettings:
-    return StoredDirectorySettings(
-        connection=make_directory_connection(),
-        sealed_bind_password=cipher.seal(BIND_PASSWORD) if readable else foreign_secret(),
-        base_dn=BASE_DN,
-        revision=1,
-        updated_at=NOW,
-        updated_by=None,
-    )
+def test_valid_proof_returns_base_dn_and_contains_no_credentials() -> None:
+    # given: 연결 테스트에 성공한 접속 정보
+    cipher, clock = FakeSecretCipher(), FixedClock(NOW)
+    proof = DirectoryConnectionProof(cipher, clock)
+    connection = make_directory_connection()
+    # when: 성공 증명을 발급하고 검증한다
+    token = SealedSecret(proof.issue(connection, "dc=corp,dc=test", "setup"))
+    # then: Base DN만 복원하고 계정이나 비밀번호를 요구하지 않는다
+    assert proof.verify(connection, token, "setup") == "dc=corp,dc=test"
 
 
-def test_unseal_settings_returns_the_connection_with_the_plain_password() -> None:
-    """저장된 설정을 풀면 접속 정보와 평문 바인드 비밀번호를 돌려준다."""
-    # given: 봉인된 비밀번호가 든 저장 설정
-    cipher = FakeSecretCipher()
-    stored = _stored(cipher)
-
-    # when: 설정을 푼다
-    settings = unseal_settings(cipher, stored)
-
-    # then: 접속 정보와 평문 비밀번호가 나온다
-    assert settings.connection == stored.connection
-    assert settings.bind_password.reveal() == BIND_PASSWORD
-
-
-def test_unseal_settings_failure_raises_unavailable_and_logs_a_warning_without_values(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """풀 수 없으면 오류를 내고 값 없는 경고 로그만 남긴다.
-
-    테스트 코드: IN-034
-    """
-    # given: 풀 수 없는 암호문이 든 저장 설정
-    cipher = FakeSecretCipher()
-    stored = _stored(cipher, readable=False)
-    caplog.set_level(logging.DEBUG)
-
-    with pytest.raises(DirectoryCredentialUnreadableError) as caught:
-        unseal_settings(cipher, stored)
-
-    assert isinstance(caught.value, DirectoryUnavailableError)
-    # when: 설정을 푼다
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    # then: 복호화 실패 오류가 나고 로그에는 비밀번호·암호문 없이 경고만 있다
-    assert any(
-        "AD 바인드 비밀번호를 복호화하지 못했습니다(암호화 키 변경 여부 확인)" in r.getMessage()
-        for r in warnings
-    )
-    assert stored.sealed_bind_password.token not in caplog.text
-    assert stored.sealed_bind_password.token not in f"{caught.value!s}{caught.value!r}"
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"host": "other.corp.test"},
+        {"port": 389},
+        {"security": SecurityMode.STARTTLS},
+        {"user_filter": "(uid={login_id})"},
+        {"connect_timeout_seconds": 9},
+    ],
+)
+def test_any_connection_change_requires_retesting(change: dict[str, object]) -> None:
+    # given: 원래 접속 정보의 성공 증명
+    proof = DirectoryConnectionProof(FakeSecretCipher(), FixedClock(NOW))
+    connection = make_directory_connection()
+    token = SealedSecret(proof.issue(connection, "dc=corp,dc=test", "setup"))
+    # when·then: 어떤 접속 정보든 바뀌면 저장할 수 없다
+    with pytest.raises(InvalidValueError):
+        proof.verify(make_directory_connection(**change), token, "setup")
 
 
-def test_try_unseal_returns_the_password_or_none() -> None:
-    """풀 수 있으면 비밀번호를, 없으면 None을 돌려준다."""
-    # given: 읽을 수 있는 암호문과 없는 설정
-    cipher = FakeSecretCipher()
-
-    readable = try_unseal(cipher, _stored(cipher))
-    # when: 비밀번호 풀기를 시도한다
-    unreadable = try_unseal(cipher, _stored(cipher, readable=False))
-
-    # then: 비밀번호 또는 None이다
-    assert readable is not None
-    assert readable.reveal() == BIND_PASSWORD
-    assert unreadable is None
+@pytest.mark.parametrize("scope", ["admin:1", "admin:2", ""])
+def test_proof_cannot_cross_setup_or_admin_scope(scope: str) -> None:
+    # given: 초기 설정에서 성공했다
+    proof = DirectoryConnectionProof(FakeSecretCipher(), FixedClock(NOW))
+    connection = make_directory_connection()
+    token = SealedSecret(proof.issue(connection, "dc=corp,dc=test", "setup"))
+    # when·then: 다른 권한 범위로 재사용할 수 없다
+    with pytest.raises(InvalidValueError):
+        proof.verify(connection, token, scope)
 
 
-def test_resolve_draft_uses_the_new_password_without_stored_settings() -> None:
-    """저장된 설정이 없어도 새 비밀번호가 있으면 그 값을 쓴다."""
-    # given: 저장된 설정이 없다
-    cipher = FakeSecretCipher()
-    draft = DirectorySettingsDraft(make_directory_connection(), Password("New-pw-2!"))
-
-    # when: 새 비밀번호가 든 초안을 완성한다
-    settings = resolve_draft(draft, None, cipher)
-
-    # then: 새 비밀번호가 쓰인다
-    assert settings.bind_password.reveal() == "New-pw-2!"
-
-
-def test_resolve_draft_keeps_the_stored_password_when_endpoint_and_account_are_unchanged() -> None:
-    """엔드포인트·계정이 같으면 비밀번호 생략은 저장된 값을 쓴다."""
-    # given: 저장된 설정
-    cipher = FakeSecretCipher()
-    draft = DirectorySettingsDraft(
-        make_directory_connection(user_filter="(uid={login_id})"), bind_password=None
-    )
-
-    # when: 같은 엔드포인트로 비밀번호 없는 초안을 완성한다
-    settings = resolve_draft(draft, _stored(cipher), cipher)
-
-    # then: 저장된 비밀번호가 쓰인다
-    assert settings.bind_password.reveal() == BIND_PASSWORD
-
-
-@pytest.mark.parametrize("readable", [True, False])
-def test_resolve_draft_rejects_a_missing_password_when_it_cannot_be_reused(
-    readable: bool,
-) -> None:
-    """저장 값을 쓸 수 없는 경우 비밀번호 생략은 거절된다."""
-    # given: 저장 설정이 없거나 엔드포인트가 다르다
-    cipher = FakeSecretCipher()
-    other_host = make_directory_connection(host="dc9.corp.test")
-    draft = DirectorySettingsDraft(other_host if readable else make_directory_connection(), None)
-
-    # when·then: 비밀번호 없는 초안을 완성한다 → InvalidValueError다
-    with pytest.raises(InvalidValueError) as caught:
-        resolve_draft(draft, _stored(cipher, readable=readable), cipher)
-
-    assert "bind_password" in str(caught.value)
+def test_expired_or_foreign_proof_is_rejected() -> None:
+    # given: 성공 증명을 발급했다
+    clock = FixedClock(NOW)
+    proof = DirectoryConnectionProof(FakeSecretCipher(), clock)
+    connection = make_directory_connection()
+    token = SealedSecret(proof.issue(connection, "dc=corp,dc=test", "setup"))
+    # when: 유효기간이 끝난다
+    clock.advance(seconds=PROOF_TTL_SECONDS)
+    # then: 만료되거나 다른 키로 만든 증명은 재테스트를 요구한다
+    for candidate in (token, foreign_secret()):
+        with pytest.raises(InvalidValueError):
+            proof.verify(connection, candidate, "setup")

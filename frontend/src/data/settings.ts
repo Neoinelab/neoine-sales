@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { gateway } from '../gateway'
 import type { DirectoryTestResult } from '../gateway/types'
 import type { ApiError } from '../shared/api/problem'
-import type { DirectorySettings, DirectorySettingsInput, StorageSettings } from '../shared/model/types'
+import type { DirectorySettings, DirectorySaveInput, DirectoryTestInput, StorageSettings } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
 
@@ -16,32 +16,24 @@ export function useDirectorySettings(): Query<DirectorySettings | null> {
 }
 
 export interface SaveDirectoryVariables {
-  input: DirectorySettingsInput
-  /** 현재 관리자 비밀번호. */
-  password: string | null
-  /** 화면이 읽은 설정 버전(낙관적 잠금). 설정이 없을 때 새로 등록하면 null. */
-  expectedRevision: number | null
+  readonly input: DirectorySaveInput
+  readonly expectedRevision: number | null
 }
 
-export interface TestDirectoryVariables {
-  input: DirectorySettingsInput
-  password: string | null
-}
-
-/** gateway.settings.saveDirectory. gcTime 0(비밀번호가 든 variables를 캐시에 남기지 않는다). 성공: keys.directory 무효화. */
+/** 성공하면 저장된 설정을 갱신한다. */
 export function useSaveDirectory(): Mutation<SaveDirectoryVariables, DirectorySettings> {
   const invalidate = useInvalidate()
   return useMutation<DirectorySettings, ApiError, SaveDirectoryVariables>({
-    mutationFn: ({ input, password, expectedRevision }) => gateway.settings.saveDirectory(input, { password, expectedRevision }),
+    mutationFn: ({ input, expectedRevision }) => gateway.settings.saveDirectory(input, { expectedRevision }),
     gcTime: 0,
     onSuccess: () => invalidate(keys.directory),
   })
 }
 
-/** gateway.settings.testDirectory. gcTime 0(비밀번호). 실패는 ApiError(kind directory-verification-failed, stage). 캐시 영향 없음. */
-export function useTestDirectory(): Mutation<TestDirectoryVariables, DirectoryTestResult> {
-  return useMutation<DirectoryTestResult, ApiError, TestDirectoryVariables>({
-    mutationFn: ({ input, password }) => gateway.settings.testDirectory(input, password),
+/** 테스트 자격 증명은 대화상자를 닫거나 요청이 끝나면 즉시 제거한다. */
+export function useTestDirectory(): Mutation<DirectoryTestInput, DirectoryTestResult> {
+  return useMutation<DirectoryTestResult, ApiError, DirectoryTestInput>({
+    mutationFn: (input) => gateway.settings.testDirectory(input),
     gcTime: 0,
   })
 }

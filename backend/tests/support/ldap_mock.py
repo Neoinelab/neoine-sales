@@ -171,6 +171,7 @@ class MockDirectory:
             extra["telephoneNumber"] = telephone
         dn = f"cn={login_id},ou=users,{BASE_DN}"
         self.add_entry(dn, user_attributes(login_id, password, **extra))
+        self.upn_passwords[f"{login_id}@corp.test"] = password
         return dn
 
     def factory(

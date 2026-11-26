@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { DirectoryTestResult } from '../gateway/types'
 import { gateway } from '../gateway'
 import type { ApiError } from '../shared/api/problem'
-import type { AuthMode, DirectorySettingsInput, Me, NewAccountProfile, SetupState } from '../shared/model/types'
+import type { AuthMode, DirectorySaveInput, DirectoryTestInput, Me, NewAccountProfile, SetupState } from '../shared/model/types'
 import { keys } from './queryKeys'
 import { NO_RETRY, useInvalidate, type Mutation, type Query } from './result'
 
@@ -20,17 +21,21 @@ export function useChooseAuthMode(): Mutation<AuthMode> {
 }
 
 /** gateway.setup.saveDirectory. 성공: keys.setup 무효화. */
-export function useSaveSetupDirectory(): Mutation<DirectorySettingsInput> {
+export function useSaveSetupDirectory(): Mutation<DirectorySaveInput> {
   const invalidate = useInvalidate()
-  return useMutation<void, ApiError, DirectorySettingsInput>({
+  return useMutation<void, ApiError, DirectorySaveInput>({
     mutationFn: (input) => gateway.setup.saveDirectory(input),
+    gcTime: 0,
     onSuccess: () => invalidate(keys.setup, keys.authConfig),
   })
 }
 
 /** gateway.setup.testDirectory. 최초 설정(로그인 전) AD 연결 테스트. 캐시 영향 없음. */
-export function useTestSetupDirectory(): Mutation<DirectorySettingsInput, { baseDn: string }> {
-  return useMutation<{ baseDn: string }, ApiError, DirectorySettingsInput>({ mutationFn: (input) => gateway.setup.testDirectory(input) })
+export function useTestSetupDirectory(): Mutation<DirectoryTestInput, DirectoryTestResult> {
+  return useMutation<DirectoryTestResult, ApiError, DirectoryTestInput>({
+    mutationFn: (input) => gateway.setup.testDirectory(input),
+    gcTime: 0,
+  })
 }
 
 /** gateway.setup.saveStorage(path). 성공: keys.setup 무효화. */

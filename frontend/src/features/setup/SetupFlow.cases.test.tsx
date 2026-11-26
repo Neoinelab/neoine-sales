@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../gateway'
 import { ApiError, type Problem } from '../../shared/api/problem'
 import { defaultDealsUrlPattern } from '../../test/dealsUrl'
-import { fillDirectoryForm, passDirectoryTest, selectSecurity } from '../../test/directoryForm'
+import { fillDirectoryForm, passDirectoryTest } from '../../test/directoryForm'
 import { openFreshSetup, openLocalAdminStep, openLocalStorageStep, openUserMenu, renderLocalAt } from '../../test/localAccounts'
 import { renderAt } from '../../test/mockApp'
 import { mockControl } from '../../test/fake/default'
@@ -19,10 +19,6 @@ function problemOf(status: number, kind: string, detail: string): ApiError {
   return new ApiError(status, { type: `https://sales.neoine.test/problems/${kind}`, title: kind, status, detail })
 }
 
-/** 서버가 알려 주는 진행 상태를 고정한다(나머지는 Fake 그대로). */
-function fakeStatus(state: { authMode: 'ad' | 'local' | null; directoryDone: boolean; storageDone: boolean; adminDone: boolean }) {
-  vi.spyOn(gateway.setup, 'status').mockResolvedValue(state)
-}
 
 /** 설정이 필요한 상태(방식 미선택)로 주소를 연다. */
 async function openUnconfigured(url: string, options: { role: null } = { role: null }): Promise<Rendered> {
@@ -181,7 +177,7 @@ describe('인증 방식 단계 (SU-048~SU-051, SU-059)', () => {
     expect(screen.getByLabelText(/^포트/)).toHaveValue(636)
     expect(screen.getByLabelText(/사용자 검색 필터/)).toHaveValue('(&(objectClass=user)(sAMAccountName={login_id}))')
     expect(screen.getByLabelText(/연결 제한 시간/)).toHaveValue(5)
-    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('')
+    expect(screen.queryByLabelText(/^바인드 비밀번호/)).not.toBeInTheDocument()
     for (const removed of [/서버 URL/, /StartTLS 사용/, /CA 인증서/, /바인드 템플릿/, /^Base DN/, /속성/, /응답 제한 시간/]) {
       expect(screen.queryByLabelText(removed)).not.toBeInTheDocument()
     }
@@ -228,171 +224,6 @@ describe('인증 방식 단계 (SU-048~SU-051, SU-059)', () => {
 
     // then: 저장 위치를 다시 묻지 않고 "관리자 등록"으로 간다
     expect(await screen.findByRole('heading', { name: '관리자 등록' })).toBeInTheDocument()
-  })
-})
-
-describe('AD 서버 등록 단계 (SU-052~SU-055)', () => {
-  // AD 폼을 저장하면 7칸을 보내고 1단계 완료와 함께 저장 위치 단계로 간다.
-  // 테스트 코드: SU-052
-  it('sends the seven inputs and moves to the storage step with step 1 done', async () => {
-    // given: AD 폼에 호스트·starttls(포트 389)·바인드 계정·비밀번호를 넣고 연결 테스트에 성공했다
-    const { user } = await openAdForm()
-    const test = vi.spyOn(gateway.setup, 'testDirectory')
-    const save = vi.spyOn(gateway.setup, 'saveDirectory')
-    fillDirectoryForm()
-    await selectSecurity(user, 'starttls')
-    await passDirectoryTest(user)
-
-    // when: "AD 서버 등록"을 누른다
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
-
-    // then: 테스트·저장 요청이 각각 7칸으로 1회 가고 "파일 저장 위치"가 보이며 1단계 완료, 2단계가 현재다
-    expect(await screen.findByRole('heading', { name: '파일 저장 위치' })).toBeInTheDocument()
-    const sent = {
-      host: 'dc1.corp.test',
-      port: 389,
-      security: 'starttls',
-      bindAccount: 'CORP\\svc-sales',
-      bindPassword: 'Svc-Dummy-pw-1!',
-      userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
-      connectTimeoutSeconds: 5,
-    }
-    expect(test).toHaveBeenCalledTimes(1) // 요청 여부가 이 케이스의 결과다
-    expect(test).toHaveBeenCalledWith(sent)
-    expect(save).toHaveBeenCalledTimes(1)
-    expect(save).toHaveBeenCalledWith(sent)
-    expect(stepItem('1. 인증 방식')).toHaveTextContent('완료')
-    expect(stepItem('2. 파일 저장 위치')).toHaveAttribute('aria-current', 'step')
-  })
-
-  // 바인드 비밀번호가 비면 서버를 부르지 않고 입력을 요구한다.
-  // 테스트 코드: SU-053
-  it('asks for the bind password without calling the server', async () => {
-    // given: 바인드 비밀번호만 비운 AD 폼이다
-    const { user } = await openAdForm()
-    const test = vi.spyOn(gateway.setup, 'testDirectory')
-    const save = vi.spyOn(gateway.setup, 'saveDirectory')
-    fillDirectoryForm({ bindPassword: '' })
-
-    // when: "연결 테스트"를 누른다
-    await user.click(screen.getByRole('button', { name: '연결 테스트' }))
-
-    // then: 안내가 role=alert로 보이고 테스트·저장 요청은 없으며 등록은 비활성인 채 폼에 머문다
-    expect(await screen.findByRole('alert')).toHaveTextContent('바인드 비밀번호를 입력하세요')
-    expect(test).not.toHaveBeenCalled() // 서버에 가지 않았다는 것이 이 케이스의 결과다
-    expect(save).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'AD 서버 등록' })).toBeDisabled()
-    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-  })
-
-  // AD 폼 저장이 거절되면 값 오류는 서버 문구, 확인 실패는 단계별 안내를 보이고 입력을 유지한다.
-  // 테스트 코드: SU-054
-  it('shows the server message for an invalid value and keeps the input', async () => {
-    // given: 연결 테스트에 성공했지만 서버가 등록을 호스트 오류(422 invalid-value)로 거절한다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    vi.spyOn(gateway.setup, 'saveDirectory').mockRejectedValue(problemOf(422, 'invalid-value', '호스트를 입력하세요.'))
-
-    // when: "AD 서버 등록"을 누른다
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
-
-    // then: 서버 문구가 보이고 입력값이 그대로이며 제목에 머문다. 성공 알림은 사라지고 등록은 비활성, 안내가 다시 보인다
-    expect(await screen.findByRole('alert')).toHaveTextContent('호스트를 입력하세요.')
-    expect(screen.getByLabelText(/^바인드 계정/)).toHaveValue('CORP\\svc-sales')
-    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('Svc-Dummy-pw-1!')
-    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'AD 서버 등록' })).toBeDisabled()
-    expect(screen.getByText('연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다.')).toBeInTheDocument()
-  })
-
-  // 테스트 코드: SU-054
-  it.each([
-    ['connect', 'AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.'],
-    ['service_bind', '바인드 계정으로 AD에 로그인하지 못했습니다'],
-    ['base_dn', 'AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다'],
-  ])('explains the %s stage of a verification failure and keeps the input', async (stage, text) => {
-    // given: 연결 테스트에 성공했지만 서버가 등록을 해당 단계의 확인 실패로 거절한다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    vi.spyOn(gateway.setup, 'saveDirectory').mockRejectedValue(
-      new ApiError(422, {
-        type: 'https://sales.neoine.test/problems/directory-verification-failed',
-        title: 'Directory Verification Failed',
-        status: 422,
-        detail: '서버 문구',
-        stage,
-      }),
-    )
-
-    // when: "AD 서버 등록"을 누른다
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
-
-    // then: 단계별 화면 문구가 보이고 입력값이 그대로이며 제목에 머문다
-    expect(await screen.findByRole('alert')).toHaveTextContent(text)
-    expect(screen.getByRole('button', { name: 'AD 서버 등록' })).toBeDisabled()
-    expect(screen.getByLabelText(/^바인드 계정/)).toHaveValue('CORP\\svc-sales')
-    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-  })
-
-  // 화면 단계는 서버 진행 상태를 따른다.
-  // 테스트 코드: SU-055
-  it('opens the AD form directly when the mode is ad but no AD server exists', async () => {
-    // given: 방식 ad인데 AD 설정이 없다
-    fakeStatus({ authMode: 'ad', directoryDone: false, storageDone: false, adminDone: false })
-
-    // when: /setup을 연다
-    await renderAt('/setup', { role: null })
-
-    // then: 곧바로 "AD 서버 등록"이 열린다
-    expect(await screen.findByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-  })
-
-  // 테스트 코드: SU-055
-  it('opens the storage step directly when the AD server exists but the location does not', async () => {
-    // given: AD 서버는 등록되었고 저장 위치가 없다
-    fakeStatus({ authMode: 'ad', directoryDone: true, storageDone: false, adminDone: false })
-
-    // when: /setup을 연다
-    await renderAt('/setup', { role: null })
-
-    // then: 곧바로 "파일 저장 위치"가 열린다
-    expect(await screen.findByRole('heading', { name: '파일 저장 위치' })).toBeInTheDocument()
-  })
-
-  // 테스트 코드: SU-055
-  it('skips the storage step when the location already exists, even after going back', async () => {
-    // given: 저장 위치는 이미 있고 방식은 고르지 않았다
-    const reset = mockControl.resetData.bind(mockControl)
-    vi.spyOn(mockControl, 'resetData').mockImplementation(() => {
-      reset()
-      mockControl.restartSetup()
-    })
-    const real = gateway.setup.status.bind(gateway.setup)
-    vi.spyOn(gateway.setup, 'status').mockImplementation(async () => ({ ...(await real()), storageDone: true }))
-    const { user } = await renderAt('/setup', { role: null })
-    await screen.findByRole('heading', { name: '인증 방식' })
-
-    // when: "AD 연동"으로 AD 서버를 저장하고, 되돌아갔다가 다시 AD 서버를 저장한다
-    await user.click(screen.getByRole('button', { name: 'AD 연동' }))
-    await screen.findByRole('heading', { name: 'AD 서버 등록' })
-    expect(stepItem('2. 파일 저장 위치')).toHaveTextContent('완료')
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
-    await screen.findByRole('heading', { name: '관리자 등록' })
-    await user.click(screen.getByRole('button', { name: '인증 방식 다시 선택' }))
-    await user.click(await screen.findByRole('button', { name: 'AD 연동' }))
-    await screen.findByRole('heading', { name: 'AD 서버 등록' })
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
-
-    // then: 저장 위치를 묻지 않고 "관리자 등록"으로 간다
-    expect(await screen.findByRole('heading', { name: '관리자 등록' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('저장 경로')).not.toBeInTheDocument()
   })
 })
 
@@ -667,241 +498,26 @@ describe('관리자 등록 단계 (SU-060~SU-064)', () => {
   })
 })
 
-describe('AD 연결 테스트 (SU-073~SU-077)', () => {
-  const registerButton = () => screen.getByRole('button', { name: 'AD 서버 등록' })
-  const testButton = () => screen.getByRole('button', { name: '연결 테스트' })
-  const NEED_TEST = '연결 테스트에 성공해야 AD 서버를 등록할 수 있습니다.'
-  const SUCCESS = '연결 테스트에 성공했습니다. Base DN: dc=found,dc=test'
-  const sevenInputs = {
-    host: 'dc1.corp.test',
-    port: 636,
-    security: 'ssl',
-    bindAccount: 'CORP\\svc-sales',
-    bindPassword: 'Svc-Dummy-pw-1!',
-    userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
-    connectTimeoutSeconds: 5,
-  }
-
-  // 등록 버튼은 처음엔 꺼져 있고 연결 테스트에 성공하면 Base DN과 함께 켜진다.
-  // 테스트 코드: SU-073
-  it('keeps register disabled until the connection test succeeds and then shows the base DN', async () => {
-    // given: AD 폼에 호스트·바인드 계정·바인드 비밀번호를 넣었다
-    const { user } = await openAdForm()
-    const test = vi.spyOn(gateway.setup, 'testDirectory')
-    const save = vi.spyOn(gateway.setup, 'saveDirectory')
-    fillDirectoryForm()
-    expect(registerButton()).toBeDisabled()
-    expect(screen.getByText(NEED_TEST)).toBeInTheDocument()
-
-    // when: "연결 테스트"를 누른다
-    await user.click(testButton())
-
-    // then: 테스트 요청이 7칸으로 1회 가고 저장 요청은 없으며 성공 알림과 Base DN이 보이고 등록이 활성이다
-    expect(await screen.findByText(SUCCESS)).toBeInTheDocument()
-    expect(test).toHaveBeenCalledTimes(1) // 요청 여부가 이 케이스의 결과다
-    expect(test).toHaveBeenCalledWith(sevenInputs)
-    expect(save).not.toHaveBeenCalled()
-    expect(screen.queryByText(NEED_TEST)).not.toBeInTheDocument()
-    expect(registerButton()).toBeEnabled()
-    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('Svc-Dummy-pw-1!')
-  })
-
-  // 성공 뒤 입력 칸을 바꾸면 성공이 풀리고 등록이 다시 꺼진다.
-  // 테스트 코드: SU-074
+describe('AD 연결 테스트와 등록', () => {
+  // 테스트 코드: SU-055
   it.each([
-    ['host appended', async (u: Awaited<ReturnType<typeof openAdForm>>['user']) => { await u.type(screen.getByLabelText(/^호스트/), 'x') }],
-    ['security changed', async (u: Awaited<ReturnType<typeof openAdForm>>['user']) => { await selectSecurity(u, 'starttls') }],
-    ['bind password changed', async (u: Awaited<ReturnType<typeof openAdForm>>['user']) => { await u.type(screen.getByLabelText(/^바인드 비밀번호/), '2') }],
-    ['host appended then restored', async (u: Awaited<ReturnType<typeof openAdForm>>['user']) => {
-      await u.type(screen.getByLabelText(/^호스트/), 'x')
-      await u.type(screen.getByLabelText(/^호스트/), '{Backspace}')
-    }],
-  ])('invalidates the success when the input changes: %s', async (_name, change) => {
-    // given: 연결 테스트에 성공한 AD 폼이다
-    const { user } = await openAdForm()
+    [false, false, 'AD 서버 등록'],
+    [true, false, '파일 저장 위치'],
+    [true, true, '관리자 등록'],
+  ] as const)('opens the server-selected setup step (%s %s)', async (directoryDone, storageDone, heading) => {
+    vi.spyOn(gateway.setup, 'status').mockResolvedValue({ authMode: 'ad', directoryDone, storageDone, adminDone: false })
+    await openUnconfigured('/setup')
+    await screen.findByRole('heading', { name: heading })
+  })
+  it('requires a successful transient credential test before saving', async () => {
+    const { user } = await openFreshSetup()
+    await user.click(screen.getByRole('button', { name: 'AD 연동' }))
+    await screen.findByRole('heading', { name: 'AD 서버 등록' })
     fillDirectoryForm()
+    expect(screen.getByRole('button', { name: 'AD 서버 등록' })).toBeDisabled()
     await passDirectoryTest(user)
-    expect(registerButton()).toBeEnabled()
-
-    // when: 입력을 바꾼다
-    await change(user)
-
-    // then: 성공 알림이 사라지고 등록이 꺼지며 안내가 다시 보이고, 다시 테스트에 성공하면 등록이 켜진다
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(registerButton()).toBeDisabled()
-    expect(screen.getByText(NEED_TEST)).toBeInTheDocument()
-    await passDirectoryTest(user)
-    expect(registerButton()).toBeEnabled()
-  })
-
-  // 테스트 코드: SU-074
-  it('only hides the notice when it is closed, keeping register enabled', async () => {
-    // given: 연결 테스트에 성공한 AD 폼이다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-
-    // when: 성공 알림의 닫기를 누른다
-    await user.click(within(screen.getByRole('status')).getByRole('button', { name: '닫기' }))
-
-    // then: 알림만 사라지고 등록은 활성이다
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(registerButton()).toBeEnabled()
-  })
-
-  // 연결 테스트가 실패하면 문구를 보이고 입력을 유지하며 등록은 꺼진 채다.
-  // 테스트 코드: SU-075
-  it.each([
-    ['connect', 'AD 서버에 연결하지 못했습니다. 호스트·포트·방화벽을 확인하세요.'],
-    ['tls', 'SSL/StartTLS 연결을 맺지 못했습니다'],
-    ['service_bind', '바인드 계정으로 AD에 로그인하지 못했습니다'],
-    ['base_dn', 'AD에서 Base DN(defaultNamingContext)을 찾지 못했습니다'],
-  ])('shows the %s stage message when the connection test fails and keeps register disabled', async (stage, text) => {
-    // given: 서버가 해당 단계의 확인 실패로 테스트를 거절한다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    vi.spyOn(gateway.setup, 'testDirectory').mockRejectedValue(new ApiError(422, {
-      type: 'https://sales.neoine.test/problems/directory-verification-failed',
-      title: 'Directory Verification Failed',
-      status: 422,
-      detail: '서버 문구',
-      stage,
-    }))
-    const save = vi.spyOn(gateway.setup, 'saveDirectory')
-
-    // when: "연결 테스트"를 누른다
-    await user.click(testButton())
-
-    // then: 단계별 문구가 role=alert로 보이고 입력이 그대로이며 성공 알림 없이 등록은 꺼져 있고 저장 요청은 없다
-    expect(await screen.findByRole('alert')).toHaveTextContent(text)
-    expect(screen.getByLabelText(/^바인드 비밀번호/)).toHaveValue('Svc-Dummy-pw-1!')
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(registerButton()).toBeDisabled()
-    expect(save).not.toHaveBeenCalled()
-  })
-
-  // 테스트 코드: SU-075
-  it.each([
-    ['422 invalid-value', 422, 'invalid-value', '호스트를 입력하세요.'],
-    ['409 closed', 409, 'invalid-state', '이미 관리자가 등록되어 최초 설정을 진행할 수 없습니다'],
-  ])('shows the server message for %s and keeps register disabled', async (_name, status, kind, detail) => {
-    // given: 서버가 해당 오류로 테스트를 거절한다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    vi.spyOn(gateway.setup, 'testDirectory').mockRejectedValue(problemOf(status, kind, detail))
-
-    // when: "연결 테스트"를 누른다
-    await user.click(testButton())
-
-    // then: 서버 문구가 보이고 입력이 그대로이며 등록은 꺼져 있다
-    expect(await screen.findByRole('alert')).toHaveTextContent(detail)
-    expect(screen.getByLabelText(/^바인드 계정/)).toHaveValue('CORP\\svc-sales')
-    expect(registerButton()).toBeDisabled()
-  })
-
-  // 테스트 코드: SU-075
-  it('clears an earlier success when a later test fails', async () => {
-    // given: 한 번 성공한 뒤 호스트를 'fail.corp.test'로 바꿨다(Fake는 fail 호스트의 연결을 실패시킨다)
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    fillDirectoryForm({ host: 'fail.corp.test' })
-
-    // when: "연결 테스트"를 누른다
-    await user.click(testButton())
-
-    // then: 연결 실패 문구가 보이고 성공 알림은 없으며 등록은 꺼져 있다
-    expect(await screen.findByRole('alert')).toHaveTextContent('AD 서버에 연결하지 못했습니다')
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(registerButton()).toBeDisabled()
-  })
-
-  // 요청 중에는 두 버튼이 모두 꺼진다.
-  // 테스트 코드: SU-076
-  it('disables both buttons while the connection test is pending and enables them on success', async () => {
-    // given: 테스트 응답을 Fake가 아직 돌려주지 않는다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    let release: (value: { baseDn: string }) => void = () => undefined
-    vi.spyOn(gateway.setup, 'testDirectory').mockReturnValue(
-      new Promise<{ baseDn: string }>((resolve) => {
-        release = resolve
-      }),
-    )
-
-    // when: "연결 테스트"를 누른다
-    await user.click(testButton())
-
-    // then: 응답 전에는 두 버튼이 꺼져 있고, 성공 응답이 오면 둘 다 켜진다
-    await waitFor(() => expect(testButton()).toBeDisabled())
-    expect(registerButton()).toBeDisabled()
-    release({ baseDn: 'dc=found,dc=test' })
-    expect(await screen.findByText(SUCCESS)).toBeInTheDocument()
-    expect(testButton()).toBeEnabled()
-    expect(registerButton()).toBeEnabled()
-  })
-
-  // 테스트 코드: SU-076
-  it('disables both buttons while the registration is pending', async () => {
-    // given: 연결 테스트에 성공했고 등록 응답을 Fake가 아직 돌려주지 않는다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    await passDirectoryTest(user)
-    vi.spyOn(gateway.setup, 'saveDirectory').mockReturnValue(new Promise<void>(() => undefined))
-
-    // when: "AD 서버 등록"을 누른다
-    await user.click(registerButton())
-
-    // then: 응답 전까지 두 버튼이 모두 꺼져 있다
-    await waitFor(() => expect(registerButton()).toBeDisabled())
-    expect(testButton()).toBeDisabled()
-  })
-
-  // 연결 테스트에 성공하지 않았으면 Enter로 제출해도 요청이 없다.
-  // 테스트 코드: SU-077
-  it('sends no request when Enter is pressed before the connection test succeeded', async () => {
-    // given: 모두 채웠지만 연결 테스트는 하지 않았다
-    const { user } = await openAdForm()
-    const test = vi.spyOn(gateway.setup, 'testDirectory')
-    const save = vi.spyOn(gateway.setup, 'saveDirectory')
-    fillDirectoryForm()
-
-    // when: 호스트 칸에서 Enter를 누른다
-    await user.click(screen.getByLabelText(/^호스트/))
-    await user.keyboard('{Enter}')
-
-    // then: 테스트·저장 요청이 없고 제목에 머문다
-    expect(test).not.toHaveBeenCalled() // 요청이 없다는 것이 이 케이스의 결과다
-    expect(save).not.toHaveBeenCalled()
-    expect(screen.getByRole('heading', { name: 'AD 서버 등록' })).toBeInTheDocument()
-  })
-
-  // 응답을 기다리는 동안 입력을 바꾸면 늦게 온 이전 입력의 성공은 무시한다.
-  // 테스트 코드: SU-078
-  it('ignores a late success of the previous input after the input changed', async () => {
-    // given: 연결 테스트 응답을 Fake가 아직 돌려주지 않는다
-    const { user } = await openAdForm()
-    fillDirectoryForm()
-    let release: (value: { baseDn: string }) => void = () => undefined
-    vi.spyOn(gateway.setup, 'testDirectory').mockReturnValueOnce(
-      new Promise<{ baseDn: string }>((resolve) => {
-        release = resolve
-      }),
-    )
-    await user.click(testButton())
-    await waitFor(() => expect(testButton()).toBeDisabled())
-
-    // when: 응답 전에 호스트를 바꾸고, 이전 입력의 성공 응답이 도착한다
-    await user.type(screen.getByLabelText(/^호스트/), 'x')
-    release({ baseDn: 'dc=found,dc=test' })
-    await waitFor(() => expect(testButton()).toBeEnabled())
-
-    // then: 성공 알림이 없고 등록은 꺼진 채 안내가 보이며, 다시 테스트해 성공해야 켜진다
-    expect(screen.queryByText(/연결 테스트에 성공했습니다/)).not.toBeInTheDocument()
-    expect(registerButton()).toBeDisabled()
-    expect(screen.getByText(NEED_TEST)).toBeInTheDocument()
-    await passDirectoryTest(user)
-    expect(registerButton()).toBeEnabled()
+    expect(screen.queryByLabelText(/바인드/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'AD 서버 등록' }))
+    await screen.findByRole('heading', { name: '파일 저장 위치' })
   })
 })

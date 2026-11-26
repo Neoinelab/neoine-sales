@@ -45,6 +45,8 @@ from app.application.auth.authenticate import Authenticate
 from app.application.auth.issue_session import IssueSession
 from app.application.auth.logout import Logout
 from app.application.auth.throttle import LoginThrottle
+from app.application.directory.connection_proof import DirectoryConnectionProof
+from app.application.directory.verify_settings import VerifyDirectorySettings
 from tests.factories_auth import make_policy
 from tests.fakes.directory import FakeDirectoryAuthenticator
 
@@ -123,13 +125,20 @@ class AuthStack:
     def register_directory(self) -> RegisterSetupDirectory:
         from app.application.auth.setup_directory import RegisterSetupDirectory  # noqa: PLC0415
 
-        return RegisterSetupDirectory(self._uow_factory, self._clock, self.directory, self.cipher)
+        return RegisterSetupDirectory(
+            self._uow_factory, self._clock, DirectoryConnectionProof(self.cipher, self._clock)
+        )
 
     @cached_property
     def test_setup_directory(self) -> TestSetupDirectory:
         from app.application.auth.setup_directory import TestSetupDirectory  # noqa: PLC0415
 
-        return TestSetupDirectory(self._uow_factory, self.directory)
+        return TestSetupDirectory(
+            self._uow_factory,
+            VerifyDirectorySettings(
+                self.directory, DirectoryConnectionProof(self.cipher, self._clock)
+            ),
+        )
 
     @cached_property
     def setup_admin(self) -> SetupFirstAdmin:

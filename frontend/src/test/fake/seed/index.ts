@@ -27,8 +27,6 @@ export const emptyBusinessSeed: SeedFactory = (clock) => {
     host: 'dc1.corp.test',
     port: 636,
     security: 'ssl',
-    bindAccount: 'CORP\\svc-sales',
-    bindCredentialStatus: 'ok',
     userFilter: '(&(objectClass=user)(sAMAccountName={login_id}))',
     connectTimeoutSeconds: 5,
     baseDn: 'dc=corp,dc=test',

@@ -9,6 +9,7 @@ import pytest
 
 from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED, LOGIN_FAILED
 from app.application.ports.directory import InvalidCredentialsError, VerificationStage
+from app.application.ports.directory_settings_repository import DirectorySettingsWrite
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
@@ -307,12 +308,13 @@ async def test_login_passes_stored_base_dn_and_unsealed_password(
     assert call.base_dn == BASE_DN  # 로그인마다 다시 찾지 않고 저장된 값을 쓴다
     assert directory.discover_calls == []
     assert call.settings.connection == make_directory_connection()
-    assert call.settings.bind_password.reveal() == BIND_PASSWORD  # 암호문을 풀어 쓴다
+    assert call.settings.credentials is None
     assert call.login_id == LoginId("kim")
     assert call.password == "pw-kim"  # noqa: S105 - 가짜 값
 
 
 @pytest.mark.usefixtures("ready")
+# 테스트 코드: IN-036
 async def test_login_uses_the_current_settings_each_time(
     auth: AuthStack, uow_factory: UnitOfWorkFactory, directory: FakeDirectoryAuthenticator
 ) -> None:
@@ -324,12 +326,13 @@ async def test_login_uses_the_current_settings_each_time(
     await _login(auth)
     async with uow_factory() as uow:
         await uow.directory_settings.save(
-            make_directory_connection(host="dc2.corp.test"),
-            auth.cipher.seal("Rotated-pw-9!"),
-            "dc=other,dc=test",
-            expected_revision=1,
-            updated_by=None,
-            now=NOW,
+            DirectorySettingsWrite(
+                connection=make_directory_connection(host="dc2.corp.test"),
+                base_dn="dc=other,dc=test",
+                expected_revision=1,
+                updated_by=None,
+                now=NOW,
+            )
         )
         await uow.commit()
 
@@ -343,7 +346,7 @@ async def test_login_uses_the_current_settings_each_time(
         "dc=other,dc=test",
         "dc2.corp.test",
     )
-    assert second.settings.bind_password.reveal() == "Rotated-pw-9!"
+    assert second.settings.credentials is None
 
 
 @pytest.mark.usefixtures("ready")

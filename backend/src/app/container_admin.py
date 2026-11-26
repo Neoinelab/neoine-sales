@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from app.application.directory.connection_proof import DirectoryConnectionProof
 from app.application.directory.get_settings import GetDirectorySettings
 from app.application.directory.test_settings import TestDirectorySettings
 from app.application.directory.update_settings import UpdateDirectorySettings
@@ -31,9 +32,9 @@ class AdminAssembly:
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
-        self._cipher = cipher
+        self._proof = DirectoryConnectionProof(cipher, clock)
         self._hasher = auth_deps.hasher
-        self._verify = VerifyDirectorySettings(auth_deps)
+        self._verify = VerifyDirectorySettings(auth_deps.directory, self._proof)
 
     def list_users(self) -> ListUsers:
         return ListUsers(self._uow_factory)
@@ -51,10 +52,10 @@ class AdminAssembly:
         return ResolveUserRefs(self._uow_factory)
 
     def get_directory_settings(self) -> GetDirectorySettings:
-        return GetDirectorySettings(self._uow_factory, self._cipher)
+        return GetDirectorySettings(self._uow_factory)
 
     def test_directory_settings(self) -> TestDirectorySettings:
-        return TestDirectorySettings(self._uow_factory, self._cipher, self._verify)
+        return TestDirectorySettings(self._uow_factory, self._verify)
 
     def update_directory_settings(self) -> UpdateDirectorySettings:
-        return UpdateDirectorySettings(self._uow_factory, self._clock, self._cipher, self._verify)
+        return UpdateDirectorySettings(self._uow_factory, self._clock, self._proof)

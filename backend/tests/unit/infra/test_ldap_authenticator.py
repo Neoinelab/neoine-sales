@@ -21,9 +21,9 @@ from app.application.ports.directory import (
     VerificationStage,
 )
 from app.domain.auth.credentials import LoginId, Password
-from tests.factories_auth import BASE_DN, BIND_ACCOUNT, BIND_PASSWORD
+from tests.factories_auth import BASE_DN, BIND_ACCOUNT
 from tests.factories_directory import make_directory_settings
-from tests.support.ldap_adapter import PASSWORD, failure, login, make_adapter
+from tests.support.ldap_adapter import PASSWORD, discovery_failure, failure, login, make_adapter
 from tests.support.ldap_mock import MockDirectory, user_attributes
 
 USER_DN = "cn=kim,ou=users,dc=corp,dc=test"
@@ -55,17 +55,11 @@ async def test_login_binds_service_account_then_user_dn(directory: MockDirectory
     await login(directory)
 
     # then: 서비스 계정 바인드 뒤 검색, 그다음 사용자 DN 바인드이고 연결은 모두 닫힌다
-    first, second = directory.factory_calls
-    assert (first[1], first[2]) == (BIND_ACCOUNT, BIND_PASSWORD)  # 1) 서비스 계정
-    assert (second[1], second[2]) == (USER_DN, PASSWORD)  # 2) 찾은 항목의 DN + 사용자 비밀번호
-    assert len(directory.connections) == 2  # 사용자 바인드는 새 연결로 한다
-    assert directory.calls.count("bind") == 2
-    assert directory.calls.count("search") == 1
-    assert directory.calls.index("search") < len(directory.calls) - 1 - directory.calls[::-1].index(
-        "bind"
-    )
+    assert [call[1:] for call in directory.factory_calls] == [("kim@corp.test", PASSWORD)]
+    assert len(directory.connections) == 1
+    assert directory.calls.count("bind") == 1
+    assert directory.calls.index("bind") < directory.calls.index("search")
     assert directory.calls[-1] == "unbind"
-    assert directory.calls.count("unbind") >= 2  # 두 연결 모두 닫는다
 
 
 async def test_login_never_builds_a_bind_name_from_the_login_id(directory: MockDirectory) -> None:
@@ -80,26 +74,17 @@ async def test_login_never_builds_a_bind_name_from_the_login_id(directory: MockD
         )
 
     # then: 서비스 계정 바인드만 있었고 사용자 바인드는 없다
-    assert [call[1] for call in directory.factory_calls] == [BIND_ACCOUNT]  # 사용자 바인드 없음
+    assert [call[1] for call in directory.factory_calls] == []
 
 
 async def test_login_filter_escapes_login_id(directory: MockDirectory) -> None:
     """로그인 아이디의 특수문자는 LDAP 필터에서 이스케이프된다."""
-    # given: 특수문자가 든 아이디의 항목과 그 아이디
-    directory.add_entry(
-        "cn=a*b(c)\\\\d,ou=users,dc=corp,dc=test", user_attributes("a*b(c)\\d", PASSWORD)
-    )
-    hostile = cast("LoginId", SimpleNamespace(value="a*b(c)\\d"))
-
-    # when: 그 아이디로 로그인한다
-    user = await make_adapter(directory).authenticate(
-        make_directory_settings(), BASE_DN, hostile, Password(PASSWORD)
-    )
-
-    # then: 그 항목으로 로그인되고 검색 필터는 이스케이프되어 있다
-    assert user.display_name == "a*b(c)\\d"
-    search = directory.connections[0].search_args[-1]
-    assert search["search_filter"] == r"(&(objectClass=user)(sAMAccountName=a\2ab\28c\29\5cd))"
+    hostile = cast("LoginId", SimpleNamespace(value="a*b(c)"))
+    with pytest.raises(InvalidCredentialsError):
+        await make_adapter(directory).authenticate(
+            make_directory_settings(), BASE_DN, hostile, Password(PASSWORD)
+        )
+    assert directory.factory_calls == []
 
 
 async def test_search_uses_the_given_base_dn_subtree_and_limits_results(
@@ -154,14 +139,14 @@ async def test_missing_display_name_falls_back_to_login_id(directory: MockDirect
     assert user == DirectoryUser(login_id="bare", display_name="bare", email=None)
 
 
-async def test_no_entry_is_invalid_credentials_at_search(directory: MockDirectory) -> None:
+async def test_unknown_account_is_rejected_at_bind(directory: MockDirectory) -> None:
     """검색 결과가 없으면 검색 단계의 자격 증명 오류다."""
     # when: 없는 아이디로 로그인해 실패를 받는다
     error = await failure(directory, login_id="nobody")
 
     # then: 검색 단계의 InvalidCredentialsError이고 사용자 바인드까지 가지 않는다
     assert type(error) is InvalidCredentialsError
-    assert error.stage is VerificationStage.SEARCH
+    assert error.stage is VerificationStage.BIND
     assert len(directory.connections) == 1  # 사용자 바인드까지 가지 않는다
 
 
@@ -211,7 +196,7 @@ async def test_wrong_service_password_is_misconfigured_service_bind(
 ) -> None:
     """서비스 계정 비밀번호가 틀리면 서비스 바인드 단계의 설정 오류다."""
     # when: 틀린 서비스 비밀번호로 로그인해 실패를 받는다
-    error = await failure(directory, bind_password="Not-the-service-pw")  # noqa: S106
+    error = await discovery_failure(directory, bind_password="Not-the-service-pw")  # noqa: S106
 
     # then: SERVICE_BIND 단계의 설정 오류이고 검색은 하지 않았다
     assert isinstance(error, DirectoryMisconfiguredError)
@@ -248,7 +233,7 @@ async def test_service_account_rejection_is_misconfigured_service_bind(
     directory.bind_codes_by_user[BIND_ACCOUNT] = code
 
     # when: 서비스 바인드가 거절 코드로 실패하는 상황에서 로그인한다
-    error = await failure(directory)
+    error = await discovery_failure(directory)
 
     # then: SERVICE_BIND 단계의 설정 오류다
     assert isinstance(error, DirectoryMisconfiguredError)
@@ -264,7 +249,7 @@ async def test_other_service_bind_failure_is_unavailable(
     directory.bind_codes_by_user[BIND_ACCOUNT] = code
 
     # when: 서비스 바인드가 51·52로 실패하는 상황에서 로그인한다
-    error = await failure(directory)
+    error = await discovery_failure(directory)
 
     # then: SERVICE_BIND 단계의 DirectoryUnavailableError다
     assert type(error) is DirectoryUnavailableError
@@ -287,7 +272,7 @@ async def test_user_bind_rejection_codes_are_invalid_credentials(
 ) -> None:
     """사용자 바인드가 거절 코드(49·50·53)면 바인드 단계의 자격 증명 오류다."""
     # given: 사용자 바인드가 해당 코드로 거절된다
-    directory.bind_codes_by_user[USER_DN] = code
+    directory.bind_codes_by_user["kim@corp.test"] = code
 
     # when: 사용자 바인드가 거절 코드로 실패하는 상황에서 로그인한다
     error = await failure(directory)
@@ -303,7 +288,7 @@ async def test_server_side_user_bind_failures_are_unavailable_not_credentials(
 ) -> None:
     """사용자 바인드의 서버 쪽 실패(51·52)는 자격 증명 오류가 아니라 사용 불가다."""
     # given: 사용자 바인드가 해당 코드로 실패한다
-    directory.bind_codes_by_user[USER_DN] = code
+    directory.bind_codes_by_user["kim@corp.test"] = code
 
     # when: 사용자 바인드가 51·52로 실패하는 상황에서 로그인한다
     error = await failure(directory)

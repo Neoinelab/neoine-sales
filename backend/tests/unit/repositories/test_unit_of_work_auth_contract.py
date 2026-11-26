@@ -7,9 +7,9 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.application.ports.directory_settings_repository import DirectorySettingsWrite
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.password_hash import PasswordHash
-from app.domain.common.secret import SealedSecret
 from app.infra.db.unit_of_work import sql_unit_of_work_factory
 from tests.factories import NOW, later
 from tests.factories_auth import BASE_DN, make_counter, make_user
@@ -23,23 +23,23 @@ from tests.unit.repositories.test_session_repository_contract import make_sessio
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
     from app.domain.user.value_objects import UserId
 
-SEALED = SealedSecret("sealed-dummy-token")
 HASH = PasswordHash(
     "scrypt$ln=14,r=8,p=1$c2FsdHNhbHRzYWx0c2FsdA$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2g"
 )
 
 
-async def _save_settings(uow: object) -> None:
-    await uow.directory_settings.save(  # type: ignore[attr-defined]
-        make_directory_connection(),
-        SEALED,
-        BASE_DN,
-        expected_revision=None,
-        updated_by=None,
-        now=NOW,
+async def _save_settings(uow: UnitOfWork) -> None:
+    await uow.directory_settings.save(
+        DirectorySettingsWrite(
+            connection=make_directory_connection(),
+            base_dn=BASE_DN,
+            expected_revision=None,
+            updated_by=None,
+            now=NOW,
+        )
     )
 
 

@@ -31,18 +31,17 @@ async def _select_mode(http: AsyncClient, mode: str) -> None:
         selected = await http.put(SETUP_MODE, json={"mode": mode})
         assert selected.status_code == 204
     else:
-        selected = await http.put(
-            "/api/v1/auth/setup/directory",
-            json={
-                "host": "dc1.corp.test",
-                "port": 636,
-                "security": "ssl",
-                "bind_account": "svc@corp.test",
-                "bind_password": "qa-service-password",
-                "user_filter": "(sAMAccountName={login_id})",
-                "connect_timeout_seconds": 5,
-            },
-        )
+        body = {
+            "host": "dc1.corp.test", "port": 636, "security": "ssl",
+            "user_filter": "(sAMAccountName={login_id})", "connect_timeout_seconds": 5,
+        }
+        tested = await http.post("/api/v1/auth/setup/directory/test", json={
+            **body, "bind_account": "operator", "bind_password": "qa-service-password",
+        })
+        assert tested.status_code == 200
+        selected = await http.put("/api/v1/auth/setup/directory", json={
+            **body, "test_token": tested.json()["test_token"],
+        })
         assert selected.status_code == 200
     assert (await http.get(CONFIG)).json()["needs_storage_setup"] is True
 

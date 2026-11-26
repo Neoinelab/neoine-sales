@@ -20,7 +20,7 @@ PASSWORD = "Correct-Horse-1"  # noqa: S105 - 테스트용 더미 값
 
 
 def make_adapter(
-    directory: MockDirectory, *, user_bind_domain: str | None = None
+    directory: MockDirectory, *, user_bind_domain: str | None = 'corp.test'
 ) -> LdapDirectoryAuthenticator:
     if user_bind_domain is None:
         return LdapDirectoryAuthenticator(directory.factory)

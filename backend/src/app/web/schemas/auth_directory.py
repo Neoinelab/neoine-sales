@@ -1,10 +1,13 @@
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, SecretStr, StrictInt
 
+from app.domain.common.secret import SealedSecret
 from app.domain.directory.settings import (
     DirectoryConnection,
+    DirectoryCredentials,
     DirectorySettings,
+    DirectorySettingsDraft,
     SecurityMode,
     StoredDirectorySettings,
     bind_password_of,
@@ -22,12 +25,9 @@ if TYPE_CHECKING:
 
 
 class DirectoryConnectionRequest(RequestModel):
-    """AD 접속 정보(비밀번호 제외). 값 검증은 도메인이 하며 메시지에 필드 이름이 들어간다."""
-
     host: str
     port: StrictInt
     security: SecurityMode
-    bind_account: str
     user_filter: str
     connect_timeout_seconds: StrictInt = 5
 
@@ -36,31 +36,38 @@ class DirectoryConnectionRequest(RequestModel):
             host=self.host,
             port=self.port,
             security=self.security,
-            bind_account=self.bind_account,
             user_filter=self.user_filter,
             connect_timeout_seconds=self.connect_timeout_seconds,
         )
 
 
 class DirectorySettingsRequest(DirectoryConnectionRequest):
-    """최초 설정 본문: 바인드 비밀번호 필수."""
-
+    bind_account: SecretStr
     bind_password: SecretStr
 
     def to_domain(self) -> DirectorySettings:
         return DirectorySettings(
-            self.to_connection(), bind_password_of(self.bind_password.get_secret_value())
+            self.to_connection(),
+            DirectoryCredentials(
+                self.bind_account.get_secret_value(),
+                bind_password_of(self.bind_password.get_secret_value()),
+            ),
+        )
+
+
+class DirectorySettingsSaveRequest(DirectoryConnectionRequest):
+    test_token: SecretStr
+
+    def to_draft(self) -> DirectorySettingsDraft:
+        return DirectorySettingsDraft(
+            self.to_connection(), SealedSecret(self.test_token.get_secret_value())
         )
 
 
 class DirectorySettingsResponse(BaseModel):
-    """저장된 설정. 비밀번호는 어떤 형태로도 담지 않는다."""
-
     host: str
     port: int
     security: SecurityMode
-    bind_account: str
-    bind_credential_status: Literal["ok", "unreadable"]
     user_filter: str
     connect_timeout_seconds: int
     base_dn: str
@@ -70,34 +77,24 @@ class DirectorySettingsResponse(BaseModel):
 
     @classmethod
     def from_stored(
-        cls,
-        stored: StoredDirectorySettings,
-        refs: Mapping[UserId, DomainUserRef],
-        *,
-        credential_readable: bool = True,
+        cls, stored: StoredDirectorySettings, refs: Mapping[UserId, DomainUserRef]
     ) -> DirectorySettingsResponse:
-        c = stored.connection
-        updated_by = None if stored.updated_by is None else ref_of(refs, stored.updated_by)
+        connection = stored.connection
         return cls(
-            host=c.host,
-            port=c.port,
-            security=c.security,
-            bind_account=c.bind_account,
-            bind_credential_status="ok" if credential_readable else "unreadable",
-            user_filter=c.user_filter,
-            connect_timeout_seconds=c.connect_timeout_seconds,
+            host=connection.host,
+            port=connection.port,
+            security=connection.security,
+            user_filter=connection.user_filter,
+            connect_timeout_seconds=connection.connect_timeout_seconds,
             base_dn=stored.base_dn,
             revision=stored.revision,
             updated_at=stored.updated_at,
-            updated_by=updated_by,
+            updated_by=None if stored.updated_by is None else ref_of(refs, stored.updated_by),
         )
 
 
 async def directory_response(
-    provider: UseCaseProvider, stored: StoredDirectorySettings, *, credential_readable: bool = True
+    provider: UseCaseProvider, stored: StoredDirectorySettings
 ) -> DirectorySettingsResponse:
-    """저장자(updated_by) 표시 이름을 풀어 응답으로 만든다."""
     refs = await resolve_refs(provider, [stored.updated_by])
-    return DirectorySettingsResponse.from_stored(
-        stored, refs, credential_readable=credential_readable
-    )
+    return DirectorySettingsResponse.from_stored(stored, refs)

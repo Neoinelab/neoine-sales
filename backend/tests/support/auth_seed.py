@@ -39,28 +39,27 @@ async def seed_directory(
     settings: DirectorySettings | None = None,
     *,
     base_dn: str = BASE_DN,
-    unreadable: bool = False,
 ) -> StoredDirectorySettings:
     """AD 설정을 저장소에 직접 넣는다. 비밀번호는 FakeSecretCipher로 봉인한다.
 
     unreadable=True면 Fake가 풀 수 없는 토큰(키가 바뀐 상황)으로 넣는다.
     새 Port의 Fake는 사용 시점에 가져온다(구현 전에도 이 모듈을 쓰는 다른 테스트가 수집된다).
     """
+    from app.application.ports.directory_settings_repository import (  # noqa: PLC0415
+        DirectorySettingsWrite,
+    )
     from tests.factories_directory import make_directory_settings  # noqa: PLC0415
-    from tests.fakes.secret_cipher import FakeSecretCipher, foreign_secret  # noqa: PLC0415
 
     given = settings or make_directory_settings()
-    sealed = (
-        foreign_secret() if unreadable else FakeSecretCipher().seal(given.bind_password.reveal())
-    )
     async with uow_factory() as uow:
         stored = await uow.directory_settings.save(
-            given.connection,
-            sealed,
-            base_dn,
-            expected_revision=None,
-            updated_by=None,
-            now=NOW,
+            DirectorySettingsWrite(
+                connection=given.connection,
+                base_dn=base_dn,
+                expected_revision=None,
+                updated_by=None,
+                now=NOW,
+            )
         )
         await uow.commit()
     return stored

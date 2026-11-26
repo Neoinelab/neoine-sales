@@ -70,7 +70,7 @@ describe('setup.chooseAuthMode', () => {
     const { gateway } = freshMock()
     await gateway.setup.chooseAuthMode('local')
 
-    await gateway.setup.saveDirectory(DIRECTORY_INPUT)
+    await gateway.setup.saveDirectory({ ...DIRECTORY_INPUT, ...await gateway.setup.testDirectory(DIRECTORY_INPUT) })
 
     // when: AD 서버를 저장한다
     const actual = await gateway.setup.status()
@@ -224,7 +224,7 @@ describe('setup.registerAdmin in local mode', () => {
   it.each(['dev-admin', 'dev-sales', 'dev-user'])('rejects the reserved id %s with 422 in AD mode too', async (loginId) => {
     // given: AD 서버와 저장 위치가 등록됐다
     const { gateway } = freshMock()
-    await gateway.setup.saveDirectory(DIRECTORY_INPUT)
+    await gateway.setup.saveDirectory({ ...DIRECTORY_INPUT, ...await gateway.setup.testDirectory(DIRECTORY_INPUT) })
 
     // when: 예약 아이디로 관리자를 등록한다
     await gateway.setup.saveStorage('/data/files')
@@ -276,7 +276,7 @@ describe('setup.registerAdmin in local mode', () => {
   it('rejects profile fields in AD mode with 422', async () => {
     // given: AD 서버와 저장 위치가 등록됐다
     const { gateway } = freshMock()
-    await gateway.setup.saveDirectory(DIRECTORY_INPUT)
+    await gateway.setup.saveDirectory({ ...DIRECTORY_INPUT, ...await gateway.setup.testDirectory(DIRECTORY_INPUT) })
 
     // when: 프로필 칸을 담아 관리자를 등록한다
     await gateway.setup.saveStorage('/data/x')

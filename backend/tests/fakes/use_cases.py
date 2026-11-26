@@ -4,6 +4,7 @@ from dataclasses import replace
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from app.application.ports.directory_settings_repository import DirectorySettingsWrite
 from app.domain.auth.credentials import LoginId
 from app.domain.auth.principal import Role
 from tests.factories import NOW
@@ -423,12 +424,13 @@ class FakeUseCases(
         given = settings or make_directory_settings()
         async with self._factory() as uow:
             await uow.directory_settings.save(
-                given.connection,
-                self._auth.cipher.seal(given.bind_password.reveal()),
-                BASE_DN,
-                expected_revision=None,
-                updated_by=None,
-                now=self.clock.now(),
+                DirectorySettingsWrite(
+                    connection=given.connection,
+                    base_dn=BASE_DN,
+                    expected_revision=None,
+                    updated_by=None,
+                    now=self.clock.now(),
+                )
             )
             await uow.commit()
 

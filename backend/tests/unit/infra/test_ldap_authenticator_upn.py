@@ -13,7 +13,7 @@ from app.application.ports.directory import (
     VerificationStage,
 )
 from app.domain.auth.credentials import LoginId, Password
-from tests.factories_auth import BASE_DN, BIND_ACCOUNT, BIND_PASSWORD
+from tests.factories_auth import BASE_DN
 from tests.factories_directory import make_directory_settings
 from tests.support.ldap_adapter import PASSWORD, make_adapter
 
@@ -59,16 +59,15 @@ async def test_user_bind_uses_login_id_at_domain_when_a_domain_is_set(
 
     # then: 프로필은 검색 결과에서 읽고, 연결은 서비스 계정, UPN 두 번이며 DN 바인드는 없다
     assert (user.login_id, user.display_name, user.email) == ("kim", "김영업", "kim@corp.test")
-    assert directory.factory_calls[0][1:] == (BIND_ACCOUNT, BIND_PASSWORD)
-    assert directory.factory_calls[1][1:] == (KIM_UPN, PASSWORD)
-    assert len(directory.connections) == 2
+    assert directory.factory_calls[0][1:] == (KIM_UPN, PASSWORD)
+    assert len(directory.connections) == 1
     assert KIM_DN not in _bind_users(directory)
     searches = [a for c in directory.connections for a in c.search_args]
     assert len(searches) == 1
     assert directory.connections[0].search_args == searches
     assert searches[0]["search_base"] == BASE_DN
     assert "kim" in str(searches[0]["search_filter"])
-    assert directory.calls.count("unbind") == 2
+    assert directory.calls.count("unbind") == 1
 
 
 async def test_user_bind_uses_the_found_dn_without_a_domain(directory: MockDirectory) -> None:
@@ -76,12 +75,9 @@ async def test_user_bind_uses_the_found_dn_without_a_domain(directory: MockDirec
 
     테스트 코드: AU-094
     """
-    # when: 도메인 없는 어댑터로 kim이 인증한다
-    user = await _authenticate(directory, domain=None)
-
-    # then: 성공하고 사용자 바인드 이름은 찾은 DN이다
-    assert user.login_id == "kim"
-    assert _bind_users(directory) == [BIND_ACCOUNT, KIM_DN]
+    with pytest.raises(DirectoryMisconfiguredError):
+        await _authenticate(directory, domain=None)
+    assert directory.factory_calls == []
 
 
 async def test_search_outcomes_are_unchanged_with_a_domain(directory: MockDirectory) -> None:
@@ -90,18 +86,20 @@ async def test_search_outcomes_are_unchanged_with_a_domain(directory: MockDirect
     테스트 코드: AU-095
     """
     # given: 도메인 어댑터, 아이디 nobody는 항목이 없다
+    directory.upn_passwords[f"nobody@{DOMAIN}"] = PASSWORD
     # when: nobody로 인증한다
     with pytest.raises(InvalidCredentialsError) as zero:
         await _authenticate(directory, "nobody")
 
     # then: search 단계 자격 증명 오류, 서비스 계정 연결 하나뿐
     assert zero.value.stage is VerificationStage.SEARCH
-    assert _bind_users(directory) == [BIND_ACCOUNT]
+    assert _bind_users(directory) == [f"nobody@{DOMAIN}"]
 
     # given: 필터가 여러 항목에 걸린다
     many = type(directory)()
     many.add_user("kim", PASSWORD)
     many.add_user("lee", PASSWORD)
+    many.upn_passwords[KIM_UPN] = PASSWORD
 
     # when: 인증한다
     with pytest.raises(DirectoryMisconfiguredError) as multiple:
@@ -109,7 +107,7 @@ async def test_search_outcomes_are_unchanged_with_a_domain(directory: MockDirect
 
     # then: search 단계 설정 오류, 서비스 계정 연결 하나뿐이고 UPN 바인드는 없다
     assert multiple.value.stage is VerificationStage.SEARCH
-    assert _bind_users(many) == [BIND_ACCOUNT]
+    assert _bind_users(many) == [KIM_UPN]
 
 
 @pytest.mark.parametrize(
@@ -150,7 +148,7 @@ async def test_domain_bind_name_uses_the_normalized_login_id(directory: MockDire
     await _authenticate(directory, " KIM ")
 
     # then: 사용자 바인드 이름은 kim@neoine.co.kr이다
-    assert _bind_users(directory)[1] == KIM_UPN
+    assert _bind_users(directory)[0] == KIM_UPN
 
 
 @pytest.mark.parametrize("hostile", ["x,ou=admins+cn=y", "kim@evil.test"])
@@ -170,4 +168,4 @@ async def test_hostile_login_id_never_reaches_a_domain_bind(
         await _authenticate(directory, login)
 
     # then: 서비스 계정 연결 하나뿐이다(필터 값으로만 쓰여 어느 항목에도 맞지 않는다)
-    assert _bind_users(directory) == [BIND_ACCOUNT]
+    assert _bind_users(directory) == []

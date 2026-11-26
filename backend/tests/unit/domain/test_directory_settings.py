@@ -17,6 +17,7 @@ from app.domain.directory.settings import (
     EMAIL_ATTRIBUTE,
     RECEIVE_TIMEOUT_SECONDS,
     DirectoryConnection,
+    DirectoryCredentials,
     DirectorySettings,
     SecurityMode,
     bind_password_of,
@@ -62,7 +63,6 @@ def test_valid_connection_keeps_normalized_host_and_default_timeout() -> None:
         host="DC1.Corp.Test",
         port=636,
         security=SecurityMode.SSL,
-        bind_account=BIND_ACCOUNT,
         user_filter="(sAMAccountName={login_id})",
     )
 
@@ -142,7 +142,7 @@ def test_bind_account_accepts_dn_upn_and_domain_forms(account: str) -> None:
     테스트 코드: IN-019
     """
     # when: 여러 형식의 계정으로 접속 정보를 만든다
-    bind_account = make_directory_connection(bind_account=account).bind_account
+    bind_account = DirectoryCredentials(account, Password(BIND_PASSWORD)).account
     # then: 그대로 받아진다
     assert bind_account == account
 
@@ -155,7 +155,8 @@ def test_bind_account_empty_too_long_or_control_char_is_rejected(account: str) -
     """
     # when·then: 빈 값·257자·제어문자 계정으로 접속 정보를 만든다
     # → bind_account 문구의 InvalidValueError다
-    _bad("bind_account", bind_account=account)
+    with pytest.raises(InvalidValueError, match="bind_account"):
+        DirectoryCredentials(account, Password(BIND_PASSWORD))
 
 
 @pytest.mark.parametrize(
@@ -239,24 +240,6 @@ def test_removed_inputs_are_not_connection_fields(removed: str) -> None:
         make_directory_connection(**{removed: "x"})
 
 
-def test_same_endpoint_and_account_compares_host_port_security_and_account_only() -> None:
-    """엔드포인트·계정 비교는 호스트·포트·보안 연결·계정만 본다."""
-    # when: 다른 필드만 다른 접속 정보를 비교한다
-    base = make_directory_connection()
-
-    # then: 같은 엔드포인트로 본다
-    assert base.same_endpoint_and_account(
-        make_directory_connection(user_filter="(uid={login_id})", connect_timeout_seconds=9)
-    )
-    for change in (
-        {"host": "dc2.corp.test"},
-        {"port": 3269},
-        {"security": SecurityMode.STARTTLS},
-        {"bind_account": "cn=other,dc=corp,dc=test"},
-    ):
-        assert not base.same_endpoint_and_account(make_directory_connection(**change))
-
-
 @pytest.mark.parametrize("raw", ["", "   ", "\t\n", "a\x00b", "a" * 257])
 def test_bind_password_errors_name_the_field(raw: str) -> None:
     """빈 값·공백뿐·NUL·257자 바인드 비밀번호는 bind_password 필드 이름이 든 오류다.
@@ -290,7 +273,8 @@ def test_settings_carry_connection_and_password() -> None:
 
     # then: 접속 정보와 비밀번호를 꺼낼 수 있다
     assert settings.connection == make_directory_connection()
-    assert settings.bind_password.reveal() == BIND_PASSWORD
+    assert settings.credentials is not None
+    assert settings.credentials.password.reveal() == BIND_PASSWORD
     assert isinstance(settings, DirectorySettings)
 
 
@@ -298,7 +282,8 @@ def test_settings_repr_hides_bind_password() -> None:
     """설정의 repr에는 바인드 비밀번호가 없다."""
     # when: repr을 만든다
     settings = DirectorySettings(
-        connection=make_directory_connection(), bind_password=Password(BIND_PASSWORD)
+        connection=make_directory_connection(),
+        credentials=DirectoryCredentials(BIND_ACCOUNT, Password(BIND_PASSWORD)),
     )
 
     # then: 비밀번호가 보이지 않는다

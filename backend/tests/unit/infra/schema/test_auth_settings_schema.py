@@ -40,6 +40,8 @@ async def test_auth_settings_has_exactly_id_mode_and_updated_at(session: AsyncSe
     assert columns == {
         "id": ("smallint", None, "NO"),
         "mode": ("character varying", 16, "NO"),
+        "setup_pending": ("boolean", None, "NO"),
+        "admin_setup_pending": ("boolean", None, "NO"),
         "updated_at": ("timestamp with time zone", None, "NO"),
     }
 

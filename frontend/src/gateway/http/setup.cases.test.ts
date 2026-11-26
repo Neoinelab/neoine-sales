@@ -95,7 +95,7 @@ describe('최초 설정 HTTP 게이트웨이 (SU-043~SU-045)', () => {
     expect(calls[0]).toMatchObject({ method: 'PUT', path: '/api/v1/auth/setup/auth-mode', body: { mode: 'local' } })
     expect(calls[1]).toMatchObject({ method: 'PUT', path: '/api/v1/auth/setup/directory' })
     expect(Object.keys(calls[1]?.body as object).sort()).toEqual(
-      ['bind_account', 'bind_password', 'connect_timeout_seconds', 'host', 'port', 'security', 'user_filter'],
+      ['connect_timeout_seconds', 'host', 'port', 'security', 'test_token', 'user_filter'],
     )
     expect(calls[2]).toMatchObject({ method: 'PUT', path: '/api/v1/auth/setup/storage', body: { path: '/var/lib/neoine-sales/files' } })
     expect(calls[3]).toMatchObject({ method: 'POST', path: '/api/v1/auth/setup/storage/test', body: { path: '/data/files' } })
@@ -161,7 +161,7 @@ describe('최초 설정 연결 테스트 HTTP 게이트웨이 (SU-072)', () => {
   // 테스트 코드: SU-072
   it('posts the seven inputs to the test path and resolves with the found base DN', async () => {
     // given: 서버가 200 success=true와 Base DN으로 답한다
-    const { calls } = stubFetch(json({ success: true, stage: null, message: 'AD 설정을 확인했습니다', base_dn: 'dc=found,dc=test' }))
+    const { calls } = stubFetch(json({ success: true, test_token: 'test-proof', stage: null, message: 'AD 설정을 확인했습니다', base_dn: 'dc=found,dc=test' }))
 
     // when: testDirectory를 부른다
     const result = await testDirectory()
@@ -170,7 +170,7 @@ describe('최초 설정 연결 테스트 HTTP 게이트웨이 (SU-072)', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/auth/setup/directory/test' })
     expect(Object.keys(calls[0]?.body as object).sort()).toEqual(SEVEN_KEYS)
-    expect(result).toEqual({ baseDn: 'dc=found,dc=test' })
+    expect(result).toEqual({ baseDn: 'dc=found,dc=test', testToken: 'test-proof' })
   })
 
   // 200이어도 success=false이면 확인 실패 오류(422, 단계 포함)로 바꾼다.

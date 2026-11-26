@@ -1,20 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BIND_PASSWORD, DIRECTORY_INPUT } from '../../test/directoryFixtures'
-import type { DirectorySettingsInput } from '../../shared/model/types'
 import { json, noContent, problem, stubFetch, userRefBody } from './testHelpers'
 import { createSettingsHttp } from './settings'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const INPUT: DirectorySettingsInput = DIRECTORY_INPUT
+const INPUT = DIRECTORY_INPUT
 
 /** 서버 요청 본문: 입력 7개(snake_case). 구 필드(server_urls 등)는 없다. */
 const REQUEST_BODY = {
   host: 'dc1.corp.test',
   port: 636,
   security: 'ssl',
-  bind_account: 'CORP\\svc-sales',
-  bind_password: BIND_PASSWORD,
+  test_token: INPUT.testToken,
   user_filter: '(sAMAccountName={login_id})',
   connect_timeout_seconds: 5,
 }
@@ -23,8 +21,6 @@ const STORED = {
   host: 'dc1.corp.test',
   port: 636,
   security: 'ssl',
-  bind_account: 'CORP\\svc-sales',
-  bind_credential_status: 'ok',
   user_filter: '(sAMAccountName={login_id})',
   connect_timeout_seconds: 5,
   base_dn: 'dc=corp,dc=test',
@@ -49,8 +45,6 @@ describe('directory settings over HTTP', () => {
       host: 'dc1.corp.test',
       port: 636,
       security: 'ssl',
-      bindAccount: 'CORP\\svc-sales',
-      bindCredentialStatus: 'ok',
       userFilter: '(sAMAccountName={login_id})',
       connectTimeoutSeconds: 5,
       baseDn: 'dc=corp,dc=test',
@@ -71,7 +65,7 @@ describe('directory settings over HTTP', () => {
     const result = await createSettingsHttp().getDirectory()
 
     // then: bindCredentialStatus가 unreadable이다
-    expect(result).toMatchObject({ bindCredentialStatus: 'unreadable' })
+    expect(result).not.toHaveProperty('bindCredentialStatus')
   })
 
   // AD 설정 조회가 404면 오류가 아니라 null이다.
@@ -103,13 +97,13 @@ describe('directory settings over HTTP', () => {
     // when: 비밀번호와 revision으로 저장한다
     const { calls } = stubFetch(json({ ...STORED, revision: 4 }))
 
-    const saved = await createSettingsHttp().saveDirectory(INPUT, { password: 'pw-root', expectedRevision: 3 })
+    const saved = await createSettingsHttp().saveDirectory(INPUT, { expectedRevision: 3 })
 
     // then: 본문에 그 값이 실리고 저장 결과를 돌려준다
     expect(calls[0]).toMatchObject({
       method: 'PUT',
       path: '/api/v1/settings/directory',
-      body: { ...REQUEST_BODY, password: 'pw-root', expected_revision: 3 },
+      body: { ...REQUEST_BODY, expected_revision: 3 },
     })
     expect(saved.revision).toBe(4)
   })
@@ -120,10 +114,10 @@ describe('directory settings over HTTP', () => {
     // when: 비밀번호 null로 저장한다
     const { calls } = stubFetch(json(STORED))
 
-    await createSettingsHttp().saveDirectory(INPUT, { password: null, expectedRevision: 3 })
+    await createSettingsHttp().saveDirectory(INPUT, { expectedRevision: 3 })
 
     // then: 본문 password가 null이다
-    expect(calls[0]?.body).toMatchObject({ password: null, expected_revision: 3 })
+    expect(calls[0]?.body).toMatchObject({ expected_revision: 3 })
   })
 
   // 바인드 비밀번호 유지(null)면 bind_password 키를 보내지 않는다.
@@ -132,11 +126,11 @@ describe('directory settings over HTTP', () => {
     // when: 바인드 비밀번호 null로 저장한다
     const { calls } = stubFetch(json(STORED))
 
-    await createSettingsHttp().saveDirectory({ ...INPUT, bindPassword: null }, { password: 'pw-root', expectedRevision: 3 })
+    await createSettingsHttp().saveDirectory(INPUT, { expectedRevision: 3 })
 
     // then: 본문에 bind_password 키가 없다
     expect(calls[0]?.body).not.toHaveProperty('bind_password')
-    expect(calls[0]?.body).toMatchObject({ host: 'dc1.corp.test', password: 'pw-root', expected_revision: 3 })
+    expect(calls[0]?.body).toMatchObject({ host: 'dc1.corp.test', expected_revision: 3 })
   })
 
   // 처음 만들 때는 expected_revision null을 보낸다.
@@ -145,7 +139,7 @@ describe('directory settings over HTTP', () => {
     // when: revision null로 저장한다
     const { calls } = stubFetch(json({ ...STORED, revision: 1 }))
 
-    await createSettingsHttp().saveDirectory(INPUT, { password: null, expectedRevision: null })
+    await createSettingsHttp().saveDirectory(INPUT, { expectedRevision: null })
 
     // then: 본문 expected_revision이 null이다
     expect(calls[0]?.body).toMatchObject({ ...REQUEST_BODY, expected_revision: null })
@@ -157,11 +151,11 @@ describe('directory settings over HTTP', () => {
     // when: 저장한다
     const { calls } = stubFetch(json(STORED))
 
-    await createSettingsHttp().saveDirectory(INPUT, { password: 'x', expectedRevision: 1 })
+    await createSettingsHttp().saveDirectory(INPUT, { expectedRevision: 1 })
 
     // then: 본문 키가 그 집합뿐이다
     expect(Object.keys(calls[0]?.body as object).sort()).toEqual(
-      [...Object.keys(REQUEST_BODY), 'password', 'expected_revision'].sort(),
+      [...Object.keys(REQUEST_BODY), 'expected_revision'].sort(),
     )
   })
 
@@ -170,7 +164,7 @@ describe('directory settings over HTTP', () => {
     // given: 서버가 409 충돌 문구를 준다
     stubFetch(problem(409, 'invalid-state', '다른 관리자가 먼저 설정을 바꿨습니다. 새로 고친 뒤 다시 시도하세요.'))
     // when·then: 낡은 revision으로 AD 설정을 저장한다 → conflict 오류와 서버 문구다
-    await expect(createSettingsHttp().saveDirectory(INPUT, { password: 'x', expectedRevision: 1 })).rejects.toMatchObject({
+    await expect(createSettingsHttp().saveDirectory(INPUT, { expectedRevision: 1 })).rejects.toMatchObject({
       kind: 'conflict',
       message: '다른 관리자가 먼저 설정을 바꿨습니다. 새로 고친 뒤 다시 시도하세요.',
     })
@@ -180,15 +174,15 @@ describe('directory settings over HTTP', () => {
   // 테스트 코드: IN-081, IN-082
   it('testDirectory posts the settings with the password and resolves with the discovered Base DN', async () => {
     // given: 서버가 success true 결과를 준다
-    const { calls } = stubFetch(json({ success: true, message: '연결에 성공했습니다.', stage: null, base_dn: 'dc=corp,dc=test' }))
+    const { calls } = stubFetch(json({ success: true, test_token: INPUT.testToken, message: '연결에 성공했습니다.', stage: null, base_dn: 'dc=corp,dc=test' }))
 
     // when: 연결 테스트한다
-    const result = await createSettingsHttp().testDirectory(INPUT, 'pw-root')
+    const result = await createSettingsHttp().testDirectory(INPUT)
 
     // then: {baseDn}으로 끝나고 본문에 expected_revision이 없다
-    expect(result).toEqual({ baseDn: 'dc=corp,dc=test' })
+    expect(result).toEqual({ baseDn: 'dc=corp,dc=test', testToken: INPUT.testToken })
 
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/settings/directory/test', body: { ...REQUEST_BODY, password: 'pw-root' } })
+    expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/v1/settings/directory/test', body: { host: INPUT.host, port: INPUT.port, security: INPUT.security, user_filter: INPUT.userFilter, connect_timeout_seconds: INPUT.connectTimeoutSeconds, bind_account: INPUT.bindAccount, bind_password: INPUT.bindPassword } })
     expect(calls[0]?.body).not.toHaveProperty('expected_revision')
   })
 
@@ -196,13 +190,13 @@ describe('directory settings over HTTP', () => {
   // 테스트 코드: IN-082
   it('testDirectory leaves the bind_password key out when the stored password is kept', async () => {
     // when: 바인드 비밀번호 null로 테스트한다
-    const { calls } = stubFetch(json({ success: true, message: 'ok', stage: null, base_dn: 'dc=a' }))
+    const { calls } = stubFetch(json({ success: true, test_token: INPUT.testToken, message: 'ok', stage: null, base_dn: 'dc=a' }))
 
-    await createSettingsHttp().testDirectory({ ...INPUT, bindPassword: null }, null)
+    await createSettingsHttp().testDirectory(INPUT)
 
     // then: 본문에 bind_password 키가 없다
-    expect(calls[0]?.body).not.toHaveProperty('bind_password')
-    expect(calls[0]?.body).toMatchObject({ host: 'dc1.corp.test', bind_account: 'CORP\\svc-sales', password: null })
+    expect(calls[0]?.body).toHaveProperty('bind_password', BIND_PASSWORD)
+    expect(calls[0]?.body).not.toHaveProperty('password')
   })
 
   // 실패 결과(success false)는 단계를 가진 422 오류가 된다.
@@ -212,7 +206,7 @@ describe('directory settings over HTTP', () => {
     stubFetch(json({ success: false, message: '바인드에 실패했습니다.', stage: 'bind', base_dn: null }))
 
     // when: 연결 테스트한다
-    const failure = createSettingsHttp().testDirectory(INPUT, null)
+    const failure = createSettingsHttp().testDirectory(INPUT)
 
     // then: ApiError 422 directory-verification-failed에 stage와 서버 문구가 있다
     await expect(failure).rejects.toMatchObject({
@@ -230,7 +224,7 @@ describe('directory settings over HTTP', () => {
     stubFetch(json({ success: false, message: '실패', stage, base_dn: null }))
 
     // when·then: 연결 테스트한다 → 오류의 stage가 그 단계다
-    await expect(createSettingsHttp().testDirectory(INPUT, null)).rejects.toMatchObject({ kind: 'directory-verification-failed', stage })
+    await expect(createSettingsHttp().testDirectory(INPUT)).rejects.toMatchObject({ kind: 'directory-verification-failed', stage })
   })
 
   // 서버가 422 Problem으로 답해도 같은 종류로 받는다.
@@ -240,7 +234,7 @@ describe('directory settings over HTTP', () => {
     stubFetch(problem(422, 'directory-verification-failed', '연결 단계 실패', { stage: 'connect' }))
 
     // when·then: 연결 테스트한다 → 같은 kind의 오류로 reject된다
-    await expect(createSettingsHttp().testDirectory(INPUT, null)).rejects.toMatchObject({ kind: 'directory-verification-failed', stage: 'connect' })
+    await expect(createSettingsHttp().testDirectory(INPUT)).rejects.toMatchObject({ kind: 'directory-verification-failed', stage: 'connect' })
   })
 })
 

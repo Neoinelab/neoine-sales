@@ -19,7 +19,6 @@ SEALED = SealedSecret("sealed-dummy-token")
 def _stored(**overrides: object) -> StoredDirectorySettings:
     values: dict[str, object] = {
         "connection": make_directory_connection(),
-        "sealed_bind_password": SEALED,
         "base_dn": BASE_DN,
         "revision": 1,
         "updated_at": NOW,
@@ -36,7 +35,6 @@ def test_stored_settings_carry_revision_and_audit_fields() -> None:
     # then: 값이 그대로 있다
     assert (stored.revision, stored.updated_at, stored.updated_by) == (1, NOW, None)
     assert stored.base_dn == BASE_DN
-    assert stored.sealed_bind_password == SEALED
 
 
 def test_stored_settings_keep_the_saving_users_id() -> None:

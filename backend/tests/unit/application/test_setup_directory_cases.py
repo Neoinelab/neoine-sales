@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from app.application.directory.errors import DirectoryVerificationError
 from app.application.ports.directory import (
     DirectoryError,
     DirectoryMisconfiguredError,
@@ -15,13 +14,27 @@ from app.application.ports.directory import (
     VerificationStage,
 )
 from app.domain.auth.mode import AuthMode
+from app.domain.common.errors import InvalidValueError
+from app.domain.common.secret import SealedSecret
+from app.domain.directory.settings import DirectorySettings, DirectorySettingsDraft
 from tests.factories_auth import BIND_PASSWORD
 from tests.factories_directory import make_directory_settings
 from tests.support.auth_seed import seed_directory
 
 if TYPE_CHECKING:
     from app.application.ports.unit_of_work import UnitOfWorkFactory
+    from app.domain.directory.settings import StoredDirectorySettings
     from tests.fakes.auth_stack import AuthStack
+
+
+async def register(auth: AuthStack, settings: DirectorySettings) -> StoredDirectorySettings:
+    tested = await auth.test_setup_directory.execute(settings)
+    if tested.test_token is None:
+        raise InvalidValueError(tested.message)
+    return await auth.register_directory.execute(
+        DirectorySettingsDraft(settings.connection, SealedSecret(tested.test_token))
+    )
+
 
 LEAK = "internal-ldap-server-banner"
 STAGE_TEXT = {
@@ -50,13 +63,12 @@ async def test_registering_the_directory_stores_the_found_base_dn_and_records_ad
     settings = make_directory_settings()
 
     # when: 호스트·포트·보안 연결·바인드 계정·비밀번호·필터·제한 시간으로 AD 서버를 등록한다
-    stored = await auth.register_directory.execute(settings)
+    stored = await register(auth, settings)
 
     # then: Base DN 저장, revision 1, updated_by 없음, 비밀번호는 암호화 값, 방식 ad
     assert (stored.base_dn, stored.revision, stored.updated_by) == ("dc=found,dc=test", 1, None)
     assert stored.connection == settings.connection
-    assert BIND_PASSWORD not in stored.sealed_bind_password.token
-    assert auth.cipher.unseal(stored.sealed_bind_password) == BIND_PASSWORD
+    assert not hasattr(stored, "sealed_bind_password")
     # then: AD는 Base DN 탐색만 1회 받았고 사용자 인증은 받지 않았다
     assert len(auth.directory.discover_calls) == 1
     assert auth.directory.authenticate_calls == []
@@ -81,11 +93,11 @@ async def test_registering_again_overwrites_and_switches_local_to_ad(
     if chose_local_first:
         await auth.choose_mode.execute(AuthMode.LOCAL)
     else:
-        await auth.register_directory.execute(make_directory_settings())
+        await register(auth, make_directory_settings())
     auth.directory.base_dn = "dc=other,dc=test"
 
     # when: 호스트 dc2.corp.test로 다시 등록한다
-    stored = await auth.register_directory.execute(make_directory_settings(host="dc2.corp.test"))
+    stored = await register(auth, make_directory_settings(host="dc2.corp.test"))
 
     # then: revision은 이전 저장 수+1(처음이면 1), 새 호스트·Base DN, 방식 ad
     assert stored.revision == (1 if chose_local_first else 2)
@@ -119,14 +131,13 @@ async def test_a_failed_check_reports_only_the_stage_and_saves_nothing(
     auth.directory.discover_fails_with = error
 
     # when: AD 서버를 등록한다
-    with pytest.raises(DirectoryVerificationError) as caught:
-        await auth.register_directory.execute(make_directory_settings(host="dc9.corp.test"))
+    with pytest.raises(InvalidValueError) as caught:
+        await register(auth, make_directory_settings(host="dc9.corp.test"))
 
     # then: 단계(없으면 connect)와 단계 문구만 담고 원인 문구·비밀번호는 없다
-    assert str(caught.value.stage) == stage
-    assert caught.value.message == STAGE_TEXT[VerificationStage(stage)]
-    assert LEAK not in caught.value.message
-    assert BIND_PASSWORD not in caught.value.message
+    assert str(caught.value) == STAGE_TEXT[VerificationStage(stage)]
+    assert LEAK not in str(caught.value)
+    assert BIND_PASSWORD not in str(caught.value)
     # then: 이전 AD 설정과 방식 행은 그대로(새로 기록되지 않음)
     async with uow_factory() as uow:
         assert await uow.directory_settings.get() == previous

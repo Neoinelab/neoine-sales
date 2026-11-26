@@ -11,11 +11,11 @@ from app.application.auth.fallback_login import (
 )
 from app.application.auth.log_ids import short_hash
 from app.application.auth.messages import DIRECTORY_NOT_CONFIGURED, FALLBACK_MESSAGES, LOGIN_FAILED
-from app.application.directory.credentials import unseal_settings
 from app.application.ports.directory import DirectoryUnavailableError, InvalidCredentialsError
 from app.domain.auth.errors import AuthenticationError
 from app.domain.auth.principal import Role
 from app.domain.common.errors import InvalidStateError
+from app.domain.directory.settings import DirectorySettings
 from app.domain.user.errors import AmbiguousLoginIdError, UserNotFoundError
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class DirectoryLogin:
             failure = InvalidStateError(DIRECTORY_NOT_CONFIGURED)
         else:
             try:
-                settings = unseal_settings(self._deps.cipher, stored)
+                settings = DirectorySettings(stored.connection)
                 profile = await self._deps.directory.authenticate(
                     settings, stored.base_dn, account, password
                 )

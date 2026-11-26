@@ -1,19 +1,13 @@
-"""DirectoryAuthenticator Port의 ldap3 구현(AD). 서비스 계정 search-then-bind.
+"""AD 연결 테스트는 임시 계정으로 RootDSE를 읽고, 로그인은 사용자 UPN으로 바인드한다.
 
-흐름: (연결 -> TLS) -> 서비스 계정 바인드 -> 사용자 검색(로그인 아이디는 필터 값으로만 쓰고 DN에는
-넣지 않는다) -> 사용자 비밀번호로 새 연결 바인드(바인드 이름은 도메인(APP_AD_LOGIN_DOMAIN)이 있으면
-`<아이디>@<도메인>`, 없으면 찾은 항목의 DN). Base DN은 설정 저장 때
-RootDSE(defaultNamingContext)에서 찾아 저장한 값을 쓴다.
-
-ldap3은 동기 라이브러리이므로 호출마다 asyncio.to_thread에서 실행한다. 설정은 호출 때마다 받고
-어댑터는 상태를 갖지 않는다. 비밀번호는 연결 팩토리에만 전달하고 예외·로그에는 쓰지 않는다
-(ldap3 로깅도 켜지 않는다). 서버 인증서는 검증하지 않는다(ldap_connection 참고).
+사용자 프로필은 같은 연결에서 조회한다. 자격증명은 요청 동안에만 사용하며 로그에 남기지 않는다.
+동기 ldap3 호출은 작업 스레드에서 실행한다.
 """
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
+import anyio
 from ldap3 import BASE, SUBTREE, Connection
 from ldap3.utils.conv import escape_filter_chars
 
@@ -24,9 +18,15 @@ from app.application.ports.directory import (
     InvalidCredentialsError,
     VerificationStage,
 )
+from app.domain.auth.credentials import LoginId
 from app.domain.common.errors import InvalidValueError
 from app.domain.directory import rules
-from app.domain.directory.settings import DISPLAY_NAME_ATTRIBUTE, EMAIL_ATTRIBUTE
+from app.domain.directory.settings import (
+    DISPLAY_NAME_ATTRIBUTE,
+    EMAIL_ATTRIBUTE,
+    DirectoryCredentials,
+    DirectorySettings,
+)
 from app.infra.auth.ldap_connection import (
     ConnectionFactory,
     default_connection_factory,
@@ -40,8 +40,7 @@ from app.infra.auth.ldap_errors import MESSAGES, bind_failure, unavailable
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from app.domain.auth.credentials import LoginId, Password
-    from app.domain.directory.settings import DirectorySettings
+    from app.domain.auth.credentials import Password
 
 __all__ = ["LdapDirectoryAuthenticator", "default_connection_factory"]
 
@@ -138,9 +137,15 @@ def _find_user(
     return str(entries[0]["dn"]), user
 
 
-def user_bind_name(user_dn: str, login_id: str, domain: str | None) -> str:
-    """사용자 비밀번호 바인드 이름: 도메인이 있으면 `<아이디>@<도메인>`, 없으면 찾은 항목의 DN."""
-    return f"{login_id}@{domain}" if domain else user_dn
+def bind_account_name(account: str, domain: str | None) -> str:
+    account = account.strip()
+    if "@" in account or "\\" in account or "=" in account:
+        return account
+    if not domain:
+        raise DirectoryMisconfiguredError(
+            "AD 로그인 도메인이 설정되지 않았습니다.", stage=VerificationStage.BIND
+        )
+    return f"{account}@{domain}"
 
 
 def _logged[**P, T](action: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
@@ -163,37 +168,48 @@ class LdapDirectoryAuthenticator:
         return self._user_bind_domain
 
     async def discover_base_dn(self, settings: DirectorySettings) -> str:
-        return await asyncio.to_thread(_logged, self._discover, settings)
+        return await anyio.to_thread.run_sync(_logged, self._discover, settings)
 
     async def authenticate(
         self, settings: DirectorySettings, base_dn: str, login_id: LoginId, password: Password
     ) -> DirectoryUser:
+        try:
+            login_id = LoginId(login_id.value)
+        except InvalidValueError:
+            raise InvalidCredentialsError(
+                _INVALID_CREDENTIALS, stage=VerificationStage.BIND
+            ) from None
         secret = password.reveal()
         if not secret:
             # 빈 비밀번호는 익명 바인드로 통과될 수 있으므로 연결하지 않고 거부한다.
             raise InvalidCredentialsError(_INVALID_CREDENTIALS, stage=VerificationStage.BIND)
-        return await asyncio.to_thread(
+        return await anyio.to_thread.run_sync(
             _logged, self._authenticate, settings, base_dn, login_id.value, secret
         )
 
     def _discover(self, settings: DirectorySettings) -> str:
-        with service_session(self._connect, settings) as connection:
+        credentials = settings.credentials
+        if credentials is None:
+            raise InvalidValueError("연결 테스트 계정과 비밀번호를 입력하세요.")
+        tested = DirectorySettings(
+            settings.connection,
+            DirectoryCredentials(
+                bind_account_name(credentials.account, self._user_bind_domain), credentials.password
+            ),
+        )
+        with service_session(self._connect, tested) as connection:
             return _read_base_dn(connection)
 
     def _authenticate(
         self, settings: DirectorySettings, base_dn: str, login_id: str, secret: str
     ) -> DirectoryUser:
-        with service_session(self._connect, settings) as connection:
-            user_dn, user = _find_user(connection, settings, base_dn, login_id)
-        bind_name = user_bind_name(user_dn, login_id, self._user_bind_domain)
-        self._bind_user(settings, bind_name, secret)
-        return user
-
-    def _bind_user(self, settings: DirectorySettings, bind_name: str, secret: str) -> None:
+        bind_name = bind_account_name(login_id, self._user_bind_domain)
         connection = self._connect(settings, bind_name, secret)
         try:
             open_secure(connection, settings)
             if not guarded(connection.bind):
                 raise bind_failure(_result_code(connection))
+            _, user = _find_user(connection, settings, base_dn, login_id)
+            return user
         finally:
             unbind(connection)
