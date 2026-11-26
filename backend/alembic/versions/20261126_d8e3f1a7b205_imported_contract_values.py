@@ -12,7 +12,7 @@ depends_on = None
 def upgrade() -> None:
     op.alter_column("deals", "users", existing_type=sa.Integer(), nullable=True)
     op.alter_column("deals", "revenue_amount", existing_type=sa.BigInteger(), nullable=True)
-    op.drop_constraint("ck_contacts_no_space", "contacts", type_="check")
+    op.drop_constraint(op.f("ck_contacts_no_space"), "contacts", type_="check")
     op.create_check_constraint(
         op.f("ck_contacts_no_space"),
         "contacts",
@@ -30,7 +30,7 @@ def downgrade() -> None:
     )
     op.alter_column("deals", "users", existing_type=sa.Integer(), nullable=False)
     op.alter_column("deals", "revenue_amount", existing_type=sa.BigInteger(), nullable=False)
-    op.drop_constraint("ck_contacts_no_space", "contacts", type_="check")
+    op.drop_constraint(op.f("ck_contacts_no_space"), "contacts", type_="check")
     op.create_check_constraint(
         op.f("ck_contacts_no_space"),
         "contacts",

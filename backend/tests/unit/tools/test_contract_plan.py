@@ -16,7 +16,7 @@ def item() -> ContractInput:
         date(2026, 1, 1),
         date(2026, 12, 31),
         "갱신약속",
-        "김영업(Neo Kim)",
+        "KIM",
         "",
         "none",
     )
@@ -45,21 +45,30 @@ def existing() -> ExistingContract:
     )
 
 
-def test_owner_resolves_parenthetical_display_name() -> None:
-    """영업담당 괄호 안 이름과 기존 표시 이름을 매칭한다."""
+def test_owner_resolves_login_id() -> None:
+    """영업담당 로그인 아이디와 일치하는 사용자를 Owner로 선택한다."""
     # given: 로그인 아이디와 영문 표시 이름이 있는 사용자
-    owners = [Owner(7, "kim", "Neo Kim"), Owner(8, "lee", "이영업")]
+    owners = [Owner(7, "kim", "Neo Kim"), Owner(8, "lee", "KIM")]
     # when: Excel 영업담당을 해석한다
     actual = resolve_owner(item(), owners)
     # then: 기존 사용자의 id를 선택한다
     assert actual == 7
 
 
-@pytest.mark.parametrize("owners", [[], [Owner(7, "kim", "Neo Kim"), Owner(8, "kim2", "김영업")]])
+@pytest.mark.parametrize("owners", [[], [Owner(7, "kim", "Neo Kim"), Owner(8, "KIM", "김영업")]])
 def test_owner_rejects_missing_or_ambiguous(owners: list[Owner]) -> None:
     """영업담당 후보가 없거나 여러 명이면 임의 선택하지 않는다."""
     # when·then: 일치 사용자를 정확히 한 명 찾지 못하면 중단한다
     with pytest.raises(ContractImportError, match="일치 사용자"):
+        resolve_owner(item(), owners)
+
+
+def test_display_name_does_not_match_owner() -> None:
+    """표시 이름만 일치하는 사용자는 영업담당으로 선택하지 않는다."""
+    # given: 표시 이름은 Excel 값과 같지만 로그인 아이디가 다른 사용자
+    owners = [Owner(8, "lee", "KIM")]
+    # when·then: 로그인 아이디가 일치하지 않으므로 중단한다
+    with pytest.raises(ContractImportError, match="일치 사용자 0명"):
         resolve_owner(item(), owners)
 
 
