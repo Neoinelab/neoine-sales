@@ -15,10 +15,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 FIELDS = {
-    "APP_LOGIN_MAX_FAILURES_PER_ACCOUNT": ("login_max_failures_per_account", 5),
+    "APP_LOGIN_MAX_FAILURES_PER_ACCOUNT": ("login_max_failures_per_account", 10),
     "APP_LOGIN_MAX_FAILURES_PER_IP": ("login_max_failures_per_ip", 30),
     "APP_LOGIN_FAILURE_WINDOW_MINUTES": ("login_failure_window_minutes", 15),
     "APP_LOGIN_LOCK_MINUTES": ("login_lock_minutes", 15),
+    "APP_LOGIN_ACCOUNT_FIRST_LOCK_MINUTES": ("login_account_first_lock_minutes", 5),
+    "APP_LOGIN_ACCOUNT_REPEAT_LOCK_MINUTES": ("login_account_repeat_lock_minutes", 60),
 }
 
 
@@ -36,19 +38,12 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[N
 
 
 def test_login_throttle_defaults_match_the_plan() -> None:
-    """시도 제한 기본값은 아이디 5·IP 30·창 15분·잠금 15분이다.
-
-    테스트 코드: AU-052
-    """
     # when: 설정을 읽으면 (전제: 시도 제한 환경변수를 설정하지 않았다)
     settings = get_settings()
 
-    # then: 기본값이 5·30·15·15다
     assert isinstance(settings, LocalSettings)
-    assert settings.login_max_failures_per_account == 5
-    assert settings.login_max_failures_per_ip == 30
-    assert settings.login_failure_window_minutes == 15
-    assert settings.login_lock_minutes == 15
+    for field, expected in FIELDS.values():
+        assert getattr(settings, field) == expected
 
 
 @pytest.mark.parametrize("variable", list(FIELDS))

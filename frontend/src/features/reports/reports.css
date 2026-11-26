@@ -58,6 +58,7 @@
 .report-chip.is-invalid { border-color: var(--danger); }
 .report-chip.is-invalid .report-chip-main { color: var(--danger); }
 .report-chip-remove { border: none; background: transparent; padding: 2px 7px; border-radius: 999px; }
+.report-chip-remove, .report-condition-remove { color: var(--danger); font-weight: 700; }
 .report-chip-error { flex-basis: 100%; padding: 0 10px 4px; }
 .report-badge { font-size: var(--font-base); padding: 0 6px; border-radius: 999px; background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }
 
@@ -75,6 +76,8 @@
 .report-condition { display: grid; grid-template-columns: 3.2em minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(160px, 2fr) auto; gap: 8px; align-items: center; }
 .report-condition select, .report-condition input[type='text'], .report-condition .date-input input[type='text'] { font: inherit; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--input-bg); color: var(--fg); min-width: 0; }
 .report-condition-value { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.report-condition-value .multi-check { min-width: 0; max-width: 100%; }
+.report-condition-value .multi-check-button { white-space: normal; overflow-wrap: anywhere; }
 .report-join { font-size: var(--font-base); font-weight: 700; color: var(--muted); text-align: right; }
 
 .report-run { grid-template-columns: repeat(auto-fit, minmax(150px, max-content)); align-items: end; }

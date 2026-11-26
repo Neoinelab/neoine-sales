@@ -3983,6 +3983,7 @@
       },
       "LicenseContractSort": {
         "enum": [
+          "issuance_priority",
           "deal_name",
           "customer",
           "vendor",
@@ -12706,7 +12707,7 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/LicenseContractSort",
-              "default": "license_end"
+              "default": "issuance_priority"
             }
           },
           {

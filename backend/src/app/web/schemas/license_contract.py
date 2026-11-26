@@ -168,7 +168,7 @@ class LicenseContractSearchParams(RequestModel):
     start_to: date | None = None
     end_from: date | None = None
     end_to: date | None = None
-    sort: LicenseContractSort = LicenseContractSort.LICENSE_END
+    sort: LicenseContractSort = LicenseContractSort.ISSUANCE_PRIORITY
     order: SortOrder = SortOrder.ASC
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=MAX_LIMIT)] = DEFAULT_CONTRACT_LIMIT

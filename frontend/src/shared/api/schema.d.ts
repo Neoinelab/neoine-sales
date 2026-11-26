@@ -2787,7 +2787,7 @@ export interface components {
          * LicenseContractSort
          * @enum {string}
          */
-        LicenseContractSort: "deal_name" | "customer" | "vendor" | "product" | "partner" | "license_start" | "license_end" | "status" | "sales_owner" | "tech_owner" | "inspection" | "note";
+        LicenseContractSort: "issuance_priority" | "deal_name" | "customer" | "vendor" | "product" | "partner" | "license_start" | "license_end" | "status" | "sales_owner" | "tech_owner" | "inspection" | "note";
         /** LicenseIssueRequest */
         LicenseIssueRequest: {
             /** End Date */

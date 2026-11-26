@@ -8,7 +8,14 @@ from app.application.ports.directory import DirectoryUnavailableError, Verificat
 from app.domain.auth.credentials import LoginId, Password
 from app.domain.auth.errors import AuthenticationError, TooManyAttemptsError
 from app.domain.auth.principal import Role
-from tests.fakes.auth_stack import LOCK, MAX_PER_ACCOUNT, MAX_PER_IP, WINDOW, build_auth_stack
+from tests.fakes.auth_stack import (
+    LOCK,
+    MAX_PER_ACCOUNT,
+    MAX_PER_IP,
+    REPEAT_LOCK,
+    WINDOW,
+    build_auth_stack,
+)
 from tests.support.auth_seed import account_key, ip_key, seed_directory, seed_user
 
 if TYPE_CHECKING:
@@ -106,6 +113,30 @@ async def test_lock_ends_exactly_after_the_lock_duration(
     clock.advance(1)
 
     await _succeed(auth)
+
+
+async def test_repeated_lock_lasts_an_hour_until_a_successful_login(
+    auth: AuthStack, uow_factory: UnitOfWorkFactory, clock: FixedClock
+) -> None:
+    await _fail(auth, times=MAX_PER_ACCOUNT)
+    clock.advance(LOCK_SECONDS)
+    other = build_auth_stack(uow_factory, clock)
+    other.directory.add_account("kim", "pw-kim")
+
+    account = LoginId("kim")
+    await other.throttle.ensure_allowed(account, IP)
+    await other.throttle.release(account, IP)
+    await _fail(other, times=MAX_PER_ACCOUNT)
+
+    clock.advance(int(REPEAT_LOCK.total_seconds()) - 1)
+    with pytest.raises(TooManyAttemptsError):
+        await _succeed(other)
+    clock.advance(1)
+    await _succeed(other)
+
+    await _fail(other, times=MAX_PER_ACCOUNT)
+    clock.advance(LOCK_SECONDS)
+    await _succeed(other)
 
 
 async def test_failure_window_expiry_restarts_the_count(auth: AuthStack, clock: FixedClock) -> None:

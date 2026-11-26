@@ -119,6 +119,7 @@ def _ranked(column: SQLColumnExpression[Any], order: list[Any]) -> ColumnElement
 def _sort_expression(sort: LicenseContractSort) -> SQLColumnExpression[Any]:
     owner = func.coalesce(func.nullif(_OWNER.display_name, ""), _OWNER.login_id)
     keys: dict[LicenseContractSort, SQLColumnExpression[Any]] = {
+        LicenseContractSort.ISSUANCE_PRIORITY: LicenseContractRow.license_end,
         LicenseContractSort.DEAL_NAME: _text(DealRow.name, blank_is_none=True),
         LicenseContractSort.CUSTOMER: _text(_CUSTOMER.company),
         LicenseContractSort.VENDOR: _text(VendorRow.name),
@@ -139,11 +140,15 @@ def _sort_expression(sort: LicenseContractSort) -> SQLColumnExpression[Any]:
 
 def search_select(query: LicenseContractQuery) -> Select[Any]:
     key = _sort_expression(query.sort)
-    primary = key.asc() if query.order is SortOrder.ASC else key.desc()
+    ordered_key = key.asc() if query.order is SortOrder.ASC else key.desc()
+    statement = row_select().where(*conditions(query))
+    if query.sort is LicenseContractSort.ISSUANCE_PRIORITY:
+        needs_license = (LicenseContractRow.status == ContractStatus.NOT_ISSUED.value) | (
+            LicenseContractRow.license_start.is_(None)
+        )
+        statement = statement.order_by(needs_license.desc())
     return (
-        row_select()
-        .where(*conditions(query))
-        .order_by(primary.nulls_last(), LicenseContractRow.id)
+        statement.order_by(ordered_key.nulls_last(), LicenseContractRow.id)
         .offset(query.offset)
         .limit(query.limit)
     )

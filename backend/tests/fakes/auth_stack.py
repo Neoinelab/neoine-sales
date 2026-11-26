@@ -68,10 +68,12 @@ if TYPE_CHECKING:
 
 THROTTLE_SECRET = "t" * 40
 SESSION_TTL = timedelta(hours=8)
-MAX_PER_ACCOUNT = 5
+MAX_PER_ACCOUNT = 10
 MAX_PER_IP = 30
 WINDOW = timedelta(minutes=15)
-LOCK = timedelta(minutes=15)
+LOCK = timedelta(minutes=5)
+REPEAT_LOCK = timedelta(hours=1)
+IP_LOCK = timedelta(minutes=15)
 
 
 class AuthStack:
@@ -92,9 +94,12 @@ class AuthStack:
             clock,
             secret=THROTTLE_SECRET,
             account_policy=make_policy(
-                max_failures=MAX_PER_ACCOUNT, window=WINDOW, lock_duration=LOCK
+                max_failures=MAX_PER_ACCOUNT,
+                window=WINDOW,
+                lock_duration=LOCK,
+                repeat_lock_duration=REPEAT_LOCK,
             ),
-            ip_policy=make_policy(max_failures=MAX_PER_IP, window=WINDOW, lock_duration=LOCK),
+            ip_policy=make_policy(max_failures=MAX_PER_IP, window=WINDOW, lock_duration=IP_LOCK),
         )
         self.issue = IssueSession(uow_factory, clock, SESSION_TTL)
         self.status = GetAuthStatus(uow_factory)

@@ -69,7 +69,7 @@ describe('목록 (AC2, AC19)', () => {
   it('shows the values of the first server row in its cells and the four status labels', async () => {
     // given: 서버에 계약이 있다
     await open()
-    const first = (await gateway.licenseContracts.list({ sort: 'licenseEnd', order: 'asc' }, 0, 1)).items[0]!
+    const first = (await gateway.licenseContracts.list({ sort: 'issuancePriority', order: 'asc' }, 0, 1)).items[0]!
 
     // when: /contracts를 연다
     const cells = within(rows()[0]!).getAllByRole('cell')
@@ -338,19 +338,27 @@ describe('정렬 (AC6, AC18)', () => {
 
   // 머리글을 누르면 그 열로 서버 정렬하고 다시 누르면 방향이 바뀐다.
   // 테스트 코드: LC-026
-  it('asks the server for end date ascending by default and flips the direction on click', async () => {
-    // given: 처음 요청은 종료일 오름차순인 목록
+  it('uses issuance priority for each search and lets the end-date header override it', async () => {
     const list = vi.spyOn(gateway.licenseContracts, 'list')
     const { user } = await open()
+    expect(header('라이선스 종료일')).not.toHaveAttribute('aria-sort')
+    expect(list.mock.calls[0]?.[0]).toMatchObject({ sort: 'issuancePriority', order: 'asc' })
+    const endSort = within(header('라이선스 종료일')).getByRole('button', { name: '라이선스 종료일' })
+
+    await user.click(endSort)
+    await waitFor(() => expect(lastQuery(list)).toMatchObject({ sort: 'licenseEnd', order: 'asc' }))
     expect(header('라이선스 종료일')).toHaveAttribute('aria-sort', 'ascending')
-    expect(list.mock.calls[0]?.[0]).toMatchObject({ sort: 'licenseEnd', order: 'asc' })
 
-    // when: 라이선스 종료일 머리글을 다시 누른다
-    await user.click(within(header('라이선스 종료일')).getByRole('button', { name: '라이선스 종료일' }))
-
+    await user.click(endSort)
     // then: 종료일 내림차순으로 서버에 요청한다
     await waitFor(() => expect(header('라이선스 종료일')).toHaveAttribute('aria-sort', 'descending'))
     expect(lastQuery(list)).toMatchObject({ sort: 'licenseEnd', order: 'desc' })
+
+    const customer = contracts[0]!.customer
+    await user.type(bar().getByRole('textbox', { name: '고객사명' }), customer)
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(lastQuery(list)).toMatchObject({ customer, sort: 'issuancePriority', order: 'asc' }))
+    expect(header('라이선스 종료일')).not.toHaveAttribute('aria-sort')
   })
 
   // 각 열 머리글을 누르면 그 열로 서버 정렬하고 종료일 정렬 표시는 사라진다.

@@ -33,17 +33,17 @@ export function reportsContract(make: MakeGateway): void {
       expect(result.columns).toHaveLength(1)
     })
 
-    it('필드 41개를 가지며 기본값은 자기 선택지 안에 있다', async () => {
+    it('세 엔티티의 필드를 가지며 기본값은 자기 선택지 안에 있다', async () => {
       // given: user 게이트웨이
       const { reports } = await make('user')
 
       // when: 필드 목록을 읽는다
       const catalog = await reports.fields()
 
-      // then: Deal 29·Action 12이고 형식별 포맷·단위·기본 집계가 자기 선택지 안에 있다
-      expect(catalog.fields).toHaveLength(42)
+      expect(catalog.fields).toHaveLength(45)
       expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(29)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
+      expect(catalog.fields.filter((f) => f.entity === 'comment')).toHaveLength(4)
       for (const field of catalog.fields) {
         if (['text', 'code', 'user', 'number'].includes(field.type)) {
           expect(field.formats, field.key).toEqual([])
@@ -109,7 +109,7 @@ export function reportsContract(make: MakeGateway): void {
 
       // then: 한도·엔터티 이름·연산자 모양·상대 기간이 맞고 필드의 모든 연산자가 어휘에 있다
       expect(catalog.limits).toMatchObject({ columnsMin: 1, columnsMax: 30, conditionsMax: 20, rowLimits: [100, 1000, 10000], defaultRowLimit: 1000 })
-      expect(catalog.entities.map((e) => e.label)).toEqual(['Deal', 'Deal Actions'])
+      expect(catalog.entities.map((e) => e.label)).toEqual(['Deal', 'Deal Actions', 'Comments'])
       expect(catalog.operators.find((o) => o.key === 'between')?.shape).toBe('range')
       expect(catalog.relativePeriods.find((p) => p.key === 'last_n_days')?.needsDays).toBe(true)
       for (const field of catalog.fields) {

@@ -32,7 +32,7 @@
 
 ### Comments 엔티티
 
-- 디자이너의 필드 선택 목록은 Deal, Deal Actions, Comments로 구성한다. Comments의 `comment.body`는 댓글 본문이며 컬럼과 조건에 사용할 수 있다.
+- 디자이너의 필드 선택 목록은 Deal, Deal Actions, Comments로 구성한다. Comments의 본문, 작성일자, 수정일자, 작성자를 컬럼과 조건에 사용할 수 있다. 날짜 필드는 저장된 시각을 사용하며 기본 포맷은 `ymd_hm`이다. 작성자는 사용자 표시 이름으로 표시하고 조건에서는 사용자 ID를 사용한다.
 - Comments 필드를 컬럼이나 조건에 사용하면 댓글 하나가 결과 한 행이다. Action 필드를 쓰지 않으면 Deal에 직접 작성한 댓글과 그 Deal의 모든 Action 댓글을 포함한다. Action 필드를 컬럼이나 조건에 쓰면 해당 Action에 연결된 댓글만 포함한다. 댓글 없는 Deal이나 Action은 댓글 행을 만들지 않는다.
 - 그룹과 전체 합계에서 Deal 및 Action 집계는 댓글 수에 따라 중복되지 않는다. 댓글 본문의 건수는 댓글 행을 센다.
 - 예전 저장 리포트의 `deal.comment`와 `action.comment`는 기존 문자열 결합 방식으로 계속 동작한다. 새 필드를 추가하는 선택 목록에서는 숨긴다.
@@ -41,7 +41,7 @@
 
 | 용어 | 뜻 |
 | --- | --- |
-| 카탈로그 | 리포트에 쓸 수 있는 필드 41개(Deal 29 + Deal Actions 12)와 한도·어휘. 여기 없는 key는 어떤 경로로도 SQL에 닿지 않는다 |
+| 카탈로그 | 리포트에 쓸 수 있는 필드 45개(Deal 29 + Deal Actions 12 + Comments 4)와 한도·어휘. 여기 없는 key는 어떤 경로로도 SQL에 닿지 않는다 |
 | 정의 | 조회 요청 하나: `columns`(컬럼 목록), `conditions`(조건 목록), `combine`(and/or), `row_limit` |
 | 컬럼 | 필드 + 표시 이름·포맷·앞 N자·그룹핑·집계·정렬 |
 | 그룹핑 리포트 | 그룹 컬럼(`group: true`)이 하나라도 있는 정의. 나머지 컬럼은 모두 집계가 된다 |
@@ -101,6 +101,10 @@
 | 39 | `action.acted_at` | 수행일 | date | Action `acted_on`(key 유지, RQ-R58) |
 | 40 | `action.closed_at` | 종료일 | date | Next Action 종료일 `next_action_closed_on`(key 유지, RQ-R58) |
 | 41 | `action.count` | Action 건수 | number | 가상 필드: 그룹핑 전용, 조건 불가, 집계 건수 고정 |
+| 42 | `comment.body` | Comment 본문 | text | 개별 Comment 본문 |
+| 43 | `comment.created_at` | 작성일자 | datetime | Comment 작성 시각 |
+| 44 | `comment.updated_at` | 수정일자 | datetime | Comment 수정 시각 |
+| 45 | `comment.author` | 작성자 | user | Comment 작성자이며 조건 값은 사용자 ID |
 
 형식별 허용표(카탈로그 각 필드의 `formats`·`operators`·`aggregates`·기본값)
 
@@ -118,7 +122,7 @@
 
 카탈로그 (`GET /reports/fields`)
 - **RQ-R1** `GET /reports/fields`와 `POST /reports/query`는 로그인한 모든 역할이 부른다(업무 조회, PL-R2). `POST /reports/query`는 POST지만 저장·변경이 없어 역할 가드가 없고 `user`도 실행한다. 미인증은 401 `unauthenticated`(PL-R5), `POST`는 CSRF 헤더가 없으면 403 `csrf`(PL-R9, 판정 순서 PL-R4). 두 경로 모두 아무것도 저장하지 않는다. 모든 역할이 모든 Deal을 대상으로 같은 결과를 받는다.
-- **RQ-R2** 카탈로그 응답은 정확히 `{limits, entities, formats, operators, aggregates, relative_periods, fields}`다. `fields`는 2.2 표의 41개(앞 29개 `deal.*`, 뒤 12개 `action.*`)를 그 순서로 담고, 각 항목은 `{key, label, entity, type, formats, default_format, unit, operators, aggregates, default_aggregate, groupable, filterable, requires_grouping, deal_number, value_kind, options, options_source, options_category}`다. key 접두어(`deal.`·`action.`)는 `entity`와 같다. `entities`는 `[{key: "deal", label: "Deal"}, {key: "action", label: "Deal Actions"}]`.
+- **RQ-R2** 카탈로그 응답은 정확히 `{limits, entities, formats, operators, aggregates, relative_periods, fields}`다. `fields`는 2.2 표의 45개를 `deal.*` 29개, `action.*` 12개, `comment.*` 4개 순으로 담는다. 각 항목은 `{key, label, entity, type, formats, default_format, unit, operators, aggregates, default_aggregate, groupable, filterable, requires_grouping, deal_number, value_kind, options, options_source, options_category}`다. 필드 키의 접두어는 `entity`와 같다. `entities`는 Deal, Deal Actions, Comments 순이다.
 - **RQ-R3** 각 필드의 `formats`·`default_format`·`operators`·`aggregates`는 2.2 형식별 허용표대로다. text·code·user·number는 `formats: []`, `default_format: null`이다. 숫자 필드는 `default_aggregate`가 있고(금액·Users count 합계, Status 체류 일수 평균) `deal_number: true`이며, 그 밖의 필드는 `default_aggregate: null`·`deal_number: false`다.
 - **RQ-R4** `unit`이 있는 필드는 `deal.amount`(`"krw"`, 원 단위) 하나뿐이다. `action.count`는 `operators: []`·`aggregates: []`·`default_aggregate: "count"`·`groupable: false`·`filterable: false`·`requires_grouping: true`·`deal_number: false`이며, `requires_grouping: true`인 필드는 이것 하나다. 그 밖의 필드는 모두 `groupable: true`·`filterable: true`다.
 - **RQ-R5** code·user 필드의 조건 값: 정적 선택지 필드(Forecast 구분·견적 제출·POC 상태·경고·Next Action 상태)는 `value_kind: "key"`와 `options: [{value, label}]`(2.2 표 순서)를 갖고 `options_source: null`이다. 경고의 선택지는 overdue·stale 둘뿐이다(결과 값의 "기한초과·미업데이트"는 선택지가 아니다). 출처 필드는 `options: null`과 `options_source`(`users`·`vendors`·`status_codes`·`forecast_codes`·`bant_labels`·`action_types`)를 갖고, `value_kind`는 담당자·수행자·Vendor·BANT·Action 유형이 `"id"`, Status·Forecast(당시 포함)가 `"key"`다. BANT 필드는 `options_category`(budget·authority·need·timeline)를 갖고 그 밖은 null이다.
@@ -189,7 +193,7 @@
 - **RQ-R43** 컬럼 설정(선택한 칩 아래 한 줄, `section` "컬럼 설정: <이름>"): 첫 칸에 컬럼 이름, 이어서 "표시 이름"(최대 100자, 자리 표시 = 필드 이름), "포맷"(포맷이 있는 필드만, 카탈로그 라벨 + 묶음 포맷이면 " (묶음)"), "앞 N자만 보기" 체크박스와 "앞 N자의 N"(1~200, 켜기 전에는 비활성, 켜면 비어 있을 때 20), "그룹핑" 체크박스(`groupable: false`면 비활성), "집계"(그룹핑 리포트의 비그룹·잠기지 않은 컬럼에서만 활성, 비활성이고 값이 없으면 "—", 그룹핑이 없으면 옆에 "(그룹핑이 있을 때)"), "정렬"("정렬 없음"·"오름차순"·"내림차순", 기본 정렬 없음). 칸 이름은 `aria-label`·`title`이고 위반 문구는 줄 아래(표시 이름·포맷·앞 N자·그룹핑·집계·정렬 순)다. 포맷을 바꿔도 앞 N자는 유지된다.
 - **RQ-R44** 집계 자동 맞춤: 그룹 컬럼이 생기면 집계가 비어 있는 비그룹 컬럼에 기본 집계(숫자 기본, 없으면 "건수", 건수도 없으면 첫 선택지)를 채우고, 그 뒤에 추가한 컬럼도 같다(그룹핑 중 빈 집계 선택지는 없다). 그룹 컬럼이 모두 없어지면(체크 해제·컬럼 빼기) 모든 집계를 비운다. 컬럼을 그룹으로 바꾸면 그 컬럼 집계를 비운다. Action 건수는 그룹핑을 켤 수 없고 집계가 "건수"로 잠긴다. 화면은 서버가 거절할 조합을 미리 막지 않는다(최종 판정은 서버).
 - **RQ-R45** 조건 행(카드 "조건"): 결합 라디오(`legend` "조건 결합") "모든 조건을 만족(AND)"·"하나라도 만족(OR)", 기본 AND. 조건이 없으면 "조건이 없으면 모든 Deal이 대상입니다"(Action 행이면 "…모든 Action이…"). 행은 접속어(둘째 행부터 결합의 대문자 AND/OR) · "조건 N 필드"(조건에 쓸 수 있는 필드만) · "조건 N 연산자"(그 필드의 연산자, 카탈로그 라벨) · 값 · "조건 N 삭제"이고 삭제하면 번호가 다시 매겨진다. 새 조건(필드 목록 "+조건" 또는 "+ 조건 추가" = 첫 조건 가능 필드)과 필드 변경은 연산자를 그 필드의 첫 연산자로, 값을 빈 값으로 둔다. 연산자를 바꾸면 값 모양이 같을 때만 값을 유지한다. 20개면 "+ 조건 추가" 비활성과 "조건은 최대 20개입니다".
-- **RQ-R46** 조건 값 입력(연산자 모양별): none은 입력 칸 없음, text는 "조건 N 값"(최대 200자), number는 정수 칸(금액 필드는 원 단위 금액 입력 — 숫자·콤마만, 입력 중 콤마 자동, 옆에 "(원)", UI-R12), range는 "조건 N 시작"·"~"·"조건 N 끝"(금액이면 둘 다 금액 입력과 "(원)", Users count·일수에는 "(원)" 없음), date는 날짜 입력(`DateInput`, UI-R1~R11), 날짜 범위는 시작·끝 날짜 입력, relative는 "조건 N 기간"(카탈로그 순서 8개, 새 값 기본 "올해")과 최근 N일일 때만 "조건 N 일수", list는 다중 선택(UI-R22~R24) "조건 N 값"(요약: 없으면 "선택", 1~2개는 이름, 3개 이상은 "이름1, 이름2 외 N", "선택 해제"). 목록 선택지: 정적 선택지는 카탈로그 순서, 담당자·수행자는 퇴사자 포함 사용자 목록, Vendor는 Vendor 목록, Status·Forecast는 코드 순서(CD-R5), BANT는 그 구분의 Label만, Action 유형은 유형 목록이며 목록을 읽지 못하면 오류 배너를 함께 보인다.
+- **RQ-R46** 조건 값 입력(연산자 모양별): none은 입력 칸 없음, text는 "조건 N 값"(최대 200자), number는 정수 칸(금액 필드는 원 단위 금액 입력 — 숫자·콤마만, 입력 중 콤마 자동, 옆에 "(원)", UI-R12), range는 "조건 N 시작"·"~"·"조건 N 끝"(금액이면 둘 다 금액 입력과 "(원)", Users count·일수에는 "(원)" 없음), date는 날짜 입력(`DateInput`, UI-R1~R11), 날짜 범위는 시작·끝 날짜 입력, relative는 "조건 N 기간"(카탈로그 순서 8개, 새 값 기본 "올해")과 최근 N일일 때만 "조건 N 일수"다. list는 다중 선택(UI-R22~R24)이며 접근성 이름은 "조건 N 값"과 선택 요약을 포함한다. 선택한 값이 없으면 "선택"을 표시하고, 값이 있으면 "N개 선택"과 모든 선택값의 이름을 표시한다. "선택 해제"로 모두 해제할 수 있다. 목록 선택지는 정적 선택지는 카탈로그 순서, 담당자·수행자는 퇴사자 포함 사용자 목록, Vendor는 Vendor 목록, Status·Forecast는 코드 순서(CD-R5), BANT는 그 구분의 Label만, Action 유형은 유형 목록이며 목록을 읽지 못하면 오류 배너를 함께 보인다.
 - **RQ-R47** 조회 요청 만들기: 컬럼은 `field`, `group`, 표시 이름(앞뒤 공백을 지운 값이 비었거나 필드 이름과 같으면 생략), `format`(있을 때만), `prefix_length`(앞 N자를 켰을 때만), `aggregate`·`sort`(있을 때만)를, 조건은 `field`·`operator`·`value`(값 없는 연산자는 생략)를, 그리고 `combine`·`row_limit`을 보낸다(게이트웨이가 snake_case로 바꿈). 숫자는 콤마를 빼고 정수로 읽고(안전 정수 범위), id 목록은 숫자로, 금액은 입력한 원 그대로, 날짜는 ISO `YYYY-MM-DD`, 상대 기간은 `{period}`(최근 N일만 `days` 포함 — 최근 n개월은 일수 칸이 남아도 보내지 않음). 읽을 수 없는 입력이 하나라도 있으면 **요청을 보내지 않고** 그 칸 아래에 문구를 보인다(`aria-invalid`): 빈 텍스트 "값을 입력하세요", 빈 목록 "하나 이상 선택하세요", 정수가 아님 "정수로 입력하세요", 범위 시작 > 끝 "시작이 끝보다 클 수 없습니다", 빈 날짜 "날짜를 고르세요", 덜 쳤거나 틀린 날짜는 날짜 입력 규칙의 문구(UI-R7), 최근 N일의 N "1~3650 사이 정수를 입력하세요", 앞 N자의 N "1~200 사이 정수를 입력하세요". 작성 탭에 머문다.
 - **RQ-R48** 최대 행·조회(카드 "최대 행과 조회"): "최대 행" 선택지는 카탈로그 `row_limits`(표시 100·1,000·10,000), 기본 1,000. "조회" 버튼은 컬럼이 없거나 조회 중이면 비활성이고 조회 중에는 "조회 중…"이다(두 번째 조회를 막음).
 - **RQ-R49** 조회 결과 처리: 성공하면 결과 탭으로 옮긴다(매 성공마다). 실패하면 작성 탭에 머물고 조회 버튼 아래에 알림(`role=alert`)을 보이며 결과 탭에는 마지막 성공 결과가 그대로 남는다. 정의 위반(`invalid-report`)이면 "고칠 곳 N개"와 항목별 "<위치>: <서버 문구>" 목록이고, 위치 이름은 "컬럼 i(<칩 이름>)"·"조건 i(<필드 이름>)"·"컬럼"·"조건"·"조건 결합"·"최대 행"이며 위치를 모르는 위반(예전 최상위 `sort` 등)은 위치 없이 요약에만 보인다. 같은 위반을 해당 칩(칩 아래)·컬럼 설정 칸·조건 행·결합·최대 행 아래에도 보인다(위반 위치는 마지막 조회 때의 index → 화면 항목으로 옮김). 그 항목을 고치면(컬럼 설정 변경, 조건 필드·연산자·값 변경, 컬럼·조건 추가·삭제는 목록 위반, 결합·최대 행 변경) 그 표시가 사라지고, 지운 컬럼·조건의 위반은 사라지며, 남은 위반이 없으면 요약도 없다. 시간 초과·연결 끊김·그 밖의 오류는 서버 문구(게이트웨이 문구, PL-R37·PL-R39) 한 줄이다. 다음 조회가 성공하면 실패 알림이 사라진다.
@@ -450,11 +454,11 @@ RQ-R38~RQ-R56.
 ### RQ-001 로그인한 사용자는 필드 카탈로그를 받고 미인증은 401이다
 - Given VIEWER가 로그인함
 - When `GET /reports/fields`를 부르고, 로그인하지 않은 채 같은 경로를 부른다
-- Then 첫 요청은 200이고 본문 키는 정확히 `limits`·`entities`·`formats`·`operators`·`aggregates`·`relative_periods`·`fields`, `fields` key 순서는 카탈로그 순서, `entities` key는 `deal`·`action`이며, 둘째 요청은 401 `unauthenticated`다
+- Then 첫 요청은 200이고 본문 키는 정확히 `limits`·`entities`·`formats`·`operators`·`aggregates`·`relative_periods`·`fields`, `fields` key 순서는 카탈로그 순서, `entities` key는 `deal`·`action`·`comment`이며, 둘째 요청은 401 `unauthenticated`다
 
-### RQ-002 카탈로그는 Deal 29개·Deal Actions 12개를 정해진 key·이름·순서로 담는다
+### RQ-002 카탈로그는 Deal 29개·Deal Actions 12개·Comments 4개를 담는다
 - When 카탈로그를 읽는다
-- Then 필드는 41개이고 앞 29개는 `deal.*`(29번째 `deal.comment`)·뒤 12개는 `action.*`(Action 필드 key `action.comment`·이름 "Comment(Action)")이며 key·이름·순서가 2.2 표와 같고, 모든 필드의 key 접두어가 `entity`와 같다
+- Then 필드 45개의 키·이름·순서는 2.2 표와 같고, 각 필드의 키 접두어가 `entity`와 같다.
 
 ### RQ-003 필드마다 형식별 포맷·연산자·집계와 기본값을 갖는다
 - When 카탈로그를 읽는다
@@ -808,7 +812,7 @@ RQ-R38~RQ-R56.
 
 ### RQ-080 목록 값 선택지는 출처의 순서·구분을 따르고 선택을 요약한다
 - When Forecast 구분·Status·BANT Budget 조건의 값 목록을 열고 값을 0·2·3개 고르고 "선택 해제"를 누른다
-- Then 정적 선택지는 카탈로그 순서, Status는 코드 순서, BANT Budget은 budget 구분 Label만이고, 요약은 "선택" → "이름1, 이름2" → "이름1, 이름2 외 1"이며 해제하면 "선택"이다
+- Then 정적 선택지는 카탈로그 순서, Status는 코드 순서를 따르고 BANT Budget은 budget 구분 Label만 표시한다. 요약은 "선택" → "2개 선택 · 이름1, 이름2" → "3개 선택 · 이름1, 이름2, 이름3"으로 바뀐다. 모두 해제하면 "선택"으로 돌아간다.
 
 ### RQ-081 연산자 모양마다 맞는 값 입력 칸을 보인다
 - When 연산자를 is_empty, 날짜 between, relative(최근 N일), 숫자 eq로 바꾼다

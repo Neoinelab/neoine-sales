@@ -15,7 +15,7 @@ import './contracts.css'
 /** 계약관리(`/contracts`): 라이선스 계약 목록. 검색·정렬·쪽 나누기는 서버가 하고 화면은 50건씩 이어서 읽는다. */
 export function ContractsPage() {
   const [conditions, setConditions] = useState<ContractConditions>(NO_CONTRACT_CONDITIONS)
-  const [sort, setSort] = useState<ContractSort>('licenseEnd')
+  const [sort, setSort] = useState<ContractSort>('issuancePriority')
   const [order, setOrder] = useState<SortOrder>('asc')
   const [editing, setEditing] = useState<LicenseContract | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -31,6 +31,12 @@ export function ContractsPage() {
   })
   const loaded = contracts.data !== undefined && !contracts.isPlaceholderData
 
+  function search(next: ContractConditions) {
+    setConditions(next)
+    setSort('issuancePriority')
+    setOrder('asc')
+  }
+
   function toggleSort(column: ContractSort) {
     if (column === sort) setOrder(order === 'asc' ? 'desc' : 'asc')
     else {
@@ -45,7 +51,7 @@ export function ContractsPage() {
         <h1>계약관리</h1>
       </div>
 
-      <ContractFilterBar applied={conditions} onSearch={setConditions} onReset={() => setConditions(NO_CONTRACT_CONDITIONS)} />
+      <ContractFilterBar applied={conditions} onSearch={search} onReset={() => search(NO_CONTRACT_CONDITIONS)} />
 
       <p className="hint contracts-count">전체 {contracts.total}건</p>
       {notice && (

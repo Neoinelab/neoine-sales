@@ -595,7 +595,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:3px;font-size:12.5px}
 <h3>A.5 인증·사용자·설정</h3>
 <ul>
 <li>AD(LDAP) 로그인, 세션, 로그아웃, <code>/auth/me</code>(개발용 로그인은 2026-11-03 제거)</li>
-<li>로그인 시도 제한(계정별 5회, IP별 30회, 15분 창, 15분 잠금 — 설정 가능)</li>
+<li>로그인 시도 제한. 15분 안에 계정별 10회 실패 시 처음 5분, 이후에는 1시간 잠금. IP별 30회 실패 시 15분 잠금.</li>
 <li>최초 설정 2단계(AD 서버 등록 → admin 등록)</li>
 <li>AD 설정 조회·수정·연결 테스트(admin)</li>
 <li>사용자 등록·목록(재직/퇴사/전체)·삭제, 퇴사 처리, 사용자 선택 옵션 <code>/user-options</code></li>

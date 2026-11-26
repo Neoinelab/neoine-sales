@@ -60,6 +60,7 @@ function keyOf(data: SeedData, record: LicenseContractRecord, sort: LicenseContr
       return text(side.partner)
     case 'licenseStart':
       return record.licenseStart
+    case 'issuancePriority':
     case 'licenseEnd':
       return record.licenseEnd
     case 'status':
@@ -78,7 +79,12 @@ function keyOf(data: SeedData, record: LicenseContractRecord, sort: LicenseContr
 export function sortContracts(data: SeedData, rows: LicenseContractRecord[], query: LicenseContractQuery): LicenseContractRecord[] {
   const sign = query.order === 'asc' ? 1 : -1
   const keys = new Map(rows.map((r) => [r.id, keyOf(data, r, query.sort)]))
+  const issuanceRank = (record: LicenseContractRecord) => Number(record.status !== 'not_issued' && record.licenseStart !== null)
   return rows.sort((a, b) => {
+    if (query.sort === 'issuancePriority') {
+      const priority = issuanceRank(a) - issuanceRank(b)
+      if (priority !== 0) return priority
+    }
     const x = keys.get(a.id) ?? null
     const y = keys.get(b.id) ?? null
     if (x === null || y === null) return x === y ? a.id - b.id : x === null ? 1 : -1

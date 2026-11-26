@@ -58,10 +58,10 @@ describe('조건 행', () => {
     // when: 조건 추가 뒤 필드 선택지를 읽는다
     await addCondition(user, 'Vendor')
 
-    // then: 40개이고 Action 건수는 없다
     const names = optionTexts(screen.getByRole('combobox', { name: '조건 1 필드' }))
 
-    expect(names).toHaveLength(40)
+    expect(names).toHaveLength(42)
+    expect(names).toEqual(expect.arrayContaining(['작성일자', '수정일자', '작성자']))
     expect(names).not.toContain('Action 건수')
   })
 
@@ -180,7 +180,7 @@ describe('조건 값 선택지', () => {
   })
 
   // 테스트 코드: RQ-080
-  it('선택을 요약해 보이고 선택 해제 버튼을 둔다', async () => {
+  it('선택 개수와 모든 값의 이름을 표시하고 선택 해제를 반영한다', async () => {
     // given: Action 유형 조건의 값 선택이 열려 있다
     const { user } = await openDesigner()
     await addCondition(user, 'Action 유형')
@@ -189,18 +189,18 @@ describe('조건 값 선택지', () => {
 
     // when: 통화를 고른다
     await user.click(panel.getByRole('checkbox', { name: '통화' }))
-    // then: 요약이 통화다
-    expect(screen.getByRole('button', { name: '조건 1 값 통화' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '조건 1 값 1개 선택 · 통화' })).toHaveTextContent(/^1개 선택 · 통화$/)
 
     // when: 미팅을 고른다
     await user.click(panel.getByRole('checkbox', { name: '미팅' }))
-    // then: 요약이 통화, 미팅이다
-    expect(screen.getByRole('button', { name: '조건 1 값 통화, 미팅' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '조건 1 값 2개 선택 · 통화, 미팅' })).toBeVisible()
 
     // when: 이메일을 고른다
     await user.click(panel.getByRole('checkbox', { name: '이메일' }))
-    // then: 요약이 통화, 미팅 외 1이다
-    expect(screen.getByRole('button', { name: '조건 1 값 통화, 미팅 외 1' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '조건 1 값 3개 선택 · 통화, 미팅, 이메일' })).toBeVisible()
+
+    await user.click(panel.getByRole('checkbox', { name: '미팅' }))
+    expect(screen.getByRole('button', { name: '조건 1 값 2개 선택 · 통화, 이메일' })).toBeVisible()
 
     // when: 선택 해제를 누른다
     await user.click(panel.getByRole('button', { name: '선택 해제' }))

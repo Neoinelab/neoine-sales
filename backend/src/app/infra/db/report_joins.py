@@ -110,6 +110,10 @@ def action_actor(joins: Joins) -> NamedFromClause:
     return joins.use("u_actor", UserRow, lambda a: a.c.id == ACTIONS.c.actor_user_id)
 
 
+def comment_author(joins: Joins) -> NamedFromClause:
+    return joins.use("u_comment_author", UserRow, lambda a: a.c.id == COMMENTS.c.author_user_id)
+
+
 def action_type(joins: Joins) -> NamedFromClause:
     return joins.use("at", ActionTypeRow, lambda a: a.c.id == ACTIONS.c.action_type_id)
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { gateway } from '../../../gateway'
 import { ApiError } from '../../../shared/api/problem'
 import { renderAt } from '../../../test/mockApp'
-import { openDesigner, setupReportClock } from '../../../test/reportScreen'
+import { openDesigner, runQuery, setupReportClock } from '../../../test/reportScreen'
 
 setupReportClock()
 
@@ -28,12 +28,18 @@ describe('필드 목록', () => {
   })
 
   // 테스트 코드: CM-084
-  it('Comments 그룹에서만 댓글 본문을 추가할 수 있다', async () => {
+  it('Comments 그룹에서 본문과 작성·수정일자 및 작성자를 조회할 수 있다', async () => {
     // when: 새 리포트 작성 화면의 필드 목록을 연다
-    await openDesigner()
+    const { user } = await openDesigner()
 
-    // then: Comments에서 본문을 추가하고 예전 댓글 필드는 목록에 없다
-    expect(within(screen.getByRole('group', { name: 'Comments' })).getByRole('button', { name: 'Comment 본문 컬럼에 추가' })).toBeVisible()
+    const comments = within(screen.getByRole('group', { name: 'Comments' }))
+    const labels = ['Comment 본문', '작성일자', '수정일자', '작성자']
+    for (const label of labels) {
+      await user.click(comments.getByRole('button', { name: `${label} 컬럼에 추가` }))
+    }
+    await runQuery(user)
+    const table = await screen.findByRole('table', { name: '조회 결과' })
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(labels)
     expect(screen.queryByRole('button', { name: /Comment\((Deal 전체|Action)\)/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Memo/ })).not.toBeInTheDocument()
   })

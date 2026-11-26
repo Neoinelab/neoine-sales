@@ -21,27 +21,21 @@ if TYPE_CHECKING:
     from tests.unit.application.license_contract_env import ContractEnv
 
 
-def test_query_defaults_sort_by_license_end_ascending_with_fifty_per_page() -> None:
-    """조건 기본값은 종료일 오름차순, 50건씩, 상태 조건 없음이다."""
+def test_query_defaults_to_issuance_priority_with_fifty_per_page() -> None:
     # when: 조건 없이 LicenseContractQuery를 만든다
     query = LicenseContractQuery()
 
-    # then: 정렬은 license_end 오름차순, offset 0·limit 50이다
-    assert query.sort is LicenseContractSort.LICENSE_END
+    assert query.sort is LicenseContractSort.ISSUANCE_PRIORITY
     assert query.order is SortOrder.ASC
     assert (query.offset, query.limit) == (0, 50)
     assert query.status is None
 
 
-def test_query_sort_keys_are_the_twelve_table_columns() -> None:
-    """정렬 키는 화면 표의 12열과 같고 deal_code는 없다.
-
-    테스트 코드: LC-021, LC-084
-    """
+def test_query_sort_keys_include_issuance_priority_and_exclude_deal_code() -> None:
     # when: LicenseContractSort의 값을 모은다
     actual = {s.value for s in LicenseContractSort}
-    # then: deal_name~note 12개뿐이다
     assert actual == {
+        "issuance_priority",
         "deal_name",
         "customer",
         "vendor",

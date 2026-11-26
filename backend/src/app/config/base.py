@@ -70,9 +70,11 @@ class Settings(BaseSettings):
     ad_login_domain: str | None = None
 
     # 로그인 시도 제한(계정별·IP별 실패 횟수, 집계 창, 잠금 시간)
-    login_max_failures_per_account: int = Field(default=5, ge=1)
+    login_max_failures_per_account: int = Field(default=10, ge=1)
     login_max_failures_per_ip: int = Field(default=30, ge=1)
     login_failure_window_minutes: int = Field(default=15, ge=1)
+    login_account_first_lock_minutes: int = Field(default=5, ge=1)
+    login_account_repeat_lock_minutes: int = Field(default=60, ge=1)
     login_lock_minutes: int = Field(default=15, ge=1)
 
     # 데이터 저장소

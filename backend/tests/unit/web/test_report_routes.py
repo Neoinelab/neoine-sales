@@ -647,9 +647,11 @@ async def test_catalog_lists_the_converted_fields_as_dates_without_a_time_format
         assert fields[key]["type"] == "date", key
         assert fields[key]["default_format"] == "ymd", key
         assert "ymd_hm" not in fields[key]["formats"], key
-    # then: 시각(datetime) 형식은 등록일 하나뿐이고 ymd_hm을 가진다
-    assert [k for k, f in fields.items() if f["type"] == "datetime"] == ["deal.created_at"]
-    assert "ymd_hm" in fields["deal.created_at"]["formats"]
+    for key in ("deal.created_at", "comment.created_at", "comment.updated_at"):
+        assert fields[key]["type"] == "datetime", key
+        assert "ymd_hm" in fields[key]["formats"], key
+    assert fields["comment.author"]["type"] == "user"
+    assert fields["comment.author"]["options_source"] == "users"
 
 
 @pytest.mark.parametrize("field", CONVERTED_DATE_FIELDS)

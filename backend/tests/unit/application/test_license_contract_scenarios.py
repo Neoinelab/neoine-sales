@@ -22,13 +22,9 @@ if TYPE_CHECKING:
     from tests.unit.application.license_contract_env import ContractEnv
 
 
-async def test_default_list_is_license_end_ascending_with_fifty_per_page(
+async def test_default_list_is_issuance_priority_with_fifty_per_page(
     contract_env: ContractEnv,
 ) -> None:
-    """조건 없이 읽으면 종료일 오름차순(종료일 없는 계약은 맨 뒤) 50건씩, 전체 건수가 함께 온다.
-
-    테스트 코드: LC-016
-    """
     # given: 종료일이 서로 다른 계약 45건(종료)과 종료일 없는 미발급 계약 15건
     code = await contract_env.open_deal()
     ended = [
@@ -36,12 +32,11 @@ async def test_default_list_is_license_end_ascending_with_fifty_per_page(
         for n in range(45)
     ]
     waiting = [await contract_env.seed_contract(code) for _ in range(15)]
-    expected = [c.id for c in sorted(ended, key=lambda c: (c.license_end, c.id))]
-    expected += [c.id for c in waiting]
+    expected = [c.id for c in waiting]
+    expected += [c.id for c in sorted(ended, key=lambda c: (c.license_end, c.id))]
     # when: 조건 없이 읽고, 이어 offset=50으로 읽는다
     first = await contract_env.list.execute(LicenseContractQuery())
     second = await contract_env.list.execute(LicenseContractQuery(offset=50))
-    # then: 첫 쪽은 50건·total 60, 종료일 오름차순에 종료일 없는 계약이 뒤. 둘째 쪽은 나머지 10건
     assert (first.limit, first.offset, first.total) == (50, 0, 60)
     assert [r.contract.id for r in first.items] == expected[:50]
     assert [r.contract.id for r in second.items] == expected[50:]

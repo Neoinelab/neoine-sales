@@ -92,7 +92,7 @@ class LoginThrottle:
         if counter is None:
             return
         released = counter.release(policy)
-        if released.failures == 0:
+        if released.failures == 0 and not released.had_prior_lock:
             await uow.login_failures.delete(key)
         else:
             await uow.login_failures.save(released)

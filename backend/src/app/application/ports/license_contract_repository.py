@@ -24,6 +24,7 @@ END_RANGE_REVERSED = "라이선스 종료일 범위의 시작은 끝보다 늦�
 
 
 class LicenseContractSort(StrEnum):
+    ISSUANCE_PRIORITY = "issuance_priority"
     DEAL_NAME = "deal_name"
     CUSTOMER = "customer"
     VENDOR = "vendor"
@@ -62,7 +63,7 @@ class LicenseContractQuery:
     start_to: date | None = None
     end_from: date | None = None
     end_to: date | None = None
-    sort: LicenseContractSort = LicenseContractSort.LICENSE_END
+    sort: LicenseContractSort = LicenseContractSort.ISSUANCE_PRIORITY
     order: SortOrder = SortOrder.ASC
     offset: int = 0
     limit: int = DEFAULT_CONTRACT_LIMIT

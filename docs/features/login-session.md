@@ -48,7 +48,7 @@
 테이블(컬럼·제약의 정본은 스키마 테스트 `tests/unit/infra/schema/`, 기준선은 SC):
 
 - `auth_sessions`: `id`(bigint PK), `user_id`(users FK), `token_hash`(SHA-256 hex, 유니크), `created_at`, `expires_at`, `revoked_at`(NULL 가능). 도메인 `AuthSession`: `expires_at > created_at`, 시각은 시간대 필수, `is_active(now)` = 폐기 안 됨 그리고 `now < expires_at`, 두 번 폐기하면 `InvalidStateError` "이미 폐기된 세션입니다".
-- `login_failures`: `key`(PK, HMAC-SHA256 hex), `failures`, `window_started_at`, `locked_until`(NULL 가능). 도메인 `FailureCounter`·`FailurePolicy(max_failures, window, lock_duration)`.
+- `login_failures`: `key`(PK, HMAC-SHA256 hex), `failures`, `window_started_at`, `locked_until`(NULL 가능), `had_prior_lock`(이전 계정 잠금 종료 여부). `FailurePolicy`는 계정에 반복 잠금 시간을 별도로 지정할 수 있다.
 - `user_password_hashes`: `user_id`(PK, users FK CASCADE), `password_hash`(`PasswordHash`: 비어 있지 않음, NUL 없음, 512자 이하), 저장 시각. 사용자 삭제 시 함께 삭제(US).
 - `auth_settings`: 단일 행 `mode`(`ad`·`local`), `updated_at`. 쓰기는 SU.
 - `users`(US 소유)에서 AU가 쓰는 값: `login_id`, `role`, `display_name`, `email`, `phone`, `last_login_at`, `deleted_at`.
@@ -58,7 +58,7 @@
 - `Principal`: `user_id`, `subject`(로그인 아이디), `email`(소문자, 없으면 null), `name`(비면 subject, 200자로 자름), `role`.
 - `LoginOutcome`: `session`(`IssuedSession`: token, expires_at, principal), `directory_warning`(`DirectoryWarning(stage, message)` 또는 None).
 - `AuthStatus`: `directory_configured`, `storage_configured`, `needs_directory_setup`, `needs_storage_setup`, `needs_admin_setup`, `auth_mode`.
-- 설정(`APP_` 접두어): `session_ttl_hours`(기본 8), `login_max_failures_per_account`(5), `login_max_failures_per_ip`(30), `login_failure_window_minutes`(15), `login_lock_minutes`(15), 모두 1 이상. `cookie_secure`(PL-R28). `ad_login_domain`(`APP_AD_LOGIN_DOMAIN`, 선택, 기본 없음, 형식은 AU-R7a).
+- 설정(`APP_` 접두어): `session_ttl_hours`(기본 8), `login_max_failures_per_account`(10), `login_max_failures_per_ip`(30), `login_failure_window_minutes`(15), `login_account_first_lock_minutes`(5), `login_account_repeat_lock_minutes`(60), `login_lock_minutes`(IP 잠금 15), 모두 1 이상. `cookie_secure`(PL-R28). `ad_login_domain`(`APP_AD_LOGIN_DOMAIN`, 선택, 기본 없음, 형식은 AU-R7a).
 - 프런트 `Me`: `{ id, loginId, name, role }`, `LoginResult`: `{ me, directoryWarning: { stage, message } | null }`, `AuthConfig`: `{ authMode: 'ad' | 'local' | null, needsSetup: boolean }`.
 
 ### 2.3 비즈니스 규칙
@@ -110,8 +110,8 @@ AD 로그인과 대체 로그인
 - **AU-R13** 새 해시는 `scrypt$ln=17,r=8,p=1$<salt>$<hash>`(salt 16바이트, hash 32바이트, base64 패딩 없음)이고 같은 비밀번호도 매번 솔트가 다르다. 검증은 저장된 문자열의 파라미터로 다시 계산한다(예전 `ln=14` 해시도 검증됨). 파라미터가 범위(ln 10~20, r 1~16, p 1~4, salt 8~64바이트, hash 16~64바이트) 밖이거나 형식이 틀리면 계산하지 않고 불일치다. 저장 해시가 없으면 기본 비용으로 더미 계산을 한 뒤 불일치다. 계산은 이벤트 루프 밖 스레드에서 한다.
 
 시도 제한
-- **AU-R14** 로그인 실패는 아이디별·IP별 두 카운터로 센다. 기본값: 아이디 5회, IP 30회, 창 15분, 잠금 15분(설정 2.2, 각 1 이상이고 0 이하면 기동 실패). 형식 검사(AU-R1~R3)를 통과한 로그인은 AD·해시 검증 전에 두 카운터를 1회씩 선점한다. 어느 카운터든 잠겨 있으면 429 `too-many-attempts` "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요"이고 AD·해시를 부르지 않는다(올바른 비밀번호도 429). 없는 아이디도 같은 방식으로 센다. 카운터는 DB에 있어 여러 서버 인스턴스가 공유한다. IP는 요청의 접속 주소(`request.client.host`, 없으면 `unknown`)다.
-- **AU-R15** 집계: 로그인 성공(AD·대체·local)은 그 아이디 카운터를 지우고 IP 선점 1회를 되돌린다(성공은 IP 한도를 쓰지 않는다). 실패(AU-R4의 401, AU-R10의 409·503, AU-R5)는 선점이 실패 1회로 남는다. 실패가 한도에 이르면 그 시각 + 잠금 시간까지 잠기고, 잠금 끝 시각이 되면 풀린다(그 시각 직전까지 잠김). 창 시작부터 창 길이 이상 지났거나 잠금이 풀린 뒤의 다음 실패는 1부터 다시 센다. 카운터 키는 `HMAC-SHA256(jwt_secret, "acct:<정규화 아이디>")`·`HMAC-SHA256(jwt_secret, "ip:<접속 주소>")`이며 원본 아이디·IP는 저장하지 않는다.
+- **AU-R14** 로그인 실패는 아이디별·IP별 두 카운터로 센다. 기본 집계 창은 15분이다. 아이디는 10회 실패하면 처음에 5분, 다음 잠금부터 60분 동안 잠긴다. IP는 30회 실패하면 15분 동안 잠긴다. 형식 검사(AU-R1~R3)를 통과한 로그인은 AD·해시 검증 전에 두 카운터를 1회씩 선점한다. 어느 카운터든 잠겨 있으면 429 `too-many-attempts` "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요"이고 AD·해시를 부르지 않는다(올바른 비밀번호도 429). 없는 아이디도 같은 방식으로 센다. 카운터는 DB에 있어 여러 서버 인스턴스가 공유한다. IP는 요청의 접속 주소(`request.client.host`, 없으면 `unknown`)다.
+- **AU-R15** 로그인 성공(AD·대체·local)은 해당 아이디의 실패 횟수와 잠금 이력을 지우고 IP 선점 1회를 되돌린다. 실패(AU-R4의 401, AU-R10의 409·503, AU-R5)는 선점이 실패 1회로 남는다. 실패가 한도에 이르면 그 시각부터 잠금 시간이 끝날 때까지 잠긴다. 창이 지났거나 잠금이 풀리면 다음 실패는 1부터 세고 이전 계정 잠금 이력을 유지한다. 카운터 키는 `HMAC-SHA256(jwt_secret, "acct:<정규화 아이디>")`·`HMAC-SHA256(jwt_secret, "ip:<접속 주소>")`이며 원본 아이디·IP는 저장하지 않는다.
 
 세션
 - **AU-R16** 로그인에 성공하면 256비트 난수 토큰을 만들고 DB에는 그 SHA-256 해시만 저장한다. 만료 = 발급 시각 + `session_ttl_hours`. 응답에 쿠키 `neoine_session=<토큰>`을 `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age`=TTL초로 심고 `cookie_secure`가 true면 `Secure`를 붙인다. 다른 쿠키(폐지된 `neoine_login` 등)는 심지 않는다. 발급 직전 사용자가 삭제되었으면 공통 실패 401이다. 세션은 요청으로 연장되지 않는다(만료 시각 고정).
@@ -236,7 +236,7 @@ admin 경고 문구(`directory_warning.message`):
 
 ### AU-UC4 로그인 시도 제한
 - 행위자: 로그인하려는 사람(공격자 포함)
-- 기본 흐름: 실패가 아이디 5회·IP 30회에 이르면 잠금 15분(AU-R14·R15)
+- 기본 흐름은 계정 10회 실패 시 첫 잠금 5분, 이후 잠금 60분이며 IP 30회 실패 시 15분이다(AU-R14·R15).
 - 대안: 성공하면 아이디 카운터 삭제, 창이 지나면 다시 셈
 - 결과: 잠금 중에는 올바른 비밀번호도 429, AD·해시 호출 없음
 
@@ -310,7 +310,7 @@ admin 경고 문구(`directory_warning.message`):
 | AU-039 | local 모드 로그인은 성공이든 실패든 AD를 부르지 않는다 | AU-R6, AU-R12, AU-UC3 | backend | `application/test_local_login.py::test_password_login_in_local_mode_never_calls_directory` |
 | AU-040 | 인증 방식 행이 없고 admin이 있는 시스템은 AD 로그인으로 처리한다 | AU-R6, AU-R22, AU-UC1 | backend | `application/test_local_login.py::test_password_login_without_mode_row_and_admin_uses_directory`<br>`application/test_auth_status_modes.py::test_auth_status_without_mode_row_but_with_admin_reports_ad` |
 | AU-041 | ad 모드에서 AD가 응답하면 local 방식 해시가 맞아도 AD 판정을 따른다 | AU-R6, AU-R9, AU-UC1 | backend | `application/test_local_login.py::test_password_login_in_ad_mode_rejects_a_local_style_hash_when_the_directory_answers` |
-| AU-042 | 한 아이디가 5번 실패하면 올바른 비밀번호도 429이고 AD·해시를 부르지 않는다 | AU-R14, AU-UC4 | backend | `application/test_auth_throttle.py::test_account_is_locked_after_the_limit_without_calling_the_directory`<br>`application/test_local_login.py::test_password_login_locked_account_is_429_without_verifying` |
+| AU-042 | 한 아이디가 10번 실패하면 올바른 비밀번호도 429이고 AD·해시를 부르지 않는다 | AU-R14, AU-UC4 | backend | `application/test_auth_throttle.py::test_account_is_locked_after_the_limit_without_calling_the_directory`<br>`application/test_local_login.py::test_password_login_locked_account_is_429_without_verifying` |
 | AU-043 | 한도보다 한 번 적게 실패하면 잠기지 않는다 | AU-R14, AU-UC4 | backend | `application/test_auth_throttle.py::test_failures_below_the_limit_do_not_lock` |
 | AU-044 | 잠금은 그 아이디에만 걸린다 | AU-R14, AU-UC4 | backend | `application/test_auth_throttle.py::test_lock_applies_to_that_account_only` |
 | AU-045 | 잠금은 잠금 시간이 정확히 지나면 풀린다 | AU-R15, AU-UC4 | backend | `application/test_auth_throttle.py::test_lock_ends_exactly_after_the_lock_duration`<br>`application/test_local_login.py::test_password_login_lock_ends_after_the_lock_duration` |
@@ -320,7 +320,7 @@ admin 경고 문구(`directory_warning.message`):
 | AU-049 | 없는 아이디도 같은 방식으로 제한된다 | AU-R14, AU-UC4 | backend | `application/test_auth_throttle.py::test_unknown_login_ids_are_throttled_the_same_way`<br>`application/test_auth_throttle.py::test_unregistered_directory_user_counts_as_a_failure`<br>`application/test_local_login.py` |
 | AU-050 | 실패 카운터 키는 비밀 기반 해시이고 다른 서버 인스턴스와 공유된다 | AU-R14, AU-R15, AU-R23, AU-UC4 | backend | `application/test_auth_throttle.py::test_counter_keys_are_keyed_hashes_not_raw_values`<br>`application/test_auth_throttle.py::test_failure_counters_are_shared_between_app_instances` |
 | AU-051 | AD 장애 중 대체 실패가 한도에 이르면 올바른 비밀번호도 429다 | AU-R14, AU-R10, AU-UC4 | backend | `application/test_auth_throttle.py::test_directory_outage_without_a_stored_hash_counts_toward_the_limit`<br>`application/test_directory_login_fallback.py::test_fallback_login_is_blocked_while_locked` |
-| AU-052 | 시도 제한 기본값은 5·30·15분·15분이고 1 미만은 거부된다 | AU-R14, AU-UC4 | backend | `test_settings_login.py::test_login_throttle_defaults_match_the_plan`<br>`test_settings_login.py::test_login_throttle_values_reject_out_of_range_input`<br>`test_settings_login.py::test_login_throttle_values_accept_the_minimum` |
+| AU-052 | 계정·IP별 한도, 집계 창, 잠금 시간 기본값과 최소값을 검증한다 | AU-R14, AU-UC4 | backend | `test_settings_login.py::test_login_throttle_defaults_match_the_plan`<br>`test_settings_login.py::test_login_throttle_values_reject_out_of_range_input`<br>`test_settings_login.py::test_login_throttle_values_accept_the_minimum` |
 | AU-053 | 발급한 세션은 만료 전까지 인증되고 만료 시각부터 401이다 | AU-R16, AU-R18, AU-UC5 | backend | `application/test_authenticate_use_case.py::test_token_authenticates_the_registered_user_until_it_expires`<br>`domain/test_auth.py::TestAuthSession::test_is_active_until_it_expires` |
 | AU-054 | 저장소에는 토큰 해시만 있고 토큰은 매번 다르다 | AU-R16, AU-R23, AU-UC5 | backend | `application/test_authenticate_use_case.py::test_only_the_hash_of_the_token_is_stored`<br>`application/test_authenticate_use_case.py::test_tokens_are_unique` |
 | AU-055 | 쿠키가 없거나 발급한 적 없는 토큰이면 401이다 | AU-R18, AU-UC5 | backend | `application/test_authenticate_use_case.py::test_missing_or_unknown_token_is_unauthenticated` |
@@ -572,28 +572,28 @@ admin 경고 문구(`directory_warning.message`):
 - When kim이 "pw"로 로그인한다
 - Then 공통 401이다
 
-### AU-042 한 아이디가 5번 실패하면 올바른 비밀번호도 429이고 AD·해시를 부르지 않는다
-- Given 기본 제한(아이디 5회)이고 kim이 틀린 비밀번호로 5번 실패했다(ad 모드·local 모드 각각)
+### AU-042 한 아이디가 10번 실패하면 올바른 비밀번호도 429이고 AD·해시를 부르지 않는다
+- Given 기본 제한에서 kim이 틀린 비밀번호로 10번 실패했다(ad 모드·local 모드 각각)
 - When kim이 올바른 비밀번호로 로그인한다
 - Then 429 `too-many-attempts` "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요"이고 이 요청에서 AD 대역·해시 검증 호출은 0회다
 
 ### AU-043 한도보다 한 번 적게 실패하면 잠기지 않는다
-- Given kim이 4번 실패했다
+- Given kim이 9번 실패했다
 - When kim이 올바른 비밀번호로 로그인한다
 - Then 200이다
 
 ### AU-044 잠금은 그 아이디에만 걸린다
-- Given kim이 5번 실패해 잠겼다(같은 IP)
+- Given kim이 10번 실패해 잠겼다(같은 IP)
 - When viewer가 같은 IP에서 로그인한다
 - Then 200이다
 
 ### AU-045 잠금은 잠금 시간이 정확히 지나면 풀린다
-- Given 시계 `10:00:00`에 kim의 5번째 실패로 잠겼다(잠금 15분)
-- When `10:14:59`와 `10:15:00`에 각각 올바른 비밀번호로 로그인한다
-- Then 앞은 429, 뒤는 200이다
+- Given 시계 `10:00:00`에 kim의 10번째 실패로 처음 잠겼다.
+- When `10:04:59`와 `10:05:00`에 각각 올바른 비밀번호로 로그인한다.
+- Then 앞은 429, 뒤는 200이다. 잠금 해제 뒤 성공 없이 한도까지 다시 실패하면 60분 잠긴다. 성공한 뒤 한도에 도달하면 다시 5분 잠긴다.
 
 ### AU-046 실패 창이 지나면 실패 횟수를 처음부터 다시 센다
-- Given kim이 `10:00`부터 4번 실패했다(창 15분)
+- Given kim이 `10:00`부터 9번 실패했다(창 15분)
 - When `10:15:00`에 한 번 더 실패한다
 - Then kim 카운터의 실패는 1이고 잠기지 않는다
 
@@ -608,23 +608,23 @@ admin 경고 문구(`directory_warning.message`):
 - Then 429이고 다른 IP에서의 kim 로그인은 200이다
 
 ### AU-049 없는 아이디도 같은 방식으로 제한된다
-- Given nobody(미등록)로 5번 실패했다
+- Given nobody(미등록)로 10번 실패했다
 - When nobody로 다시 로그인한다
 - Then 429다(401이 아니다)
 
 ### AU-050 실패 카운터 키는 비밀 기반 해시이고 다른 서버 인스턴스와 공유된다
 - Given 같은 저장소를 쓰는 앱 인스턴스 A·B가 있다
-- When A에서 kim이 5번 실패한 뒤 B에서 kim이 로그인한다
+- When A에서 kim이 10번 실패한 뒤 B에서 kim이 로그인한다
 - Then B에서 429다. 저장된 키는 64자리 16진수이고 "kim"·IP 문자열을 포함하지 않으며, 비밀(`jwt_secret`)이 다르면 키가 다르다
 
 ### AU-051 AD 장애 중 대체 실패가 한도에 이르면 올바른 비밀번호도 429다
-- Given AD 대역이 연결 실패를 내고 kim이 틀린 비밀번호로 5번 실패했다(각 503)
+- Given AD 대역이 연결 실패를 내고 kim이 틀린 비밀번호로 10번 실패했다(각 503)
 - When kim이 올바른 비밀번호로 로그인한다
 - Then 429이고 해시 검증 호출이 없다
 
-### AU-052 시도 제한 기본값은 5·30·15분·15분이고 1 미만은 거부된다
+### AU-052 시도 제한 기본값과 최소값을 검증한다
 - When 설정을 기본값으로, 그리고 `APP_LOGIN_MAX_FAILURES_PER_ACCOUNT=0` 등 0 값으로, 1 값으로 읽는다
-- Then 기본값은 아이디 5, IP 30, 창 15분, 잠금 15분이고 0 값은 설정 검증 실패, 1은 통과한다
+- Then 기본값은 계정 10회, IP 30회, 집계 창 15분, 첫 계정 잠금 5분, 이후 계정 잠금 60분, IP 잠금 15분이다. 0은 검증에 실패하고 1은 통과한다.
 
 ### AU-053 발급한 세션은 만료 전까지 인증되고 만료 시각부터 401이다
 - Given 시계 `09:00`에 kim이 로그인했다(TTL 8시간)

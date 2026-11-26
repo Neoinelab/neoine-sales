@@ -248,8 +248,8 @@ def test_the_sort_status_and_order_parameters_list_their_values(schema: dict[str
     # when: sort·status·order 파라미터의 값을 모은다 (전제: 앱의 OpenAPI 스키마)
     params = {p["name"]: p["schema"] for p in schema["paths"][BASE]["get"]["parameters"]}
 
-    # then: sort 12개, status 4개, order asc·desc
     assert _enum(schema, params["sort"]) == {
+        "issuance_priority",
         "deal_name",
         "customer",
         "vendor",
@@ -263,6 +263,7 @@ def test_the_sort_status_and_order_parameters_list_their_values(schema: dict[str
         "inspection",
         "note",
     }
+    assert params["sort"]["default"] == "issuance_priority"
     assert _enum(schema, params["status"]) == {
         "not_issued",
         "issued_new",

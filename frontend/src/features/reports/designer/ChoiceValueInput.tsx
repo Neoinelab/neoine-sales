@@ -22,17 +22,17 @@ interface ChoiceProps {
   describedBy?: string
 }
 
-/** 선택 요약: 없으면 '선택', 1~2개는 이름, 3개 이상은 '이름1, 이름2 외 N'. */
 function summarize(values: readonly string[], options: readonly Option[]): string {
   if (values.length === 0) return '선택'
   const names = values.map((v) => options.find((o) => o.value === v)?.label ?? v)
-  return names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}`
+  return `${names.length}개 선택 · ${names.join(', ')}`
 }
 
 function ChoiceSelect({ options, n, values, onChange, describedBy }: Omit<ChoiceProps, 'field'> & { options: readonly Option[] }) {
   return (
     <MultiCheckSelect
       label={`조건 ${n} 값`}
+      showLabel={false}
       name={`report-condition-${n}`}
       options={options}
       selected={values}

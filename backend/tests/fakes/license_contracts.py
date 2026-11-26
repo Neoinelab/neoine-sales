@@ -233,6 +233,7 @@ class FakeLicenseContractRepository(InMemoryStore["LicenseContract"]):
 
     def _sort_key(self, sort: str) -> Callable[[LicenseContractRow], Any]:
         keys: dict[str, Callable[[LicenseContractRow], Any]] = {
+            "issuance_priority": lambda r: r.contract.license_end,
             "deal_name": lambda r: r.deal.deal_name.lower() or None,
             "customer": lambda r: r.deal.customer.lower(),
             "vendor": lambda r: None if r.deal.vendor is None else r.deal.vendor.name.lower(),
@@ -256,7 +257,14 @@ class FakeLicenseContractRepository(InMemoryStore["LicenseContract"]):
         present = [r for r in rows if key(r) is not None]
         absent = [r for r in rows if key(r) is None]  # 값 없는 칸은 방향과 무관하게 맨 뒤
         present.sort(key=key, reverse=str(query.order) == "desc")  # 안정 정렬: 동률 순서 유지
-        return [*present, *absent]
+        ordered = [*present, *absent]
+        if query.sort == "issuance_priority":
+            ordered.sort(
+                key=lambda r: (
+                    r.contract.status != "not_issued" and r.contract.license_start is not None
+                )
+            )
+        return ordered
 
     def _found(self, query: LicenseContractQuery) -> list[LicenseContractRow]:
         rows = [self._row(c) for c in self._items.values()]

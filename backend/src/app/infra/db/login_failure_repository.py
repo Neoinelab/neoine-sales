@@ -34,6 +34,7 @@ class SqlLoginFailureRepository:
             failures=row.failures,
             window_started_at=row.window_started_at,
             locked_until=row.locked_until,
+            had_prior_lock=row.had_prior_lock,
         )
 
     async def save(self, counter: FailureCounter) -> None:
@@ -41,6 +42,7 @@ class SqlLoginFailureRepository:
             "failures": counter.failures,
             "window_started_at": counter.window_started_at,
             "locked_until": counter.locked_until,
+            "had_prior_lock": counter.had_prior_lock,
         }
         statement = insert(LoginFailureRow).values(key=counter.key, **values)
         await self._session.execute(

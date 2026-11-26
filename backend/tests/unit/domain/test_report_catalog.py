@@ -118,8 +118,12 @@ def test_catalog_has_the_fields_of_the_design() -> None:
     """
     # when: 카탈로그의 key 목록을 읽는다
     keys = [f.key for f in FIELD_CATALOG]
-    # then: Deal과 Action 뒤에 Comments 본문 필드가 있다
-    assert keys == DEAL_KEYS + ACTION_KEYS + ["comment.body"]
+    assert keys == DEAL_KEYS + ACTION_KEYS + [
+        "comment.body",
+        "comment.created_at",
+        "comment.updated_at",
+        "comment.author",
+    ]
 
 
 def test_catalog_has_29_deal_fields_and_12_action_fields() -> None:
@@ -448,15 +452,10 @@ def test_converted_fields_have_date_labels() -> None:
     assert labels == ["최종 업데이트", "Status 진입일", "수행일", "종료일"]
 
 
-def test_created_at_is_the_only_datetime_field() -> None:
-    """시각(datetime) 형식 필드는 등록일(deal.created_at) 하나뿐이다.
-
-    테스트 코드: RQ-113
-    """
+def test_deal_and_comment_timestamps_are_datetime_fields() -> None:
     # when: datetime 형식 필드를 모은다
     keys = [f.key for f in FIELD_CATALOG if f.type == FieldType.DATETIME]
-    # then: deal.created_at 하나다
-    assert keys == ["deal.created_at"]
+    assert keys == ["deal.created_at", "comment.created_at", "comment.updated_at"]
 
 
 def test_comment_fields_are_text_fields_of_each_entity_with_the_documented_names() -> None:

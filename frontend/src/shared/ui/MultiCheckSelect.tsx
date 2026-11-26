@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 interface MultiCheckSelectProps {
   label: string
+  showLabel?: boolean
   name: string
   /** 코드 순서대로. */
   options: readonly { value: string; label: string }[]
@@ -20,7 +21,7 @@ interface MultiCheckSelectProps {
 }
 
 /** 체크박스 드롭다운. 열림 상태만 갖고 선택은 호출자(URL)가 정한다. Escape(포커스는 버튼으로)·바깥 클릭으로 닫는다. */
-export function MultiCheckSelect({ label, name, options, selected, summary, onToggle, onClear, clearLabel = '전체', describedBy, hint }: MultiCheckSelectProps) {
+export function MultiCheckSelect({ label, showLabel = true, name, options, selected, summary, onToggle, onClear, clearLabel = '전체', describedBy, hint }: MultiCheckSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -57,7 +58,7 @@ export function MultiCheckSelect({ label, name, options, selected, summary, onTo
         if (!next || !event.currentTarget.contains(next)) setOpen(false)
       }}
     >
-      <span id={labelId}>{label}</span>
+      <span id={labelId} hidden={!showLabel}>{label}</span>
       <button
         ref={buttonRef}
         type="button"

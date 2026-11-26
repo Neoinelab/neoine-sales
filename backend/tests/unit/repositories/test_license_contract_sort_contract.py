@@ -15,6 +15,7 @@ from app.application.ports.license_contract_repository import (
     LicenseContractQuery,
     LicenseContractSort,
 )
+from tests.factories import NOW
 
 if TYPE_CHECKING:
     from tests.unit.repositories.license_contract_case import ContractCase
@@ -167,19 +168,25 @@ async def test_search_sort_each_column_desc_empty_last_tie_by_id(
     assert found == _expected(DESC[sort.value], ids)
 
 
-async def test_the_default_sort_is_license_end_ascending(contract_case: ContractCase) -> None:
-    """정렬을 주지 않으면 종료일 오름차순이다.
+async def test_default_search_prioritizes_contracts_without_license_start(
+    contract_case: ContractCase,
+) -> None:
+    """기본 검색은 미발급과 시작일 없는 종료 계약을 먼저 반환한다.
 
     테스트 코드: LC-016
     """
-    # given: 열마다 값이 다른 계약 A~E
     ids = await _seed(contract_case)
+    historical = await contract_case.contract(await contract_case.deal(customer="awaiting"))
+    historical.end(by=historical.updated_by, now=NOW)
+    await contract_case.repository.update(historical)
 
-    # when: 정렬 없이 검색한다
-    rows = await contract_case.repository.search(LicenseContractQuery(limit=200))
+    first = await contract_case.repository.search(LicenseContractQuery(customer="a", limit=2))
+    remaining = await contract_case.repository.search(
+        LicenseContractQuery(customer="a", offset=2, limit=3)
+    )
 
-    # then: 종료일 오름차순이고 종료일 없는 계약이 맨 뒤다
-    assert [r.contract.id for r in rows] == _expected(ASC["license_end"], ids)
+    assert [r.contract.id for r in first] == [ids["C"], historical.id]
+    assert [r.contract.id for r in remaining] == [ids[k] for k in "DBA"]
 
 
 async def test_paging_keeps_the_sorted_order_across_pages(contract_case: ContractCase) -> None:

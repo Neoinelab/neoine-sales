@@ -44,7 +44,12 @@ class AuthAssembly:
             uow_factory,
             clock,
             secret=settings.jwt_secret.get_secret_value(),
-            account_policy=FailurePolicy(settings.login_max_failures_per_account, window, lock),
+            account_policy=FailurePolicy(
+                settings.login_max_failures_per_account,
+                window,
+                timedelta(minutes=settings.login_account_first_lock_minutes),
+                repeat_lock_duration=timedelta(minutes=settings.login_account_repeat_lock_minutes),
+            ),
             ip_policy=FailurePolicy(settings.login_max_failures_per_ip, window, lock),
         )
         self._uow_factory = uow_factory

@@ -42,6 +42,7 @@ export interface LicenseContract {
 }
 
 export type LicenseContractSort =
+  | 'issuancePriority'
   | 'dealName'
   | 'customer'
   | 'vendor'

@@ -13,6 +13,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -54,6 +55,7 @@ class LoginFailureRow(Base):
     failures: Mapped[int] = mapped_column(Integer)
     window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    had_prior_lock: Mapped[bool] = mapped_column(Boolean, server_default=false())
 
     __table_args__ = (CheckConstraint("failures >= 0", name="failures_non_negative"),)
 

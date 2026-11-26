@@ -10,10 +10,10 @@ from app.domain.report.definition import ActionFilter, RowScope
 from app.domain.report.vocabulary import Aggregate, FieldType
 from app.infra.db.report_buckets import bucket
 from app.infra.db.report_conditions import where_clause
-from app.infra.db.report_fields import FieldSql
+from app.infra.db.report_fields import FieldSql, user_name
 from app.infra.db.report_fields_action import action_fields
 from app.infra.db.report_fields_deal import deal_fields
-from app.infra.db.report_joins import COMMENTS, Joins
+from app.infra.db.report_joins import COMMENTS, Joins, comment_author
 from app.infra.db.report_risk import RiskExprs
 
 if TYPE_CHECKING:
@@ -48,6 +48,12 @@ class ReportParts:
             **deal_fields(self._joins, report.context, self._risk),
             **action_fields(self._joins),
             "comment.body": FieldSql(lambda: COMMENTS.c.body),
+            "comment.created_at": FieldSql(lambda: COMMENTS.c.created_at),
+            "comment.updated_at": FieldSql(lambda: COMMENTS.c.updated_at),
+            "comment.author": FieldSql(
+                lambda: COMMENTS.c.author_user_id,
+                value=lambda: user_name(comment_author(self._joins)),
+            ),
         }
 
     def is_action_scope(self) -> bool:

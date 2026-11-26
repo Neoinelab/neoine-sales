@@ -77,14 +77,14 @@ async def test_saving_the_same_key_again_overwrites(repository: LoginFailureRepo
     """같은 키로 다시 저장하면 덮어쓴다."""
     # given: 같은 키로 두 번 저장했다
     await repository.save(make_counter("c" * 64, failures=1))
-    await repository.save(make_counter("c" * 64, failures=2, locked_until=later(60)))
+    updated = make_counter("c" * 64, failures=2, locked_until=later(60), had_prior_lock=True)
+    await repository.save(updated)
 
     # when: 카운터를 읽는다
     stored = await repository.get_for_update("c" * 64)
 
     # then: 두 번째 값이다
-    assert stored is not None
-    assert (stored.failures, stored.locked_until) == (2, later(60))
+    assert stored == updated
 
 
 async def test_counters_are_isolated_by_key(repository: LoginFailureRepository) -> None:

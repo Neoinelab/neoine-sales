@@ -52,6 +52,7 @@ export function toContractAttachment(row: Schemas['ContractAttachmentResponse'])
 }
 
 const WIRE_SORT: Record<LicenseContractSort, Schemas['LicenseContractSort']> = {
+  issuancePriority: 'issuance_priority',
   dealName: 'deal_name',
   customer: 'customer',
   vendor: 'vendor',

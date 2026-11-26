@@ -7,6 +7,7 @@ class FailurePolicy:
     max_failures: int
     window: timedelta
     lock_duration: timedelta
+    repeat_lock_duration: timedelta | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +18,7 @@ class FailureCounter:
     failures: int
     window_started_at: datetime
     locked_until: datetime | None = None
+    had_prior_lock: bool = False
 
     def is_locked(self, now: datetime) -> bool:
         return self.locked_until is not None and now < self.locked_until
@@ -25,11 +27,19 @@ class FailureCounter:
         if self.is_locked(now):
             return replace(self, failures=self.failures + 1)
         if self._is_stale(now, policy):
-            counter = replace(self, failures=1, window_started_at=now, locked_until=None)
+            counter = replace(
+                self,
+                failures=1,
+                window_started_at=now,
+                locked_until=None,
+                had_prior_lock=self.had_prior_lock
+                or (self.locked_until is not None and policy.repeat_lock_duration is not None),
+            )
         else:
             counter = replace(self, failures=self.failures + 1)
         if counter.failures >= policy.max_failures:
-            return replace(counter, locked_until=now + policy.lock_duration)
+            repeat_duration = policy.repeat_lock_duration if counter.had_prior_lock else None
+            return replace(counter, locked_until=now + (repeat_duration or policy.lock_duration))
         return counter
 
     def release(self, policy: FailurePolicy) -> FailureCounter:

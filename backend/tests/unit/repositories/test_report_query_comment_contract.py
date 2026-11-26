@@ -8,8 +8,12 @@ null이다. action.comment는 그 Action에 연결된 Comment만, deal.comment�
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import update
 
+from app.infra.db.models_comment import DealCommentRow
+from tests.factories_auth import make_user
 from tests.support.report_defs import col, cond
+from tests.support.user_ids import uid
 from tests.unit.repositories.report_case import kst
 
 if TYPE_CHECKING:
@@ -46,6 +50,28 @@ async def test_comment_entity_uses_only_its_linked_action(
         "condition": [("A", "첫 댓글")],
     }
     assert rows == expected[action_mode]
+
+
+async def test_comment_metadata_uses_stored_dates_and_author(report_case: ReportCase) -> None:
+    author_id = uid("report_comment_author")
+    await report_case.deals.users.add(
+        make_user("report_comment_author", entity_id=author_id, display_name="댓글 작성자")
+    )
+    deal = await report_case.add_deal()
+    created_at = kst(2026, 10, 6, 8)
+    updated_at = kst(2026, 10, 7, 9)
+    comment = await report_case.deals.add_comment(deal.id, "대상", created_at, author=author_id)
+    await report_case.deals.add_comment(deal.id, "다른 작성자", created_at)
+    await report_case.session.execute(
+        update(DealCommentRow).where(DealCommentRow.id == comment.id).values(updated_at=updated_at)
+    )
+
+    rows = await report_case.rows(
+        [col("comment.created_at"), col("comment.updated_at"), col("comment.author")],
+        [cond("comment.author", "in", [author_id])],
+    )
+
+    assert rows == [(created_at, updated_at, "댓글 작성자")]
 
 
 async def test_action_comment_joins_the_comments_of_that_action_in_writing_order(
