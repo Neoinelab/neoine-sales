@@ -21,7 +21,6 @@ class LocalSettings(Settings):
     log_format: LogFormat = "console"
     cookie_secure: bool = False  # 로컬은 http
     db_pool_size: int = 5
-    db_echo: bool = True
     workers: int = 1
     scheduler_enabled: bool = False  # 로컬 개발·테스트에서는 꺼 둔다(필요하면 .env로 켬)
 

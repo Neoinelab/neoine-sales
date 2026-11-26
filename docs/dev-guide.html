@@ -342,7 +342,7 @@ psql "postgresql://neoine@localhost:5432/neoinesales" -c "select 1"</code></pre>
 <tr><td colspan="6"><strong>데이터 저장소</strong></td></tr>
 <tr><td><code>APP_DATABASE_URL</code></td><td>PostgreSQL 접속 URL (<code>postgresql+asyncpg://…</code>)</td><td>●</td><td>localhost PostgreSQL</td><td>dev DB 서버</td><td>product DB(Primary)</td></tr>
 <tr><td><code>APP_DB_POOL_SIZE</code></td><td>커넥션 풀 크기</td><td></td><td>5</td><td>10</td><td>워커 수와 DB 한도에 맞춰 산정</td></tr>
-<tr><td><code>APP_DB_ECHO</code></td><td>SQL 로그 출력</td><td></td><td>true</td><td>false</td><td>false (true 금지)</td></tr>
+<tr><td><code>APP_DB_ECHO</code></td><td>이전 설정과의 호환을 위해 읽는 항목. 앱의 SQLAlchemy 엔진은 WARNING 이상만 기록한다.</td><td></td><td>false</td><td>false</td><td>false (true 금지)</td></tr>
 <tr><td><code>APP_REDIS_URL</code></td><td>Redis 접속 URL. <strong>선택, 현재 미사용</strong>(큐·캐시·요청 제한을 도입할 때 필수로 전환)</td><td>●</td><td>(비움)</td><td>(비움)</td><td>(비움)</td></tr>
 <tr><td colspan="6"><strong>외부 연동 (예: 메일, 결제 등 — 연동 Port별로 추가)</strong></td></tr>
 <tr><td><code>APP_SMTP_HOST</code> / <code>APP_SMTP_PORT</code> / <code>APP_SMTP_FROM</code></td><td>메일 서버 (Notifier 구현체용)</td><td></td><td>로컬 메일 캐처(Mailpit 등)</td><td>사내 테스트 SMTP</td><td>사내 운영 SMTP</td></tr>
@@ -409,7 +409,6 @@ class LocalSettings(Settings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "DEBUG"
     log_format: Literal["console", "json"] = "console"
     cookie_secure: bool = False        # 로컬은 http
-    db_echo: bool = True
     workers: int = 1
 
 

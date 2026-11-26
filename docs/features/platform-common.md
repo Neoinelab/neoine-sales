@@ -110,7 +110,7 @@ OpenAPI 계약
 - **PL-R25** 모든 프로파일에서 `APP_DATABASE_URL`(PostgreSQL DSN), `APP_JWT_SECRET`, `APP_SETTINGS_ENCRYPTION_KEY`가 필수이며 없으면 기동이 실패한다. 암호화 키는 URL-safe base64(`A-Za-z0-9_-`, 끝 `=` 패딩)로 인코딩한 32바이트여야 하고 아니면 "Fernet 키 형식(URL-safe base64로 인코딩한 32바이트)이어야 합니다"로 실패한다. `APP_REDIS_URL`은 선택이며 주면 Redis DSN이어야 한다.
 - **PL-R26** product는 다음을 모두 만족해야 기동하고, 하나라도 어기면 어긴 항목 문구를 "; "로 이어 실패한다: debug·enable_docs·db_echo 꺼짐("debug/enable_docs/db_echo는 product에서 꺼야 합니다"), cookie_secure true("cookie_secure는 true여야 합니다"), CORS에 `*` 없음("CORS에 '*'를 허용할 수 없습니다"), jwt_secret 32자 이상("jwt_secret은 32자 이상이어야 합니다"), 암호화 키를 풀었을 때 `.env.example`의 예시 키와 같은 바이트가 아님("settings_encryption_key에 예시 키를 쓸 수 없습니다"), sentry_dsn 있음("sentry_dsn이 필요합니다"). local·dev는 예시 키를 허용한다.
 - **PL-R27** 비밀 값(jwt_secret, 암호화 키, sentry_dsn)은 설정 객체의 표현(repr)과 검증 오류 문구에 나오지 않는다.
-- **PL-R28** 프로파일 기본값: local은 debug·문서 노출 켬, 로그 DEBUG·console, cookie_secure false, db_echo true, DB 풀 5, workers 1. dev는 문서 노출 켬, 로그 DEBUG·json, debug false, Sentry 추적 비율 1.0. product는 문서 꺼짐, 로그 INFO·json, cookie_secure true, workers 4, 추적 비율 0.1. 공통 기본: 세션 유지 8시간, DB 풀 10. (스케줄러 기본값은 FC, 로그인 시도 제한 기본값은 AU.)
+- **PL-R28** 프로파일 기본값: local은 debug·문서 노출 켬, 로그 DEBUG·console, cookie_secure false, DB 풀 5, workers 1. dev는 문서 노출 켬, 로그 DEBUG·json, debug false, Sentry 추적 비율 1.0. product는 문서 꺼짐, 로그 INFO·json, cookie_secure true, workers 4, 추적 비율 0.1. 공통 기본은 세션 유지 8시간, DB 풀 10이다. SQLAlchemy 엔진은 WARNING 이상만 기록한다. (스케줄러 기본값은 FC, 로그인 시도 제한 기본값은 AU.)
 
 화면(frontend)
 - **PL-R29** 보호 화면(아래 PL-R33 표)은 `RequireAuth` 안에 있다. 내 정보(`/auth/me`)를 읽는 동안 "불러오는 중…"을 보이고, 401이면 `/login`으로 바꾼다(이력 교체). 401이 아닌 오류면 오류 배너만 보이고 공통 레이아웃을 그리지 않는다. 성공하면 서버 시각 동기(TM) 뒤 공통 레이아웃(상단 바 + 화면)을 그린다. 최초 설정이 필요할 때 `/login`이 `/setup`으로 보내는 동작은 SU 규칙이다.

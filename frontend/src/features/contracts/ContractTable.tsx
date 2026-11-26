@@ -10,11 +10,11 @@ const COLUMNS: readonly { label: string; sort: ContractSort; widthClass?: string
   { label: 'Deal명', sort: 'dealName', widthClass: 'deal-list-name' },
   { label: '고객사명', sort: 'customer' },
   { label: 'Vendor', sort: 'vendor', widthClass: 'deal-list-vendor' },
-  { label: '제품명', sort: 'product' },
+  { label: '제품명', sort: 'product', widthClass: 'contract-list-product' },
   { label: '파트너사', sort: 'partner' },
   { label: '라이선스 시작일', sort: 'licenseStart' },
   { label: '라이선스 종료일', sort: 'licenseEnd' },
-  { label: '상태', sort: 'status' },
+  { label: '상태', sort: 'status', widthClass: 'deal-list-owner' },
   { label: '담당영업', sort: 'salesOwner', widthClass: 'deal-list-owner' },
   { label: '기술담당', sort: 'techOwner', widthClass: 'deal-list-owner' },
 ]

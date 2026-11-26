@@ -1,5 +1,6 @@
 """Composition Root: Port와 구현체를 연결하고 유스케이스를 만들어 준다(UseCaseProvider 구현)."""
 
+import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -106,10 +107,11 @@ class Container(
         cipher: SecretCipher | None = None,
         password_hasher: PasswordHasher | None = None,
     ) -> None:
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
         self._engine: AsyncEngine = create_async_engine(
             str(settings.database_url),
             pool_size=settings.db_pool_size,
-            echo=settings.db_echo,
+            echo=False,
             pool_pre_ping=True,
         )
         sessions = async_sessionmaker(self._engine, expire_on_commit=False)

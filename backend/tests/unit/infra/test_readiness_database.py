@@ -5,6 +5,7 @@ Fake 유스케이스 위의 성공·실패는 `unit/web/test_health_routes.py`�
 따른다.
 """
 
+import logging
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,8 +28,8 @@ UNREACHABLE_DB_URL = (
 )
 
 
-async def _readyz(database_url: str) -> Response:
-    settings = make_settings(database_url)
+async def _readyz(database_url: str, *, db_echo: bool = False) -> Response:
+    settings = make_settings(database_url, db_echo=db_echo)
     container = Container(settings)
     app = create_app(settings=settings, use_cases=container)
     try:
@@ -52,6 +53,22 @@ async def test_readiness_is_200_ready_when_the_real_database_answers(
     # then: 200 {"status": "ready"}
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
+
+
+async def test_readiness_does_not_log_sql_at_info(
+    test_database_url: URL, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="sqlalchemy.engine")
+    url = test_database_url.render_as_string(hide_password=False)
+    caplog.clear()
+
+    response = await _readyz(url, db_echo=True)
+
+    assert response.status_code == 200
+    assert not any(
+        record.name.startswith("sqlalchemy.engine") and record.levelno == logging.INFO
+        for record in caplog.records
+    )
 
 
 async def test_readiness_is_503_without_leaking_the_cause_when_the_database_is_down() -> None:

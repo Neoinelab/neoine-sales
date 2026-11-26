@@ -360,7 +360,7 @@ def test_session_ttl_default_and_secrets_stay_hidden() -> None:
                 "log_level": "DEBUG",
                 "log_format": "console",
                 "cookie_secure": False,
-                "db_echo": True,
+                "db_echo": False,
                 "db_pool_size": 5,
                 "workers": 1,
             },
