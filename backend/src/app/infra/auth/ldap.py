@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import anyio
 from ldap3 import BASE, SUBTREE, Connection
+from ldap3.core.exceptions import LDAPException, LDAPOperationResult
 from ldap3.utils.conv import escape_filter_chars
 
 from app.application.auth.log_ids import short_hash
@@ -36,7 +37,13 @@ from app.infra.auth.ldap_connection import (
     service_session,
     unbind,
 )
-from app.infra.auth.ldap_errors import MESSAGES, bind_diagnostic, bind_failure, unavailable
+from app.infra.auth.ldap_errors import (
+    MESSAGES,
+    bind_diagnostic,
+    bind_failure,
+    failure_stage,
+    unavailable,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -74,6 +81,38 @@ def _entries(connection: Connection) -> list[dict[str, Any]]:
 def _result_code(connection: Connection) -> int | None:
     code: object = (connection.result or {}).get("result")
     return code if type(code) is int else None
+
+
+def _bind_user(connection: Connection, login_id: str) -> None:
+    try:
+        if connection.bind():
+            return
+    except LDAPOperationResult as error:
+        result: object = error.result
+        code = result if type(result) is int else _result_code(connection)
+        message: object = error.message
+    except (LDAPException, OSError) as error:
+        stage = failure_stage(error)
+        logger.warning(
+            "AD login failed stage=bind reason=ldap_bind_interrupted "
+            "ldap_code=unavailable transport_stage=%s login_id_hash=%s",
+            stage.value,
+            short_hash(login_id),
+        )
+        raise unavailable(stage) from None
+    else:
+        code = _result_code(connection)
+        message = (connection.result or {}).get("message")
+
+    if code == _SUCCESS:
+        code = None
+    logger.warning(
+        "AD login failed stage=bind reason=%s ldap_code=%s login_id_hash=%s",
+        bind_diagnostic(code, message if isinstance(message, str) else ""),
+        code if code is not None else "unavailable",
+        short_hash(login_id),
+    )
+    raise bind_failure(code) from None
 
 
 def _misconfigured(stage: VerificationStage) -> DirectoryMisconfiguredError:
@@ -198,7 +237,8 @@ class LdapDirectoryAuthenticator:
         if not secret:
             # 빈 비밀번호는 익명 바인드로 통과될 수 있으므로 연결하지 않고 거부한다.
             logger.warning(
-                "AD login failed stage=bind reason=empty_password login_id_hash=%s",
+                "AD login failed stage=bind reason=empty_password "
+                "ldap_code=unavailable login_id_hash=%s",
                 short_hash(login_id.value),
             )
             raise InvalidCredentialsError(_INVALID_CREDENTIALS, stage=VerificationStage.BIND)
@@ -226,23 +266,15 @@ class LdapDirectoryAuthenticator:
             bind_name = bind_account_name(login_id, self._user_bind_domain)
         except DirectoryMisconfiguredError:
             logger.warning(
-                "AD login failed stage=bind reason=missing_upn_domain login_id_hash=%s",
+                "AD login failed stage=bind reason=missing_upn_domain "
+                "ldap_code=unavailable login_id_hash=%s",
                 short_hash(login_id),
             )
             raise
         connection = self._connect(settings, bind_name, secret)
         try:
             open_secure(connection, settings)
-            if not guarded(connection.bind):
-                code = _result_code(connection)
-                message = (connection.result or {}).get("message")
-                logger.warning(
-                    "AD login failed stage=bind reason=%s ldap_code=%s login_id_hash=%s",
-                    bind_diagnostic(code, message if isinstance(message, str) else ""),
-                    code,
-                    short_hash(login_id),
-                )
-                raise bind_failure(code)
+            _bind_user(connection, login_id)
             _, user = _find_user(connection, settings, base_dn, login_id)
             return user
         finally:

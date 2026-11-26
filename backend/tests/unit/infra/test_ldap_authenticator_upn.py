@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+from ldap3.core.exceptions import LDAPOperationResult, LDAPSocketReceiveError
 
 from app.application.ports.directory import (
     DirectoryMisconfiguredError,
@@ -70,14 +71,17 @@ async def test_user_bind_uses_login_id_at_domain_when_a_domain_is_set(
     assert directory.calls.count("unbind") == 1
 
 
-async def test_user_bind_uses_the_found_dn_without_a_domain(directory: MockDirectory) -> None:
-    """도메인이 없으면 찾은 항목의 DN으로 바인드한다.
+async def test_user_bind_requires_a_domain(
+    directory: MockDirectory, caplog: pytest.LogCaptureFixture
+) -> None:
+    """도메인이 없으면 서버와 통신하기 전에 실패하고 LDAP 코드가 없다고 기록한다.
 
     테스트 코드: AU-094
     """
     with pytest.raises(DirectoryMisconfiguredError):
         await _authenticate(directory, domain=None)
     assert directory.factory_calls == []
+    assert "stage=bind reason=missing_upn_domain ldap_code=unavailable" in caplog.text
 
 
 async def test_search_outcomes_are_unchanged_with_a_domain(directory: MockDirectory) -> None:
@@ -164,6 +168,28 @@ async def test_rejected_upn_bind_logs_only_safe_ad_diagnostics(
         await _authenticate(directory)
     assert "reason=ad_account_locked" in caplog.text
     assert "ldap_code=49" in caplog.text
+    assert KIM_UPN not in caplog.text
+    assert PASSWORD not in caplog.text
+
+
+@pytest.mark.parametrize("code", [51, None], ids=["server-result", "no-response"])
+async def test_upn_bind_exception_logs_ldap_result_if_available(
+    directory: MockDirectory, code: int | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    diagnostic = f"LDAP diagnostic {KIM_UPN} {PASSWORD}"
+    directory.faults["bind"] = (
+        LDAPOperationResult(result=code, message=diagnostic)
+        if code is not None
+        else LDAPSocketReceiveError(diagnostic)
+    )
+
+    with pytest.raises(DirectoryUnavailableError):
+        await _authenticate(directory)
+
+    bind_logs = [r.getMessage() for r in caplog.records if "stage=bind reason=" in r.getMessage()]
+    assert len(bind_logs) == 1
+    expected = code if code is not None else "unavailable"
+    assert f"ldap_code={expected} " in bind_logs[0]
     assert KIM_UPN not in caplog.text
     assert PASSWORD not in caplog.text
 

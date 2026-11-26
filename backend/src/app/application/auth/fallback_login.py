@@ -12,7 +12,7 @@ from app.application.auth.active_user import find_active_user
 from app.application.auth.log_ids import short_hash
 from app.application.auth.warning_stage import DirectoryWarningStage
 from app.application.directory.errors import DirectoryCredentialUnreadableError
-from app.application.ports.directory import VerificationStage
+from app.application.ports.directory import DirectoryUnavailableError, VerificationStage
 from app.domain.user.errors import UserNotFoundError
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from app.application.ports.directory import DirectoryError
     from app.domain.auth.credentials import LoginId, Password
     from app.domain.auth.principal import Principal
+    from app.domain.common.errors import InvalidStateError
 
 __all__ = ["DirectoryWarning", "DirectoryWarningStage", "FallbackLogin", "warning_stage_of"]
 
@@ -61,7 +62,7 @@ class FallbackLogin:
         password: Password,
         *,
         stage: DirectoryWarningStage,
-        original: Exception,
+        original: DirectoryUnavailableError | InvalidStateError,
     ) -> Principal:
         # scrypt 검증 동안 DB 트랜잭션을 잡지 않도록 읽기 → 검증 → 다시 확인·기록 순서로 나눈다
         async with self._deps.uow_factory() as uow:
@@ -76,9 +77,14 @@ class FallbackLogin:
                 reason = "no_saved_password_hash"
             else:
                 reason = "saved_password_mismatch"
+            directory_stage = (
+                original.stage.value
+                if isinstance(original, DirectoryUnavailableError) and original.stage is not None
+                else stage.value
+            )
             logger.warning(
                 "AD login failed stage=fallback directory_stage=%s reason=%s login_id_hash=%s",
-                stage.value,
+                directory_stage,
                 reason,
                 short_hash(account.value),
             )

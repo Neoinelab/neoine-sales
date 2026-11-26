@@ -348,7 +348,7 @@ async def test_fallback_failure_returns_original_error_and_counts_failure(
     assert uow.login_failures._items[account_key(login_id)].failures == 1
 
 
-@pytest.mark.parametrize("case", ["unregistered", "no-hash"])
+@pytest.mark.parametrize("case", ["unregistered", "no-hash", "user-bind-unavailable"])
 async def test_fallback_without_hash_still_runs_verify(
     auth: AuthStack,
     uow_factory: UnitOfWorkFactory,
@@ -363,9 +363,13 @@ async def test_fallback_without_hash_still_runs_verify(
     # given: AD 연결 불가, 사례: 미등록 아이디·해시 없는 사용자
     await Down(DirectoryWarningStage.CONNECT).arrange(auth, uow_factory)
     login_id = "newbie"
-    if case == "no-hash":
+    if case != "unregistered":
         await seed_user(uow_factory, "nohash", Role.SALES)
         login_id = "nohash"
+    if case == "user-bind-unavailable":
+        auth.directory.authenticate_fails_with = DirectoryUnavailableError(
+            stage=VerificationStage.BIND
+        )
 
     # when: 로그인한다
     with pytest.raises(DirectoryUnavailableError):
@@ -373,8 +377,9 @@ async def test_fallback_without_hash_still_runs_verify(
 
     # then: 해시 없이 더미 검증을 한 번 하고 AD 장애 단계와 대체 로그인 실패 이유가 남는다
     assert auth.hasher.verify_calls == [None]
-    reason = "no_saved_password_hash" if case == "no-hash" else "no_active_app_user"
-    assert f"stage=fallback directory_stage=connect reason={reason}" in caplog.text
+    reason = "no_active_app_user" if case == "unregistered" else "no_saved_password_hash"
+    directory_stage = "bind" if case == "user-bind-unavailable" else "connect"
+    assert f"stage=fallback directory_stage={directory_stage} reason={reason}" in caplog.text
 
 
 async def test_fallback_login_is_blocked_while_locked(
