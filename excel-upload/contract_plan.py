@@ -15,18 +15,8 @@ class Owner:
 
 
 def resolve_owner(item: ContractInput, owners: list[Owner]) -> int:
-    full = item.owner.casefold()
-    tokens = {full}
-    if "(" in full and full.endswith(")"):
-        name, _, suffix = full.partition("(")
-        tokens.update((name.strip(), suffix[:-1].strip()))
-    tokens.discard("")
-    exact = [
-        owner for owner in owners if full in {owner.login.casefold(), owner.display.casefold()}
-    ]
-    candidates = exact or [
-        owner for owner in owners if tokens & {owner.login.casefold(), owner.display.casefold()}
-    ]
+    login_id = item.owner.casefold()
+    candidates = [owner for owner in owners if owner.login.casefold() == login_id]
     if len(candidates) != 1:
         raise ContractImportError(
             item.row, f"영업담당 '{item.owner}' 일치 사용자 {len(candidates)}명"
