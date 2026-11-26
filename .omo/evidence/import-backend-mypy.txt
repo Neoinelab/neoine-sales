@@ -1,0 +1,7 @@
+src/app/application/auth/check_ad_login_domain.py:6: error: Module "app.domain.directory.errors" has no attribute "AuthModeUnreadableError"  [attr-defined]
+src/app/application/auth/check_ad_login_domain.py:6: error: Module "app.domain.directory.errors" has no attribute "DirectoryLoginDomainMissingError"  [attr-defined]
+src/app/infra/db/forecast_repository.py:47: error: Argument 1 to "int" has incompatible type "int | None"; expected "str | Buffer | SupportsInt | SupportsIndex"  [arg-type]
+src/app/infra/db/forecast_repository.py:65: error: Argument 1 to "int" has incompatible type "int | None"; expected "str | Buffer | SupportsInt | SupportsIndex"  [arg-type]
+src/app/infra/db/dashboard_tally.py:36: error: Argument 1 to "int" has incompatible type "int | None"; expected "str | Buffer | SupportsInt | SupportsIndex"  [arg-type]
+src/app/infra/db/dashboard_tally.py:51: error: Argument 1 to "int" has incompatible type "int | None"; expected "str | Buffer | SupportsInt | SupportsIndex"  [arg-type]
+Found 6 errors in 3 files (checked 581 source files)

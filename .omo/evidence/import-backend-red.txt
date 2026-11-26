@@ -1,0 +1,732 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+____________________ test_nullable_stored_deal_round_trips _____________________
+
+    def test_nullable_stored_deal_round_trips() -> None:
+        """가져온 Deal의 알 수 없는 수량·금액은 저장소 왕복에서 NULL로 남는다."""
+        # given: 직접 DB에서 가져온 수량·금액이 없는 행
+        row = new_row(make_deal())
+        row.users = None
+        row.revenue_amount = None
+        # when: 도메인으로 읽고 다시 저장 행으로 변환한다
+>       restored = new_row(to_entity(row, []))
+                           ^^^^^^^^^^^^^^^^^^
+E       TypeError: to_entity() missing 1 required positional argument: 'bant'
+
+tests/unit/application/test_imported_deal_values.py:27: TypeError
+___________ test_imported_values_survive_partial_update_and_response ___________
+
+env = DealEnv(uow=<tests.fakes.unit_of_work.FakeUnitOfWork object at 0x10aca6660>, uow_factory=<function uow_factory.<locals...stDeals object at 0x10ae41010>, history=<app.application.deal.list_deal_history.ListDealHistory object at 0x10ae41160>)
+
+    async def test_imported_values_survive_partial_update_and_response(env: DealEnv) -> None:
+        """가져온 Deal의 이름만 수정해도 NULL 금액·수량을 유지하며 응답할 수 있다."""
+        # given: 수량·금액이 알려지지 않은 기존 Deal
+        view = await env.new_deal()
+        deal = view.item.deal
+>       deal.details = replace(deal.details, users=None, revenue_amount=None)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/application/test_imported_deal_values.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/dataclasses.py:1778: in replace
+    return _replace(obj, **changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/dataclasses.py:1812: in _replace
+    return self.__class__(**changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:13: in __init__
+    ???
+src/app/domain/deal/values.py:161: in __post_init__
+    users=check_users(self.users),
+          ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = None
+
+    def check_users(value: object) -> int:
+        """필수. 0..USERS_MAX 정수."""
+        if value is None:
+>           raise InvalidValueError(USERS_REQUIRED_MESSAGE)
+E           app.domain.common.errors.InvalidValueError: Users count를 입력하세요.
+
+src/app/domain/deal/values.py:135: InvalidValueError
+___________________ test_imported_amount_exports_empty_cell ____________________
+
+env = DealEnv(uow=<tests.fakes.unit_of_work.FakeUnitOfWork object at 0x10ae41940>, uow_factory=<function uow_factory.<locals...stDeals object at 0x10aef0550>, history=<app.application.deal.list_deal_history.ListDealHistory object at 0x10aef0690>)
+
+    async def test_imported_amount_exports_empty_cell(env: DealEnv) -> None:
+        """가져온 Deal의 매출금액 NULL은 CSV에서 빈 칸이다."""
+        # given: 수량·금액이 알려지지 않은 기존 Deal
+        view = await env.new_deal()
+        deal = view.item.deal
+>       deal.details = replace(deal.details, users=None, revenue_amount=None)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/application/test_imported_deal_values.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/dataclasses.py:1778: in replace
+    return _replace(obj, **changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/dataclasses.py:1812: in _replace
+    return self.__class__(**changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:13: in __init__
+    ???
+src/app/domain/deal/values.py:161: in __post_init__
+    users=check_users(self.users),
+          ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = None
+
+    def check_users(value: object) -> int:
+        """필수. 0..USERS_MAX 정수."""
+        if value is None:
+>           raise InvalidValueError(USERS_REQUIRED_MESSAGE)
+E           app.domain.common.errors.InvalidValueError: Users count를 입력하세요.
+
+src/app/domain/deal/values.py:135: InvalidValueError
+______________________ test_company_spaces_are_preserved _______________________
+
+    def test_company_spaces_are_preserved() -> None:
+        """회사명은 내부 공백을 유지하며 입력할 수 있다."""
+        # when: 공백이 있는 회사명으로 연락처를 만든다
+>       details = make_contact_input(company="SK AX").to_details()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/application/test_imported_deal_values.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = ContactInput(kind=<ContactKind.CUSTOMER: 'customer'>, company='SK AX', name='김철수', title='팀장', email='kim@neoine.example', phone='010-1234-5678')
+
+    def to_details(self) -> ContactDetails:
+        """공백 검사를 먼저 하고(이메일·전화 포함), ""는 없는 값으로 본 뒤 형식을 검증한다."""
+        for value in (self.company, self.name, self.email, self.phone):
+            if value is not None and has_whitespace(value):
+>               raise InvalidValueError(WHITESPACE_MESSAGE)
+E               app.domain.common.errors.InvalidValueError: 공백은 입력할 수 없습니다.
+
+src/app/application/contact/inputs.py:29: InvalidValueError
+_______ test_unnamed_stored_contact_is_readable_but_input_requires_name ________
+
+    def test_unnamed_stored_contact_is_readable_but_input_requires_name() -> None:
+        """담당자 없는 가져오기 연락처는 읽되 일반 등록의 필수 이름은 유지한다."""
+        # when: 담당자 없는 저장된 상세를 복원한다
+>       details = make_contact_details(name="")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/application/test_imported_deal_values.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/factories_contact.py:55: in make_contact_details
+    return ContactDetails(
+<string>:8: in __init__
+    ???
+src/app/domain/contact/values.py:60: in __post_init__
+    name=_identity_text(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = '', label = '담당자명', empty_message = '담당자명을 입력하세요.', max_length = 100
+
+    def _identity_text(value: str, label: str, *, empty_message: str, max_length: int) -> str:
+        """회사명·담당자명: strip하지 않고 공백이 하나라도 있으면 거절한다."""
+        reject_nul(value, label)
+        if not value:
+>           raise InvalidValueError(empty_message)
+E           app.domain.common.errors.InvalidValueError: 담당자명을 입력하세요.
+
+src/app/domain/contact/values.py:36: InvalidValueError
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.14.6-final-0 _______________
+
+Name                                                                              Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------------------------------------
+src/app/__init__.py                                                                   2      1    50%   2
+src/app/application/__init__.py                                                       0      0   100%
+src/app/application/account/__init__.py                                               0      0   100%
+src/app/application/account/change_my_password.py                                    43     43     0%   1-72
+src/app/application/account/get_my_profile.py                                        18     18     0%   1-42
+src/app/application/account/update_my_profile.py                                     10     10     0%   1-25
+src/app/application/action_type/__init__.py                                           0      0   100%
+src/app/application/action_type/delete_action_type.py                                12     12     0%   1-21
+src/app/application/action_type/dto.py                                                4      4     0%   1-9
+src/app/application/action_type/list_action_types.py                                  9      9     0%   1-18
+src/app/application/action_type/register_action_type.py                              18     18     0%   1-34
+src/app/application/action_type/rename_action_type.py                                19     19     0%   1-30
+src/app/application/alert/__init__.py                                                 0      0   100%
+src/app/application/alert/get_alert_settings.py                                      13     13     0%   1-20
+src/app/application/alert/update_alert_settings.py                                   14     14     0%   1-27
+src/app/application/alert/views.py                                                    4      4     0%   1-12
+src/app/application/attachment/__init__.py                                            0      0   100%
+src/app/application/attachment/delete_attachment.py                                  25     25     0%   1-43
+src/app/application/attachment/download_attachment.py                                22     22     0%   1-38
+src/app/application/attachment/get_attachment.py                                      7      7     0%   1-17
+src/app/application/attachment/inputs.py                                             11     11     0%   3-32
+src/app/application/attachment/list_attachments.py                                   14     14     0%   1-26
+src/app/application/attachment/storage_cleanup.py                                    17      9    47%   19-22, 33-36, 40
+src/app/application/attachment/upload_attachment.py                                 100    100     0%   1-177
+src/app/application/auth/__init__.py                                                  0      0   100%
+src/app/application/auth/active_user.py                                              11     11     0%   1-26
+src/app/application/auth/auth_status.py                                              20     20     0%   1-37
+src/app/application/auth/authenticate.py                                             23     23     0%   1-38
+src/app/application/auth/check_ad_login_domain.py                                    19     19     0%   1-34
+src/app/application/auth/credential_check.py                                         19     19     0%   1-43
+src/app/application/auth/deps.py                                                      4      4     0%   1-14
+src/app/application/auth/directory_login.py                                          69     69     0%   1-122
+src/app/application/auth/fallback_login.py                                           43     43     0%   7-92
+src/app/application/auth/issue_session.py                                            26     26     0%   1-47
+src/app/application/auth/local_login.py                                              26     26     0%   3-47
+src/app/application/auth/log_ids.py                                                   3      3     0%   1-6
+src/app/application/auth/logout.py                                                   16     16     0%   1-26
+src/app/application/auth/messages.py                                                 13      0   100%
+src/app/application/auth/mode.py                                                     17      9    47%   15-16, 20-26, 31-32, 37-38
+src/app/application/auth/password_login.py                                           37     37     0%   1-55
+src/app/application/auth/setup_admin.py                                              20     20     0%   1-47
+src/app/application/auth/setup_auth_mode.py                                          14     14     0%   1-32
+src/app/application/auth/setup_directory.py                                          31     31     0%   1-65
+src/app/application/auth/setup_first_admin.py                                        65     65     0%   1-96
+src/app/application/auth/setup_first_local_admin.py                                  48     48     0%   1-83
+src/app/application/auth/setup_storage.py                                            44     24    45%   18-22, 38-57, 70-72
+src/app/application/auth/throttle.py                                                 63     63     0%   1-103
+src/app/application/auth/tokens.py                                                    6      6     0%   1-12
+src/app/application/auth/warning_stage.py                                            10      0   100%
+src/app/application/bant/__init__.py                                                  0      0   100%
+src/app/application/bant/delete_label.py                                             12     12     0%   1-21
+src/app/application/bant/dto.py                                                       4      4     0%   1-9
+src/app/application/bant/list_labels.py                                               9      9     0%   1-18
+src/app/application/bant/register_label.py                                           18     18     0%   1-36
+src/app/application/bant/rename_label.py                                             19     19     0%   1-30
+src/app/application/choice.py                                                        10      2    80%   18-19
+src/app/application/code/__init__.py                                                  0      0   100%
+src/app/application/code/delete_code.py                                              19     19     0%   1-30
+src/app/application/code/dto.py                                                       6      6     0%   1-19
+src/app/application/code/list_code_set.py                                             9      9     0%   1-18
+src/app/application/code/list_codes_with_usage.py                                    10     10     0%   1-20
+src/app/application/code/register_code.py                                            19     19     0%   1-40
+src/app/application/code/rename_code.py                                              24     24     0%   1-35
+src/app/application/code/reorder_codes.py                                            20     20     0%   1-33
+src/app/application/code/usage.py                                                     6      6     0%   1-15
+src/app/application/contact/__init__.py                                               0      0   100%
+src/app/application/contact/delete_contact.py                                        17     17     0%   1-32
+src/app/application/contact/dto.py                                                    6      0   100%
+src/app/application/contact/inputs.py                                                23      3    87%   39-41
+src/app/application/contact/list_companies.py                                         7      7     0%   1-14
+src/app/application/contact/list_of_company.py                                        9      9     0%   1-18
+src/app/application/contact/register_contact.py                                      21     13    38%   16-17, 20-33
+src/app/application/contact/search_contacts.py                                       13     13     0%   1-22
+src/app/application/contact/update_contact.py                                        25     25     0%   1-44
+src/app/application/contact/usage.py                                                  5      5     0%   1-15
+src/app/application/dashboard/__init__.py                                             0      0   100%
+src/app/application/dashboard/criteria.py                                            32     32     0%   1-80
+src/app/application/dashboard/get_summary.py                                         31     31     0%   1-72
+src/app/application/dashboard/views.py                                               12     12     0%   1-45
+src/app/application/deal/__init__.py                                                  0      0   100%
+src/app/application/deal/apply_change.py                                             45     45     0%   1-94
+src/app/application/deal/bant_choice.py                                              42     13    69%   50-61, 75-83
+src/app/application/deal/code_issuer.py                                              18      4    78%   35, 39-40, 42
+src/app/application/deal/contact_change_log.py                                       14     11    21%   35-59
+src/app/application/deal/contact_draft.py                                            87     24    72%   65, 67, 69, 85, 91-93, 99-107, 120, 178-184
+src/app/application/deal/deal_years.py                                               10     10     0%   1-21
+src/app/application/deal/delete_deal.py                                              34     20    41%   33-54
+src/app/application/deal/deletion_impact.py                                          12     12     0%   1-22
+src/app/application/deal/dto.py                                                      13      0   100%
+src/app/application/deal/export_deals.py                                             45     45     0%   3-93
+src/app/application/deal/form.py                                                     20      6    70%   90-100
+src/app/application/deal/get_deal.py                                                 17      7    59%   22-28
+src/app/application/deal/history_writer.py                                           53     33    38%   37, 40, 43, 46, 49-51, 54-56, 60, 70-73, 83-91, 128-136
+src/app/application/deal/inputs.py                                                   36      0   100%
+src/app/application/deal/list_deal_history.py                                        17      9    47%   19-27
+src/app/application/deal/list_deals.py                                               20     10    50%   22-31
+src/app/application/deal/register_deal.py                                            29      0   100%
+src/app/application/deal/sync_change.py                                              21     13    38%   27, 38-41, 48-49, 60-65
+src/app/application/deal/update_deal.py                                              45     27    40%   36-83
+src/app/application/deal/updated_periods.py                                          18     18     0%   1-44
+src/app/application/deal/validation.py                                               67      9    87%   67, 91, 96-97, 104, 109-110, 113, 130
+src/app/application/deal/views.py                                                    41      4    90%   38, 45, 53, 56
+src/app/application/deal_action/__init__.py                                           0      0   100%
+src/app/application/deal_action/change_next_action_status.py                         20     20     0%   1-40
+src/app/application/deal_action/delete_deal_action.py                                17     17     0%   1-29
+src/app/application/deal_action/get_deal_action.py                                    7      7     0%   1-15
+src/app/application/deal_action/inputs.py                                            23     23     0%   3-70
+src/app/application/deal_action/list_deal_actions.py                                 10     10     0%   1-23
+src/app/application/deal_action/register_deal_action.py                              71     71     0%   1-137
+src/app/application/deal_action/type_choice.py                                       21     21     0%   1-42
+src/app/application/deal_action/update_deal_action.py                                28     28     0%   1-49
+src/app/application/deal_comment/__init__.py                                          0      0   100%
+src/app/application/deal_comment/attach.py                                           11     11     0%   3-38
+src/app/application/deal_comment/build_views.py                                      15     15     0%   3-32
+src/app/application/deal_comment/count_unread_deal_comments.py                       13     13     0%   1-23
+src/app/application/deal_comment/delete_deal_comment.py                              18     18     0%   1-30
+src/app/application/deal_comment/get_deal_comment.py                                 10     10     0%   1-21
+src/app/application/deal_comment/inputs.py                                            5      5     0%   3-15
+src/app/application/deal_comment/linked_action.py                                    13     13     0%   3-28
+src/app/application/deal_comment/list_deal_comments.py                               15     15     0%   1-30
+src/app/application/deal_comment/mark_deal_comments_read.py                          20     20     0%   1-37
+src/app/application/deal_comment/views.py                                             8      8     0%   3-31
+src/app/application/deal_comment/write_deal_comment.py                               28     28     0%   1-52
+src/app/application/directory/__init__.py                                             0      0   100%
+src/app/application/directory/connection_proof.py                                    34     34     0%   1-64
+src/app/application/directory/errors.py                                              13     13     0%   1-35
+src/app/application/directory/get_settings.py                                        11     11     0%   1-19
+src/app/application/directory/result.py                                               8      8     0%   1-17
+src/app/application/directory/test_settings.py                                       13     13     0%   1-25
+src/app/application/directory/update_settings.py                                     27     27     0%   1-50
+src/app/application/directory/verify_settings.py                                     16     16     0%   1-25
+src/app/application/forecast/__init__.py                                              0      0   100%
+src/app/application/forecast/ensure_monthly_snapshot.py                              30     30     0%   1-56
+src/app/application/forecast/get_snapshot_summary.py                                 19     19     0%   1-32
+src/app/application/forecast/get_summary.py                                          19     19     0%   1-46
+src/app/application/forecast/list_snapshots.py                                        7      7     0%   1-18
+src/app/application/forecast/take_snapshot.py                                        24     24     0%   1-63
+src/app/application/forecast/views.py                                                10     10     0%   1-27
+src/app/application/ids.py                                                           43     13    70%   25, 29, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77
+src/app/application/license_contract/__init__.py                                      0      0   100%
+src/app/application/license_contract/delete_license_contract.py                      17     17     0%   1-36
+src/app/application/license_contract/dto.py                                           4      4     0%   1-11
+src/app/application/license_contract/end_license_contract.py                         14     14     0%   1-26
+src/app/application/license_contract/get_license_contract.py                          7      7     0%   1-17
+src/app/application/license_contract/inputs.py                                        9      9     0%   1-20
+src/app/application/license_contract/issue_license.py                                23     23     0%   1-46
+src/app/application/license_contract/list_license_contracts.py                       10     10     0%   1-20
+src/app/application/license_contract/renew_license.py                                20     20     0%   1-50
+src/app/application/license_contract/update_license_contract.py                      14     14     0%   1-28
+src/app/application/license_contract/won_follow_up.py                                35     17    51%   52-60, 62-64, 71-81, 91-94
+src/app/application/license_contract_attachment/__init__.py                           0      0   100%
+src/app/application/license_contract_attachment/delete_contract_attachment.py        21     21     0%   1-40
+src/app/application/license_contract_attachment/download_contract_attachment.py      23     23     0%   1-43
+src/app/application/license_contract_attachment/get_contract_attachment.py            7      7     0%   1-17
+src/app/application/license_contract_attachment/list_contract_attachments.py          8      8     0%   1-20
+src/app/application/license_contract_attachment/outcome.py                            4      4     0%   1-10
+src/app/application/license_contract_attachment/upload_contract_attachment.py        92     92     0%   1-170
+src/app/application/partner_meeting/__init__.py                                       0      0   100%
+src/app/application/partner_meeting/checker.py                                       54     54     0%   1-98
+src/app/application/partner_meeting/delete_partner_meeting.py                        10     10     0%   1-20
+src/app/application/partner_meeting/dto.py                                            4      4     0%   1-11
+src/app/application/partner_meeting/inputs.py                                         4      4     0%   1-9
+src/app/application/partner_meeting/list_partner_meetings.py                         10     10     0%   1-20
+src/app/application/partner_meeting/register_partner_meetings.py                     23     23     0%   1-44
+src/app/application/partner_meeting/update_partner_meeting.py                        18     18     0%   1-42
+src/app/application/ports/__init__.py                                                 0      0   100%
+src/app/application/ports/action_type_repository.py                                   7      7     0%   1-34
+src/app/application/ports/alert_settings_repository.py                                3      3     0%   1-14
+src/app/application/ports/attachment_repository.py                                    8      8     0%   1-39
+src/app/application/ports/auth_settings_repository.py                                 5      5     0%   1-18
+src/app/application/ports/bant_label_repository.py                                    7      7     0%   1-35
+src/app/application/ports/clock.py                                                    3      3     0%   1-10
+src/app/application/ports/code_repository.py                                          8      8     0%   1-50
+src/app/application/ports/contact_repository.py                                      26      2    92%   26-27
+src/app/application/ports/dashboard_repository.py                                     4      4     0%   1-22
+src/app/application/ports/deal_action_repository.py                                  62     62     0%   1-138
+src/app/application/ports/deal_code_source.py                                         3      3     0%   1-7
+src/app/application/ports/deal_comment_repository.py                                  9      9     0%   1-52
+src/app/application/ports/deal_history_repository.py                                  4      4     0%   1-17
+src/app/application/ports/deal_outcome_filter.py                                     11     11     0%   1-17
+src/app/application/ports/deal_repository.py                                        128     40    69%   96-114, 119-125, 128, 135, 139, 143-145, 149-155, 162, 175-176
+src/app/application/ports/directory.py                                               23      2    91%   33-34
+src/app/application/ports/directory_settings_repository.py                            5      5     0%   1-20
+src/app/application/ports/file_storage.py                                            18      0   100%
+src/app/application/ports/forecast_repository.py                                     21     21     0%   1-84
+src/app/application/ports/id_allocator.py                                            19      0   100%
+src/app/application/ports/job_lock.py                                                 3      3     0%   1-10
+src/app/application/ports/license_contract_attachment_repository.py                   8      8     0%   1-40
+src/app/application/ports/license_contract_repository.py                             67     67     0%   1-164
+src/app/application/ports/login_failure_repository.py                                 5      5     0%   1-16
+src/app/application/ports/pagination.py                                               8      4    50%   10-13
+src/app/application/ports/partner_meeting_repository.py                              43     43     0%   1-100
+src/app/application/ports/password_hasher.py                                          4      4     0%   1-13
+src/app/application/ports/report_query_runner.py                                     11     11     0%   1-33
+src/app/application/ports/report_repository.py                                        8      8     0%   1-48
+src/app/application/ports/secret_cipher.py                                            4      4     0%   1-14
+src/app/application/ports/session_repository.py                                       7      7     0%   1-28
+src/app/application/ports/storage_settings_repository.py                              3      3     0%   1-14
+src/app/application/ports/unit_of_work.py                                             4      4     0%   1-136
+src/app/application/ports/user_password_hash_repository.py                            4      4     0%   1-19
+src/app/application/ports/user_repository.py                                         17     17     0%   1-91
+src/app/application/ports/vendor_repository.py                                        7      7     0%   1-32
+src/app/application/report/__init__.py                                                0      0   100%
+src/app/application/report/change_report_layout.py                                   17     17     0%   1-43
+src/app/application/report/copy_report.py                                            18     18     0%   1-52
+src/app/application/report/create_report.py                                          16     16     0%   1-32
+src/app/application/report/delete_report.py                                          10     10     0%   1-20
+src/app/application/report/execution.py                                              28     28     0%   3-71
+src/app/application/report/get_report.py                                             10     10     0%   1-21
+src/app/application/report/list_fields.py                                             8      8     0%   1-39
+src/app/application/report/list_reports.py                                           10     10     0%   1-22
+src/app/application/report/run_report.py                                             15     15     0%   1-27
+src/app/application/report/run_saved_report.py                                       17     17     0%   1-30
+src/app/application/report/saved_inputs.py                                           10     10     0%   1-29
+src/app/application/report/saved_views.py                                             4      4     0%   1-10
+src/app/application/report/update_report.py                                          16     16     0%   1-41
+src/app/application/report/views.py                                                  23     23     0%   1-114
+src/app/application/storage/__init__.py                                               0      0   100%
+src/app/application/storage/errors.py                                                 6      6     0%   1-10
+src/app/application/storage/folders.py                                                7      2    71%   15, 19
+src/app/application/storage/get_settings.py                                          11      5    55%   15-19
+src/app/application/storage/probe.py                                                  9      4    56%   14-17
+src/app/application/storage/test_settings.py                                          9      1    89%   19
+src/app/application/storage/update_settings.py                                       15      6    60%   23-30
+src/app/application/time/__init__.py                                                  0      0   100%
+src/app/application/time/get_server_time.py                                          11     11     0%   3-26
+src/app/application/user/__init__.py                                                  0      0   100%
+src/app/application/user/change_user_role.py                                         15     15     0%   1-36
+src/app/application/user/delete_user.py                                              32     32     0%   1-61
+src/app/application/user/list_user_options.py                                         7      7     0%   1-25
+src/app/application/user/list_users.py                                               10     10     0%   1-28
+src/app/application/user/profile_edit.py                                             13     13     0%   3-31
+src/app/application/user/register_user.py                                            50     50     0%   1-96
+src/app/application/user/reset_user_password.py                                      33     33     0%   1-53
+src/app/application/user/resolve_user_refs.py                                         9      9     0%   1-20
+src/app/application/user/update_user_profile.py                                      10     10     0%   1-27
+src/app/application/vendor/__init__.py                                                0      0   100%
+src/app/application/vendor/delete_vendor.py                                          10     10     0%   1-19
+src/app/application/vendor/dto.py                                                     4      4     0%   1-9
+src/app/application/vendor/list_vendors.py                                            9      9     0%   1-19
+src/app/application/vendor/register_vendor.py                                        18     18     0%   1-30
+src/app/application/vendor/rename_vendor.py                                          19     19     0%   1-31
+src/app/application/vendor/usage.py                                                   4      4     0%   1-13
+src/app/config/__init__.py                                                           22      9    59%   37-42, 47-49
+src/app/config/base.py                                                               66     18    73%   21-26, 92-95, 100-107
+src/app/config/profiles.py                                                           45     16    64%   43-58
+src/app/container.py                                                                159    159     0%   3-295
+src/app/container_action_type.py                                                     10     10     0%   3-26
+src/app/container_admin.py                                                           34     34     0%   3-61
+src/app/container_auth.py                                                            43     43     0%   3-83
+src/app/container_catalog.py                                                         59     59     0%   3-86
+src/app/container_dashboard.py                                                        5      5     0%   3-17
+src/app/container_deal_action.py                                                     38     38     0%   3-63
+src/app/container_deal_reads.py                                                      23     23     0%   3-41
+src/app/container_forecast.py                                                        30     30     0%   3-70
+src/app/container_license_contract.py                                                38     38     0%   3-73
+src/app/container_local_accounts.py                                                  29     29     0%   3-56
+src/app/container_partner_meeting.py                                                 14     14     0%   3-29
+src/app/container_reports.py                                                         32     32     0%   3-53
+src/app/container_storage.py                                                         40     40     0%   3-63
+src/app/container_time.py                                                             5      5     0%   3-15
+src/app/container_vendor.py                                                          10     10     0%   3-26
+src/app/domain/__init__.py                                                            0      0   100%
+src/app/domain/action_type/__init__.py                                                0      0   100%
+src/app/domain/action_type/entities.py                                               22     22     0%   1-46
+src/app/domain/action_type/errors.py                                                 14     14     0%   1-31
+src/app/domain/action_type/rules.py                                                   9      9     0%   1-24
+src/app/domain/action_type/values.py                                                 18      7    61%   17-23
+src/app/domain/alert/__init__.py                                                      0      0   100%
+src/app/domain/alert/settings.py                                                      4      0   100%
+src/app/domain/alert/thresholds.py                                                   16      1    94%   23
+src/app/domain/attachment/__init__.py                                                 0      0   100%
+src/app/domain/attachment/entities.py                                                32     32     0%   1-95
+src/app/domain/attachment/errors.py                                                  17     17     0%   1-33
+src/app/domain/attachment/history.py                                                 11     11     0%   3-26
+src/app/domain/attachment/policy.py                                                   8      8     0%   6-19
+src/app/domain/attachment/values.py                                                  67     32    52%   30, 46-53, 57, 62, 73-83, 87, 91-95, 99-100, 116-124
+src/app/domain/auth/__init__.py                                                       0      0   100%
+src/app/domain/auth/credentials.py                                                   26      9    65%   20, 33-38, 41, 44
+src/app/domain/auth/errors.py                                                         6      0   100%
+src/app/domain/auth/login_failure.py                                                 25     14    44%   22, 25-33, 37-40, 43
+src/app/domain/auth/mode.py                                                          22      3    86%   25, 40, 45
+src/app/domain/auth/password_hash.py                                                 12     12     0%   1-24
+src/app/domain/auth/password_policy.py                                                9      9     0%   3-18
+src/app/domain/auth/principal.py                                                     29      8    72%   27, 48-53, 56
+src/app/domain/auth/session.py                                                       25     12    52%   26-31, 34, 37-39, 42, 45
+src/app/domain/bant/__init__.py                                                       0      0   100%
+src/app/domain/bant/entities.py                                                      19      5    74%   35, 45-46, 49-50
+src/app/domain/bant/errors.py                                                        12      5    58%   6, 13-14, 19-20
+src/app/domain/bant/rules.py                                                          9      5    44%   16-18, 23-24
+src/app/domain/bant/values.py                                                        19      7    63%   24-30
+src/app/domain/code/__init__.py                                                       0      0   100%
+src/app/domain/code/entities.py                                                      42     18    57%   36, 38, 40, 58-61, 74, 77-78, 81-82, 86-91
+src/app/domain/code/errors.py                                                        16      6    62%   8, 15-16, 23, 30-31
+src/app/domain/code/rules.py                                                         48     48     0%   3-72
+src/app/domain/code/values.py                                                        23      1    96%   50
+src/app/domain/common/__init__.py                                                     0      0   100%
+src/app/domain/common/business_date.py                                                9      1    89%   24
+src/app/domain/common/contact.py                                                     26      2    92%   24, 42
+src/app/domain/common/entity.py                                                      14      3    79%   23, 26, 29
+src/app/domain/common/errors.py                                                      18      6    67%   27-29, 36-38
+src/app/domain/common/ids.py                                                          2      0   100%
+src/app/domain/common/korean.py                                                      35     21    40%   17-18, 22, 26-36, 40-41, 48-50, 55, 60
+src/app/domain/common/krw.py                                                          2      1    50%   6
+src/app/domain/common/money.py                                                       20     20     0%   3-30
+src/app/domain/common/secret.py                                                       5      5     0%   1-11
+src/app/domain/common/validation.py                                                  34      8    76%   17-18, 27, 34, 36, 44, 46, 52
+src/app/domain/contact/__init__.py                                                    0      0   100%
+src/app/domain/contact/draft.py                                                       3      1    67%   11
+src/app/domain/contact/entities.py                                                   12      2    83%   36-37
+src/app/domain/contact/errors.py                                                     11      4    64%   6, 13, 20-21
+src/app/domain/contact/identity.py                                                   10      3    70%   31, 34-35
+src/app/domain/contact/values.py                                                     30      3    90%   38, 40, 68
+src/app/domain/dashboard/__init__.py                                                  0      0   100%
+src/app/domain/dashboard/quarter_closing.py                                          34     34     0%   1-65
+src/app/domain/dashboard/status_pipeline.py                                          21     21     0%   1-48
+src/app/domain/deal/__init__.py                                                       0      0   100%
+src/app/domain/deal/code.py                                                          25      6    76%   29, 35, 41-44
+src/app/domain/deal/entities.py                                                      66     30    55%   38, 87, 96, 107-111, 115-119, 122, 125, 129-136, 140-142, 145-148, 152-153
+src/app/domain/deal/errors.py                                                        37     10    73%   20, 25, 32, 37, 44, 51, 58, 65, 72, 79
+src/app/domain/deal/export.py                                                        12     12     0%   3-36
+src/app/domain/deal/history.py                                                       84     22    74%   130-132, 136-137, 147-154, 161, 167-169, 186, 203, 207, 230, 242, 246-247, 251, 255-256, 273
+src/app/domain/deal/owner_name.py                                                     7      3    57%   12-14
+src/app/domain/deal/period.py                                                        39     23    41%   23-30, 35-37, 42, 50-57, 65-67
+src/app/domain/deal/policy.py                                                        14      5    64%   19, 21, 26-28
+src/app/domain/deal/risk.py                                                          29      6    79%   34, 38, 40, 52-53, 60
+src/app/domain/deal/status_entry.py                                                   4      0   100%
+src/app/domain/deal/sync.py                                                           6      0   100%
+src/app/domain/deal/sync_finalize.py                                                 68     44    35%   54-63, 67, 75, 79-85, 91-101, 107-115, 121-129
+src/app/domain/deal/sync_plan.py                                                     55     26    53%   28, 31, 34, 37, 95-97, 101-108, 112-122
+src/app/domain/deal/sync_sequence.py                                                 29     15    48%   30, 37-50
+src/app/domain/deal/sync_state.py                                                    23      2    91%   49, 54
+src/app/domain/deal/updated_period.py                                                33     33     0%   3-58
+src/app/domain/deal/values.py                                                        84     13    85%   44, 84, 87-89, 96, 98, 106, 117, 121, 128, 137, 181
+src/app/domain/deal_action/__init__.py                                                0      0   100%
+src/app/domain/deal_action/acted_on.py                                               17     17     0%   3-36
+src/app/domain/deal_action/entities.py                                               59     38    36%   57, 70-72, 84-95, 105-116, 123-126, 129-130, 133-134, 137-138
+src/app/domain/deal_action/errors.py                                                 15      4    73%   7, 12, 17, 22
+src/app/domain/deal_action/history.py                                                32     32     0%   3-67
+src/app/domain/deal_action/next_action_basis.py                                      14      5    64%   19, 23-24, 32, 34
+src/app/domain/deal_action/next_action_status.py                                     38     11    71%   24, 28, 33, 44-49, 53, 58
+src/app/domain/deal_action/policy.py                                                  6      3    50%   12-14
+src/app/domain/deal_action/value_objects.py                                          33     17    48%   32-35, 39, 51-62
+src/app/domain/deal_comment/__init__.py                                               0      0   100%
+src/app/domain/deal_comment/entities.py                                              20     20     0%   1-64
+src/app/domain/deal_comment/errors.py                                                11     11     0%   1-17
+src/app/domain/deal_comment/history.py                                               14     14     0%   3-30
+src/app/domain/deal_comment/policy.py                                                 8      8     0%   3-19
+src/app/domain/deal_comment/values.py                                                13      6    54%   15-16, 21-24
+src/app/domain/directory/__init__.py                                                  0      0   100%
+src/app/domain/directory/errors.py                                                    4      1    75%   6
+src/app/domain/directory/host.py                                                     27     19    30%   16, 20-33, 37-40
+src/app/domain/directory/rules.py                                                    32     21    34%   14, 18-23, 27-29, 35-44, 48-49
+src/app/domain/directory/settings.py                                                 44     10    77%   44-47, 56, 66-69, 87
+src/app/domain/forecast/__init__.py                                                   0      0   100%
+src/app/domain/forecast/errors.py                                                     7      7     0%   3-19
+src/app/domain/forecast/period.py                                                    38     38     0%   1-64
+src/app/domain/forecast/snapshot.py                                                  47     47     0%   1-115
+src/app/domain/forecast/summary.py                                                   59     59     0%   1-128
+src/app/domain/license_contract/__init__.py                                           0      0   100%
+src/app/domain/license_contract/attachment.py                                        32     32     0%   1-103
+src/app/domain/license_contract/entities.py                                          43     24    44%   52, 70-71, 82-87, 101-105, 122-124, 129-130, 133-135, 138-139
+src/app/domain/license_contract/errors.py                                            26      6    77%   16, 21, 26, 35, 40, 45
+src/app/domain/license_contract/term.py                                              23     12    48%   25-37
+src/app/domain/license_contract/values.py                                            59     22    63%   45, 64-65, 68, 72-82, 86-90, 102, 110
+src/app/domain/license_contract/won.py                                               24      6    75%   30, 32, 38-39, 44-45
+src/app/domain/partner_meeting/__init__.py                                            0      0   100%
+src/app/domain/partner_meeting/company.py                                             4      4     0%   3-12
+src/app/domain/partner_meeting/entities.py                                           27     27     0%   1-81
+src/app/domain/partner_meeting/errors.py                                             22     22     0%   1-40
+src/app/domain/partner_meeting/policy.py                                              6      6     0%   3-14
+src/app/domain/partner_meeting/values.py                                             20      9    55%   22-26, 31-34
+src/app/domain/report/__init__.py                                                     0      0   100%
+src/app/domain/report/catalog.py                                                      7      7     0%   3-18
+src/app/domain/report/catalog_action.py                                               6      6     0%   3-28
+src/app/domain/report/catalog_deal.py                                                 4      4     0%   3-22
+src/app/domain/report/chart.py                                                       48     48     0%   3-113
+src/app/domain/report/chart_kinds.py                                                 59     59     0%   3-84
+src/app/domain/report/condition_values.py                                           111    111     0%   3-197
+src/app/domain/report/definition.py                                                  59     59     0%   3-123
+src/app/domain/report/errors.py                                                      28     28     0%   1-57
+src/app/domain/report/fields.py                                                      51     51     0%   3-137
+src/app/domain/report/labels.py                                                      15     15     0%   3-68
+src/app/domain/report/parse.py                                                       27     27     0%   3-40
+src/app/domain/report/parse_chart.py                                                113    113     0%   6-235
+src/app/domain/report/parse_chart_fields.py                                          42     42     0%   3-75
+src/app/domain/report/parse_chart_options.py                                        120    120     0%   6-188
+src/app/domain/report/parse_columns.py                                               96     96     0%   3-173
+src/app/domain/report/parse_conditions.py                                            40     40     0%   3-71
+src/app/domain/report/raw.py                                                         34     34     0%   3-55
+src/app/domain/report/resolve.py                                                     61     61     0%   3-125
+src/app/domain/report/stored.py                                                      63     63     0%   6-151
+src/app/domain/report/stored_chart.py                                                51     51     0%   3-130
+src/app/domain/report/vocabulary.py                                                 102    102     0%   6-198
+src/app/domain/saved_report/__init__.py                                               0      0   100%
+src/app/domain/saved_report/entities.py                                              70     70     0%   1-178
+src/app/domain/saved_report/errors.py                                                20     20     0%   1-41
+src/app/domain/saved_report/layout.py                                                52     52     0%   3-95
+src/app/domain/saved_report/policy.py                                                13     13     0%   3-34
+src/app/domain/saved_report/values.py                                                38     17    55%   28-32, 36-42, 46-50
+src/app/domain/storage/__init__.py                                                    0      0   100%
+src/app/domain/storage/path.py                                                       23     11    52%   21-31
+src/app/domain/storage/settings.py                                                    4      4     0%   1-12
+src/app/domain/user/__init__.py                                                       0      0   100%
+src/app/domain/user/entities.py                                                      90     53    41%   46, 48, 80-84, 88-95, 109-116, 123-139, 143-147, 151, 162, 173-178
+src/app/domain/user/errors.py                                                        11      3    73%   13, 23-24
+src/app/domain/user/messages.py                                                       5      0   100%
+src/app/domain/user/policy.py                                                        18     18     0%   1-39
+src/app/domain/user/profile.py                                                       35      7    80%   32, 40-41, 47-48, 53-54
+src/app/domain/user/retired_login_ids.py                                              8      8     0%   8-26
+src/app/domain/user/value_objects.py                                                 16      1    94%   32
+src/app/domain/vendor/__init__.py                                                     0      0   100%
+src/app/domain/vendor/entities.py                                                    16      5    69%   21, 24-25, 29-30
+src/app/domain/vendor/errors.py                                                      11      4    64%   6, 13, 18-19
+src/app/domain/vendor/rules.py                                                        6      6     0%   1-18
+src/app/domain/vendor/values.py                                                      15      8    47%   14-20, 24
+src/app/infra/__init__.py                                                             0      0   100%
+src/app/infra/auth/__init__.py                                                        0      0   100%
+src/app/infra/auth/ldap.py                                                          112    112     0%   7-215
+src/app/infra/auth/ldap_connection.py                                                43     43     0%   7-92
+src/app/infra/auth/ldap_errors.py                                                    26     26     0%   3-65
+src/app/infra/crypto/__init__.py                                                      0      0   100%
+src/app/infra/crypto/fernet_cipher.py                                                14     14     0%   6-28
+src/app/infra/crypto/scrypt_hasher.py                                                79     79     0%   9-132
+src/app/infra/db/__init__.py                                                          0      0   100%
+src/app/infra/db/action_type_repository.py                                           50     50     0%   3-114
+src/app/infra/db/advisory_job_lock.py                                                29     29     0%   7-57
+src/app/infra/db/alert_settings_repository.py                                        26     26     0%   3-56
+src/app/infra/db/attachment_repository.py                                            61     61     0%   3-139
+src/app/infra/db/auth_settings_repository.py                                         20     20     0%   3-53
+src/app/infra/db/bant_label_repository.py                                            53     53     0%   3-120
+src/app/infra/db/base.py                                                              8      0   100%
+src/app/infra/db/base_repository.py                                                  49     49     0%   3-96
+src/app/infra/db/code_repository.py                                                  65     65     0%   3-141
+src/app/infra/db/contact_repository.py                                               96     96     0%   3-215
+src/app/infra/db/contact_usage.py                                                    13     13     0%   3-37
+src/app/infra/db/dashboard_tally.py                                                  25     25     0%   6-52
+src/app/infra/db/deal_action_order.py                                                37     37     0%   3-58
+src/app/infra/db/deal_action_repository.py                                          120    120     0%   3-238
+src/app/infra/db/deal_aggregates.py                                                  30     30     0%   3-69
+src/app/infra/db/deal_children.py                                                    43     43     0%   3-100
+src/app/infra/db/deal_comment_repository.py                                          72     72     0%   6-157
+src/app/infra/db/deal_derived.py                                                     23     23     0%   8-104
+src/app/infra/db/deal_history_repository.py                                          33     33     0%   3-73
+src/app/infra/db/deal_keys.py                                                        10     10     0%   3-24
+src/app/infra/db/deal_list_order.py                                                  32     32     0%   7-79
+src/app/infra/db/deal_mapping.py                                                     44      6    86%   58-59, 63-64, 73, 93
+src/app/infra/db/deal_repository.py                                                  96     96     0%   8-210
+src/app/infra/db/deal_risk.py                                                        15     15     0%   7-54
+src/app/infra/db/deal_search.py                                                      94     94     0%   11-239
+src/app/infra/db/directory_settings_repository.py                                    38     38     0%   1-110
+src/app/infra/db/forecast_repository.py                                              22     22     0%   8-63
+src/app/infra/db/forecast_snapshot_repository.py                                     53     53     0%   7-196
+src/app/infra/db/id_allocator.py                                                     14     14     0%   3-45
+src/app/infra/db/license_contract_attachment_repository.py                           63     63     0%   3-152
+src/app/infra/db/license_contract_mapping.py                                         38     38     0%   3-109
+src/app/infra/db/license_contract_query.py                                           54     54     0%   7-143
+src/app/infra/db/license_contract_repository.py                                      64     64     0%   7-130
+src/app/infra/db/like.py                                                             12     12     0%   3-32
+src/app/infra/db/login_failure_repository.py                                         22     22     0%   3-52
+src/app/infra/db/models.py                                                           37     37     0%   6-125
+src/app/infra/db/models_alert.py                                                     11     11     0%   3-23
+src/app/infra/db/models_attachment.py                                                24     24     0%   3-60
+src/app/infra/db/models_auth.py                                                      56     56     0%   3-120
+src/app/infra/db/models_catalog.py                                                   37     37     0%   3-113
+src/app/infra/db/models_comment.py                                                   13     13     0%   7-36
+src/app/infra/db/models_contact.py                                                   16     16     0%   3-27
+src/app/infra/db/models_deal.py                                                      62      0   100%
+src/app/infra/db/models_forecast.py                                                  31     31     0%   8-74
+src/app/infra/db/models_license_contract.py                                          35     35     0%   7-115
+src/app/infra/db/models_meeting.py                                                   12     12     0%   3-24
+src/app/infra/db/models_report.py                                                    21     21     0%   8-41
+src/app/infra/db/partner_meeting_repository.py                                       83     83     0%   3-151
+src/app/infra/db/read_only.py                                                        24     24     0%   7-44
+src/app/infra/db/report_buckets.py                                                   19     19     0%   7-50
+src/app/infra/db/report_comments.py                                                  12     12     0%   6-40
+src/app/infra/db/report_conditions.py                                                99     99     0%   7-180
+src/app/infra/db/report_fields.py                                                    35     35     0%   9-79
+src/app/infra/db/report_fields_action.py                                             12     12     0%   3-27
+src/app/infra/db/report_fields_deal.py                                               24     24     0%   3-95
+src/app/infra/db/report_grouped.py                                                  106    106     0%   8-184
+src/app/infra/db/report_joins.py                                                     55     55     0%   6-116
+src/app/infra/db/report_parts.py                                                     48     48     0%   6-84
+src/app/infra/db/report_render.py                                                    17     17     0%   3-42
+src/app/infra/db/report_repository.py                                                69     69     0%   7-146
+src/app/infra/db/report_risk.py                                                      24     24     0%   3-60
+src/app/infra/db/report_runner.py                                                    27     27     0%   3-45
+src/app/infra/db/report_select.py                                                    36     36     0%   7-58
+src/app/infra/db/session_repository.py                                               43     43     0%   3-92
+src/app/infra/db/storage_settings_repository.py                                      26     26     0%   3-52
+src/app/infra/db/unit_of_work.py                                                     70     70     0%   3-123
+src/app/infra/db/user_links.py                                                       20     20     0%   7-49
+src/app/infra/db/user_password_hash_repository.py                                    27     27     0%   3-48
+src/app/infra/db/user_repository.py                                                  93     93     0%   7-235
+src/app/infra/db/vendor_repository.py                                                49     49     0%   7-98
+src/app/infra/deal_code_source.py                                                     5      5     0%   1-10
+src/app/infra/scheduling/__init__.py                                                  0      0   100%
+src/app/infra/scheduling/periodic.py                                                 20     20     0%   3-37
+src/app/infra/storage/__init__.py                                                     0      0   100%
+src/app/infra/storage/_io.py                                                         96     96     0%   3-146
+src/app/infra/storage/local_file_storage.py                                          92     92     0%   9-142
+src/app/infra/system_clock.py                                                         4      4     0%   1-8
+src/app/main.py                                                                      53     53     0%   3-148
+src/app/web/__init__.py                                                               0      0   100%
+src/app/web/content_disposition.py                                                    7      7     0%   3-21
+src/app/web/csv_body.py                                                              10     10     0%   3-15
+src/app/web/dependencies.py                                                          11     11     0%   1-18
+src/app/web/error_handlers.py                                                        87     87     0%   3-198
+src/app/web/permissions.py                                                           24     24     0%   3-56
+src/app/web/request_info.py                                                           4      4     0%   7-17
+src/app/web/routers/__init__.py                                                       0      0   100%
+src/app/web/routers/action_types.py                                                  27     27     0%   3-59
+src/app/web/routers/alert_settings.py                                                15     15     0%   3-34
+src/app/web/routers/attachment_items.py                                              27     27     0%   3-52
+src/app/web/routers/attachments.py                                                   24     24     0%   3-66
+src/app/web/routers/auth.py                                                          19     19     0%   3-39
+src/app/web/routers/auth_login.py                                                    12     12     0%   3-26
+src/app/web/routers/auth_setup.py                                                    45     45     0%   3-100
+src/app/web/routers/bant_labels.py                                                   27     27     0%   3-60
+src/app/web/routers/codes.py                                                         33     33     0%   3-89
+src/app/web/routers/contacts.py                                                      34     34     0%   3-94
+src/app/web/routers/dashboard.py                                                     11     11     0%   3-20
+src/app/web/routers/deal_actions.py                                                  38     38     0%   3-91
+src/app/web/routers/deal_comments.py                                                 38     38     0%   3-87
+src/app/web/routers/deals.py                                                         59     59     0%   1-136
+src/app/web/routers/forecast.py                                                      26     26     0%   3-52
+src/app/web/routers/health.py                                                        18     18     0%   1-25
+src/app/web/routers/license_contract_attachments.py                                  39     39     0%   4-114
+src/app/web/routers/license_contracts.py                                             47     47     0%   9-125
+src/app/web/routers/me.py                                                            23     23     0%   3-44
+src/app/web/routers/partner_meetings.py                                              36     36     0%   6-77
+src/app/web/routers/reports.py                                                       13     13     0%   3-26
+src/app/web/routers/responses.py                                                      6      6     0%   1-8
+src/app/web/routers/saved_reports.py                                                 55     55     0%   7-135
+src/app/web/routers/settings_directory.py                                            21     21     0%   3-51
+src/app/web/routers/settings_storage.py                                              19     19     0%   3-35
+src/app/web/routers/time.py                                                           8      8     0%   3-13
+src/app/web/routers/user_options.py                                                  20     20     0%   3-37
+src/app/web/routers/users.py                                                         37     37     0%   3-101
+src/app/web/routers/vendors.py                                                       27     27     0%   3-54
+src/app/web/schemas/__init__.py                                                       0      0   100%
+src/app/web/schemas/action_type.py                                                   15     15     0%   3-54
+src/app/web/schemas/alert_settings.py                                                10     10     0%   3-28
+src/app/web/schemas/attachment.py                                                    19     19     0%   3-76
+src/app/web/schemas/auth.py                                                          46     46     0%   1-107
+src/app/web/schemas/auth_directory.py                                                25     25     0%   1-100
+src/app/web/schemas/bant_label.py                                                    17     17     0%   3-62
+src/app/web/schemas/choice.py                                                        15     15     0%   3-23
+src/app/web/schemas/code.py                                                          26     26     0%   3-82
+src/app/web/schemas/common.py                                                         9      0   100%
+src/app/web/schemas/contact.py                                                       43      8    81%   25, 38, 51-52, 70-71, 78, 95
+src/app/web/schemas/dashboard.py                                                     50     50     0%   3-186
+src/app/web/schemas/deal.py                                                          96     96     0%   3-171
+src/app/web/schemas/deal_action.py                                                   94     94     0%   1-287
+src/app/web/schemas/deal_change.py                                                   28     28     0%   3-79
+src/app/web/schemas/deal_comment.py                                                  35     35     0%   3-122
+src/app/web/schemas/deal_response.py                                                 50     16    68%   30, 114, 123-135, 139-143, 193, 200, 220-221
+src/app/web/schemas/deal_search.py                                                   55     55     0%   3-94
+src/app/web/schemas/deal_years.py                                                     7      7     0%   3-18
+src/app/web/schemas/forecast.py                                                      49     49     0%   3-146
+src/app/web/schemas/ids.py                                                           10     10     0%   3-17
+src/app/web/schemas/license_contract.py                                              62     62     0%   7-177
+src/app/web/schemas/license_contract_attachment.py                                   19     19     0%   3-78
+src/app/web/schemas/me.py                                                            18     18     0%   1-56
+src/app/web/schemas/partner_meeting.py                                               39     39     0%   3-101
+src/app/web/schemas/password_field.py                                                13     13     0%   3-23
+src/app/web/schemas/period_params.py                                                 12     12     0%   3-33
+src/app/web/schemas/profile_changes.py                                                9      9     0%   1-14
+src/app/web/schemas/report_fields.py                                                 18     18     0%   3-107
+src/app/web/schemas/report_query.py                                                  41     41     0%   7-124
+src/app/web/schemas/saved_report.py                                                  70     70     0%   3-235
+src/app/web/schemas/server_datetime.py                                                5      0   100%
+src/app/web/schemas/settings_directory.py                                            11     11     0%   1-26
+src/app/web/schemas/storage.py                                                       11     11     0%   3-32
+src/app/web/schemas/time.py                                                           8      8     0%   1-15
+src/app/web/schemas/updated_period.py                                                16     16     0%   6-46
+src/app/web/schemas/user.py                                                          34     34     0%   1-98
+src/app/web/schemas/user_ref.py                                                      16      5    69%   29, 42-43, 48, 58
+src/app/web/schemas/vendor.py                                                        10     10     0%   3-28
+src/app/web/security.py                                                              26     26     0%   3-57
+src/app/web/use_case_provider.py                                                    115    115     0%   3-259
+---------------------------------------------------------------------------------------------------------------
+TOTAL                                                                             14462  12251    15%
+=========================== short test summary info ============================
+FAILED tests/unit/application/test_imported_deal_values.py::test_nullable_stored_deal_round_trips
+FAILED tests/unit/application/test_imported_deal_values.py::test_imported_values_survive_partial_update_and_response
+FAILED tests/unit/application/test_imported_deal_values.py::test_imported_amount_exports_empty_cell
+FAILED tests/unit/application/test_imported_deal_values.py::test_company_spaces_are_preserved
+FAILED tests/unit/application/test_imported_deal_values.py::test_unnamed_stored_contact_is_readable_but_input_requires_name
+5 failed in 2.66s

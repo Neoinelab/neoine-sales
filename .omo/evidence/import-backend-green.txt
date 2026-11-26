@@ -1,0 +1,19 @@
+F....                                                                    [100%]
+=================================== FAILURES ===================================
+____________________ test_nullable_stored_deal_round_trips _____________________
+
+    def test_nullable_stored_deal_round_trips() -> None:
+        """가져온 Deal의 알 수 없는 수량·금액은 저장소 왕복에서 NULL로 남는다."""
+        # given: 직접 DB에서 가져온 수량·금액이 없는 행
+        row = new_row(make_deal())
+        row.users = None
+        row.revenue_amount = None
+        # when: 도메인으로 읽고 다시 저장 행으로 변환한다
+>       restored = new_row(to_entity(row, []))
+                           ^^^^^^^^^^^^^^^^^^
+E       TypeError: to_entity() missing 1 required positional argument: 'bant'
+
+tests/unit/application/test_imported_deal_values.py:27: TypeError
+=========================== short test summary info ============================
+FAILED tests/unit/application/test_imported_deal_values.py::test_nullable_stored_deal_round_trips
+1 failed, 4 passed in 0.29s

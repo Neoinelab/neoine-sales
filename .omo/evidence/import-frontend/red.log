@@ -1,0 +1,148 @@
+
+ RUN  v5.0.3 /Users/dgkim/myworkspace/projects-neoine/neoine-sales/frontend
+
+stderr | src/features/deals/importedDeal.test.tsx > 가져온 Deal의 미입력 숫자 > 목록 금액과 빠른 보기 Users count를 대시로 표시한다
+An error occurred in the <AmountText> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/features/deals/importedDeal.test.tsx > 가져온 Deal의 미입력 숫자 > 빈 금액의 인라인 편집은 빈 입력으로 시작하고 새 숫자를 저장한다
+An error occurred in the <AmountText> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/features/deals/importedDeal.test.tsx (3 tests | 3 failed) 2097ms
+   ❯ 가져온 Deal의 미입력 숫자 (3)
+     × 목록 금액과 빠른 보기 Users count를 대시로 표시한다 1046ms
+     × 빈 금액의 인라인 편집은 빈 입력으로 시작하고 새 숫자를 저장한다 1027ms
+     × 수정 폼은 NULL 숫자를 빈 값으로 열고 필수 입력 검증을 유지한다 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/deals/importedDeal.test.tsx > 가져온 Deal의 미입력 숫자 > 목록 금액과 빠른 보기 Users count를 대시로 표시한다
+TestingLibraryElementError: Unable to find role="row" and name `/대한제조 MFA 확대/`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/deals/importedDeal.test.tsx:17:30
+     15|     // given: 사용자 수와 금액이 없는 가져온 Deal
+     16|     const { user } = await renderAt('/deals?year=all&q=대한제조 MFA', { ad…
+     17|     const row = await screen.findByRole('row', { name: /대한제조 MFA 확대/ })
+       |                              ^
+     18|     // when: 목록 행의 빠른 보기를 연다
+     19|     await user.click(within(row).getByRole('button', { name: /빠른 보기/ }…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/features/deals/importedDeal.test.tsx > 가져온 Deal의 미입력 숫자 > 빈 금액의 인라인 편집은 빈 입력으로 시작하고 새 숫자를 저장한다
+TestingLibraryElementError: Unable to find role="row" and name `/대한제조 MFA 확대/`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/deals/importedDeal.test.tsx:29:30
+     27|     // given: 매출금액이 없는 가져온 Deal
+     28|     const { user } = await renderAt('/deals?year=all&q=대한제조 MFA', { ad…
+     29|     const row = await screen.findByRole('row', { name: /대한제조 MFA 확대/ })
+       |                              ^
+     30|     // when: 빈 금액을 열어 숫자를 입력하고 저장한다
+     31|     await user.click(within(row).getByRole('button', { name: /금액\(단위:원…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/features/deals/importedDeal.test.tsx > 가져온 Deal의 미입력 숫자 > 수정 폼은 NULL 숫자를 빈 값으로 열고 필수 입력 검증을 유지한다
+TypeError: Cannot read properties of null (reading 'toLocaleString')
+ ❯ formatWon src/shared/model/money.ts:19:14
+     17| /** 원 콤마 숫자(단위 글자 없음, 반올림 없음). 표시와 편집 시작값에 모두 쓴다. */
+     18| export function formatWon(won: number): string {
+     19|   return won.toLocaleString('en-US')
+       |              ^
+     20| }
+     21|
+ ❯ formFromDeal src/features/deals/form/formState.ts:125:20
+ ❯ src/features/deals/importedDeal.test.tsx:46:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of null (reading 'toLocaleString')
+ ❯ formatWon src/shared/model/money.ts:19:14
+     17| /** 원 콤마 숫자(단위 글자 없음, 반올림 없음). 표시와 편집 시작값에 모두 쓴다. */
+     18| export function formatWon(won: number): string {
+     19|   return won.toLocaleString('en-US')
+       |              ^
+     20| }
+     21|
+ ❯ AmountText src/shared/ui/AmountText.tsx:6:36
+ ❯ Object.react_stack_bottom_frame node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateFunctionComponent node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19
+ ❯ beginWork node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18
+ ❯ runWithFiberInDEV node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/features/deals/importedDeal.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "목록 금액과 빠른 보기 Users count를 대시로 표시한다". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of null (reading 'toLocaleString')
+ ❯ formatWon src/shared/model/money.ts:19:14
+     17| /** 원 콤마 숫자(단위 글자 없음, 반올림 없음). 표시와 편집 시작값에 모두 쓴다. */
+     18| export function formatWon(won: number): string {
+     19|   return won.toLocaleString('en-US')
+       |              ^
+     20| }
+     21|
+ ❯ AmountText src/shared/ui/AmountText.tsx:6:36
+ ❯ Object.react_stack_bottom_frame node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateFunctionComponent node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19
+ ❯ beginWork node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18
+ ❯ runWithFiberInDEV node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/features/deals/importedDeal.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "빈 금액의 인라인 편집은 빈 입력으로 시작하고 새 숫자를 저장한다". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+     Errors  2 errors
+   Start at  11:07:09
+   Duration  12.12s (environment 41%, setup 22%, tests 18%, transform 12%, import 7%)
+

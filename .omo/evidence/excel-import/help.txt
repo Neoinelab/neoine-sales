@@ -1,0 +1,10 @@
+usage: import_contracts.py [-h] [--dry-run] filename
+
+Excel 계약을 DB에 일괄 등록합니다.
+
+positional arguments:
+  filename    contracts_20261123.xlsx 파일 경로
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   DB 쓰기 없이 매핑/중복/사용자 확인
