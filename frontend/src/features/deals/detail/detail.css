@@ -61,6 +61,7 @@ button.dd-small { padding: 2px 8px; }
 .dd-scroll table { min-width: 560px; }
 .dd-table td.wrap { max-width: 280px; }
 .dd-action-table td.dd-col-short { white-space: nowrap; }
+.dd-action-table .dd-next-action-status { flex-wrap: nowrap; white-space: nowrap; }
 .dd-action-table td.dd-col-long { min-width: 40em; overflow-wrap: anywhere; white-space: pre-wrap; }
 .dd-action-table tr.dd-action-row:hover { background: var(--accent-soft); }
 .dd-action-dl dd.dd-pre { white-space: pre-wrap; }

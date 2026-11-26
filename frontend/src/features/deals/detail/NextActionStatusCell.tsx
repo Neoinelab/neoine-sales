@@ -24,7 +24,7 @@ export function NextActionStatusCell({ action, canChange, busy, describedBy, sho
     </button>
   )
   return (
-    <span className="dd-row">
+    <span className="dd-row dd-next-action-status">
       <span>
         {NEXT_ACTION_STATUS_LABEL[status]}
         {showClosedOn && status !== 'open' && action.nextActionClosedOn ? ` · 종료일 ${action.nextActionClosedOn}` : ''}

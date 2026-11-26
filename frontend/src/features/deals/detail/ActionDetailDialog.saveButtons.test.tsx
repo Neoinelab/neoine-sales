@@ -22,9 +22,9 @@ async function openA() {
 }
 
 describe('편집 그룹 밖으로 포커스가 나갈 때', () => {
-  // 포커스가 편집 그룹 밖으로 나가도 저장하지 않고 편집과 입력이 유지된다.
+  // 편집 그룹 밖으로 포커스가 나가면 저장하지 않고 취소한다.
   // 테스트 코드: AC-157
-  it('neither saves nor closes the progress editor when the focus leaves the edit group', async () => {
+  it('편집 그룹 밖으로 포커스가 나가면 저장 없이 진행사항 수정을 취소한다', async () => {
     // given: 진행사항 편집에 " 후속"을 친 Action A 팝업(수정 요청 감시)
     const update = vi.spyOn(gateway.actions, 'update')
     const { view, dialog } = await openA()
@@ -35,15 +35,14 @@ describe('편집 그룹 밖으로 포커스가 나갈 때', () => {
     await view.user.tab()
     await view.user.tab()
     await view.user.tab()
-    // then: 포커스가 편집 그룹 밖에 있다
-    expect(group(dialog, '진행사항 편집')).not.toContainElement(document.activeElement as HTMLElement)
+    expect(within(dialog).queryByRole('group', { name: '진행사항 편집' })).not.toBeInTheDocument()
     await view.user.click(within(dialog).getByRole('button', { name: '유형 수정' }))
 
-    // then: 요청이 없고 진행사항 편집이 입력 그대로 열려 있으며 유형 편집도 함께 열려 있다
+    // then: 저장 요청 없이 원래 진행사항이 보이고 유형 편집으로 이동한다
     expect(update).not.toHaveBeenCalled()
-    expect(within(dialog).getByLabelText('진행사항')).toHaveValue('킥오프 미팅 후속')
-    expect(within(dialog).getByRole('button', { name: '진행사항 저장' })).toBeVisible()
-    expect(within(dialog).getByRole('button', { name: '진행사항 취소' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: '진행사항 수정' })).toHaveTextContent('킥오프 미팅')
+    expect(within(dialog).queryByRole('button', { name: '진행사항 저장' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: '진행사항 취소' })).not.toBeInTheDocument()
     expect(within(dialog).getByRole('combobox', { name: '유형' })).toBeVisible()
   })
 })
@@ -114,11 +113,11 @@ describe('저장·취소 버튼의 위치와 이름', () => {
     await view.user.tab()
     expect(pairCancel).toHaveFocus()
 
-    // then: 진행사항 편집과 묶음 편집이 동시에 열려 있고 각 칸은 자기 버튼으로만 취소된다
-    expect(group(dialog, '진행사항 편집')).toBeVisible()
+    // then: 묶음 편집으로 이동하면 진행사항 편집은 취소된다
+    expect(within(dialog).queryByRole('group', { name: '진행사항 편집' })).not.toBeInTheDocument()
     await view.user.click(pairCancel)
     expect(within(dialog).queryByRole('group', { name: 'Next Action · Due Date 편집' })).not.toBeInTheDocument()
-    expect(group(dialog, '진행사항 편집')).toBeVisible()
+    expect(within(dialog).queryByRole('group', { name: '진행사항 편집' })).not.toBeInTheDocument()
 
     // when: 수행일·유형 편집을 하나씩 연다
     // then: 그 편집 그룹에는 저장·취소 버튼이 없다
@@ -209,7 +208,7 @@ describe('한 편집을 저장하는 동안', () => {
   // 진행사항을 저장하는 동안 Next Action·Due Date 저장도 꺼져 앞 수정을 덮어쓰지 않는다.
   // 테스트 코드: AC-162
   it('disables the other editors save button while one is saving so the later request carries the saved progress', async () => {
-    // given: 진행사항 편집과 묶음 편집이 함께 열려 있고 진행사항을 고쳤으며 저장 응답을 붙들어 둔다
+    // given: 진행사항을 고쳤으며 저장 응답을 붙들어 둔다
     const { view, dialog } = await openA()
     const original = gateway.actions.update.bind(gateway.actions)
     const { gate, release } = makeGate()
@@ -221,12 +220,11 @@ describe('한 편집을 저장하는 동안', () => {
     const progress = within(dialog).getByLabelText('진행사항')
     await view.user.clear(progress)
     await view.user.type(progress, '먼저 저장한 진행')
-    await view.user.click(within(dialog).getByRole('button', { name: 'Next Action · Due Date 수정' }))
-    await view.user.type(within(dialog).getByLabelText('Next Action'), ' 보강')
-
     // when: "진행사항 저장"을 누르고 응답 전에 "Next Action · Due Date 저장"을 누르려 한다
     await view.user.click(within(dialog).getByRole('button', { name: '진행사항 저장' }))
     await waitFor(() => expect(within(dialog).getByRole('button', { name: '진행사항 저장' })).toBeDisabled())
+    await view.user.click(within(dialog).getByRole('button', { name: 'Next Action · Due Date 수정' }))
+    await view.user.type(within(dialog).getByLabelText('Next Action'), ' 보강')
     const pairSave = within(dialog).getByRole('button', { name: 'Next Action · Due Date 저장' })
     await view.user.click(pairSave)
 
@@ -236,11 +234,13 @@ describe('한 편집을 저장하는 동안', () => {
 
     // when: 응답이 온다
     release()
-    // then: 진행사항 편집이 닫히고 묶음 저장이 다시 켜진다
+    // then: 진행사항 저장 후 포커스 복귀로 묶음 편집도 닫힌다
     await waitFor(() => expect(within(dialog).queryByRole('group', { name: '진행사항 편집' })).not.toBeInTheDocument())
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Next Action · Due Date 저장' })).toBeEnabled())
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Next Action · Due Date 수정' })).toBeEnabled())
 
-    // when: "Next Action · Due Date 저장"을 누른다
+    // when: 묶음 편집을 다시 열고 보강 내용을 저장한다
+    await view.user.click(within(dialog).getByRole('button', { name: 'Next Action · Due Date 수정' }))
+    await view.user.type(within(dialog).getByLabelText('Next Action'), ' 보강')
     await view.user.click(within(dialog).getByRole('button', { name: 'Next Action · Due Date 저장' }))
     // then: 그 요청의 진행사항은 방금 저장한 값이다
     await waitFor(() => expect(update).toHaveBeenCalledTimes(2))

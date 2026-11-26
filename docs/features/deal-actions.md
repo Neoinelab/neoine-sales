@@ -34,6 +34,12 @@
 
 ## 2. 명세 (SDD)
 
+### 2026-11-25 Actions 상태·인라인 편집 변경 (사용자 요청 확정)
+
+- Actions 표의 현재 상태와 종료(수행)·종료(미수행) 버튼은 같은 행에 배치하며 줄바꿈하지 않는다. 좁은 화면에서는 기존 표의 가로 스크롤을 사용한다.
+- 저장·취소 버튼을 쓰는 인라인 편집은 입력기·달력·저장·취소를 포함한 편집 그룹 내부의 포커스 이동을 허용한다. 그룹 밖으로 포커스가 이동하면 저장 요청 없이 취소하고 원래 값을 표시하며, 이동한 포커스를 되돌리지 않는다. 저장 요청 중에는 기존 동작을 유지한다.
+- 이 규칙은 이전 AC-R56·AC-157의 외부 포커스 이동 후 편집 유지 규칙을 대체한다.
+
 ### 2.1 용어
 
 | 용어 | 뜻 |
@@ -472,12 +478,13 @@ AC-R21~AC-R29, AC-R31~AC-R33, AC-R40~AC-R43, AC-R47~AC-R56(AC-R30 폐지).
 | AC-154 | 화면: 진행사항 편집 칸은 값 칸 폭 전체이고 값 버튼 높이로 시작한다 | AC-R55, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
 | AC-155 | 화면: 편집 칸은 글이 길어지면 내용 높이로 늘고 지워도 시작 높이 아래로 줄지 않는다 | AC-R55, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
 | AC-156 | 화면: Next Action 편집 칸도 같은 크기의 여러 줄 칸이고 Enter·Shift+Enter는 줄바꿈이며 "저장"이 Due Date와 함께 저장한다 | AC-R55, AC-R51, AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.size.test.tsx` |
-| AC-157 | 화면: 진행사항 편집 밖으로 포커스가 나가도 저장하지 않고 편집과 입력이 유지된다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-157 | 화면: 진행사항 편집 밖으로 포커스가 나가면 저장 없이 취소한다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 | AC-158 | 화면: 묶음 편집에서 Due Date를 달력으로 골라도 저장하지 않는다 | AC-R56, AC-R51, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 | AC-159 | 화면: 진행사항·묶음 편집에만 "저장"·"취소" 버튼이 있고 접근 이름과 Tab 순서가 정해져 있다 | AC-R56 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 | AC-160 | 화면: "저장" 성공과 "취소" 뒤 포커스는 그 칸의 값 버튼으로 돌아온다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 | AC-161 | 화면: 저장하지 않은 편집이 있는 채 팝업을 닫으면 요청 없이 입력이 버려진다 | AC-R56, AC-R49 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
 | AC-162 | 화면: 한 편집을 저장하는 동안 다른 칸 편집의 "저장"도 꺼져 앞 수정을 덮어쓰지 않는다 | AC-R56, AC-R50 | frontend | `features/deals/detail/ActionDetailDialog.saveButtons.test.tsx` |
+| AC-163 | 화면: Actions 표의 진행사항·Next Action·Due Date 편집 밖으로 포커스를 옮기면 저장 없이 취소한다 | AC-R56, AC-UC2 | frontend | `features/deals/detail/ActionsTab.inline.test.tsx` |
 
 ### AC-001 sales가 Action을 등록하면 201과 Location이고 수행일·담당자·스냅숏을 서버가 정한다
 - Given KIM이 Status 제품소개(introduction)·Forecast Best인 Deal을 연 상태이고 서버 시계가 T다
@@ -1192,10 +1199,10 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 - When "Next Action · Due Date 수정"을 눌러 Next Action 칸 끝에 Enter, "추가 자료", Shift+Enter, "참고"를 치고 "Next Action · Due Date 저장"을 누른다
 - Then 열린 "Next Action" 칸은 여러 줄 칸(textarea)이고 클래스 `dd-fill-text`, 인라인 높이 `48px`로 열려 포커스가 있으며 "Due Date" 칸이 함께 있다. 값 버튼은 클래스 `dd-click-fill`을 가진다. 저장을 누르기 전에는 요청이 없고 칸 값은 "요구사항 문서 전달\n추가 자료\n참고"다. 수정 요청은 한 번이고 본문은 Next Action "요구사항 문서 전달\n추가 자료\n참고"·Due `2027-01-15`이며 팝업의 Next Action이 세 줄로 보인다
 
-### AC-157 화면: 진행사항 편집 밖으로 포커스가 나가도 저장하지 않고 편집과 입력이 유지된다
+### AC-157 화면: 진행사항 편집 밖으로 포커스가 나가면 저장 없이 취소한다
 - Given KIM의 Action A(진행사항 "킥오프 미팅") 상세 팝업에서 "진행사항 수정"을 열어 끝에 " 후속"을 쳤다
 - When Tab을 세 번 눌러 진행사항 칸 → "진행사항 저장" → "진행사항 취소"를 지나 편집 그룹 밖으로 포커스를 옮기고, 이어서 "유형 수정"을 누른다
-- Then 수정 요청이 없다. 진행사항 편집은 열린 채 칸 값이 "킥오프 미팅 후속"이고 "진행사항 저장"·"진행사항 취소"가 보이며, 유형 편집도 함께 열려 있다
+- Then 수정 요청이 없고 진행사항은 원래 값 "킥오프 미팅"으로 돌아온다. 진행사항 저장·취소 버튼은 사라지며 유형 편집으로 이동한다
 
 ### AC-158 화면: 묶음 편집에서 Due Date를 달력으로 골라도 저장하지 않는다
 - Given KIM의 Action A(Next Action "요구사항 문서 전달", Due 2027-01-15) 상세 팝업에서 "Next Action · Due Date 수정"을 열었다
@@ -1221,6 +1228,11 @@ AC-118~AC-127 공통: KIM의 기본 Action X(수행일 2026-11-12, `created_at` 
 - Given 상세 팝업에서 진행사항 편집과 Next Action·Due Date 편집이 동시에 열려 있고, 진행사항을 고친 상태이며 서버 응답을 늦춘다
 - When 진행사항 "저장"을 누르고, 응답 전에 Next Action·Due Date "저장"을 누르려 한다
 - Then 응답 전에는 두 "저장"이 모두 꺼져 있고 두 번째 요청은 가지 않는다. 응답이 오면 진행사항 편집이 닫히고 Next Action·Due Date "저장"이 다시 켜지며, 그 저장 요청의 진행사항 값은 방금 저장한 값이다
+
+### AC-163 화면: Actions 표의 편집 밖으로 포커스를 옮기면 저장 없이 취소한다
+- Given Actions 표의 진행사항·Next Action·Due Date 중 하나를 수정 중이다
+- When 편집 그룹 밖의 Actions 탭으로 포커스를 옮긴다
+- Then 저장 요청 없이 저장·취소 버튼이 사라지고, 포커스는 이동한 탭에 유지되며 다시 편집하면 원래 값이 표시된다
 
 ## 5. 변경 이력
 

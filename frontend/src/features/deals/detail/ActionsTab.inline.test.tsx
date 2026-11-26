@@ -15,6 +15,34 @@ async function setup() {
 }
 
 describe('Actions 목록 인라인 수정', () => {
+  // 테스트 코드: AC-163
+  it.each([
+    { opener: '진행사항', label: '진행사항', draft: '버릴 진행사항' },
+    { opener: 'Next Action · Due Date', label: 'Next Action', draft: '버릴 Next Action' },
+    { opener: 'Due Date', label: 'Due Date', draft: '20300101' },
+  ])('$label 편집 중 다른 영역으로 포커스를 옮기면 저장 없이 취소한다', async (field) => {
+    // given: Actions 표에서 값을 편집하고 있다
+    const { user, row } = await setup()
+    const update = vi.spyOn(gateway.actions, 'update')
+    await user.click(within(row).getByRole('button', { name: `${field.opener} 수정` }))
+    const input = within(row).getByLabelText<HTMLInputElement | HTMLTextAreaElement>(field.label)
+    const initial = input.value
+    await user.clear(input)
+    await user.type(input, field.draft)
+    const outside = screen.getByRole('tab', { name: 'Actions' })
+
+    // when: 편집 그룹 밖의 탭으로 포커스를 이동한다
+    await user.click(outside)
+
+    // then: 저장·취소 버튼이 사라지고 저장 요청 없이 원래 값으로 돌아간다
+    expect(within(row).queryByRole('button', { name: `${field.opener} 저장` })).not.toBeInTheDocument()
+    expect(within(row).queryByRole('button', { name: `${field.opener} 취소` })).not.toBeInTheDocument()
+    expect(outside).toHaveFocus()
+    expect(update).not.toHaveBeenCalled()
+    await user.click(within(row).getByRole('button', { name: `${field.opener} 수정` }))
+    expect(within(row).getByLabelText(field.label)).toHaveValue(initial)
+  })
+
   it('does not open the popup from row or non-date cells', async () => {
     const { user, row } = await setup()
     await user.click(row)

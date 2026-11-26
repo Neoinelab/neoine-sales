@@ -32,7 +32,7 @@ interface InlineEditProps {
   inputLabel?: string
   /** true면 값 버튼이 칸 폭 전체를 쓰고, 여는 순간 값 버튼 높이를 `startHeight`로 입력기에 전한다(여러 줄 칸용). */
   fill?: boolean
-  /** true면 저장·취소 버튼으로만 저장한다(Enter·Shift+Enter는 줄바꿈, 포커스 이탈·날짜 Enter·달력 선택은 저장하지 않고 편집 유지). */
+  /** true면 버튼으로만 저장하며 편집 그룹 밖으로 포커스가 이동하면 취소한다. */
   saveButtons?: boolean
   /** 같은 팝업의 다른 칸이 저장 중이다(saveButtons 칸의 "저장"을 끈다. 옛 값으로 앞 수정을 덮어쓰지 않게 한다). */
   otherSaving?: boolean
@@ -83,9 +83,9 @@ export function InlineEdit(props: InlineEditProps) {
     setEditing(true)
   }
 
-  function close() {
+  function close(restoreFocus = true) {
     skipBlur.current = true
-    returnFocus.current = true
+    returnFocus.current = restoreFocus
     setEditing(false)
     setError(null)
   }
@@ -123,9 +123,10 @@ export function InlineEdit(props: InlineEditProps) {
   }
 
   function onBlur(event: FocusEvent<HTMLElement>) {
-    if (skipBlur.current || busy || saveButtons) return
+    if (skipBlur.current || busy) return
     if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
-    if (kind === 'select') close()
+    if (saveButtons) close(false)
+    else if (kind === 'select') close()
     else void commit()
   }
 
@@ -178,7 +179,7 @@ export function InlineEdit(props: InlineEditProps) {
             <button type="button" className="primary" aria-label={`${label} 저장`} disabled={busy || otherSaving} onClick={() => void commit()}>
               저장
             </button>
-            <button type="button" aria-label={`${label} 취소`} disabled={busy} onClick={close}>
+            <button type="button" aria-label={`${label} 취소`} disabled={busy} onClick={() => close()}>
               취소
             </button>
           </div>
