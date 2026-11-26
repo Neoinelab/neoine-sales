@@ -23,7 +23,7 @@ interface MeetingTableProps {
 
 export function MeetingTable({ rows, sort, order, onSort, manage, canEdit, onEdit, onDelete }: MeetingTableProps) {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll meeting-table-scroll">
       <table className="meeting-table" aria-label="파트너 미팅 기록">
         <thead>
           <tr>

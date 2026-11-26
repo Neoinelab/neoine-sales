@@ -6,7 +6,6 @@
 .contract-filters > .error { flex-basis: 100%; }
 .contract-filters .field input, .contract-filters .field select { width: 100%; min-width: 0; }
 .contracts-count { margin: 0; }
-.contract-table th:first-child { width: clamp(18%, calc(20ic + 24px), 32%); }
 .contract-status[data-status='not_issued'] { background: var(--ui-warn-bg); color: var(--ui-warn-fg); }
 .contract-status[data-status='issued_new'], .contract-status[data-status='issued_renewal'] { background: var(--ui-ok-bg); color: var(--ui-ok-fg); }
 .contract-status[data-status='ended'] { background: var(--ui-neutral-bg); color: var(--ui-neutral-fg); }

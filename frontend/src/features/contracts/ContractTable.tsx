@@ -6,17 +6,17 @@ import { EXPIRY_TITLES, expiryLevel } from './contractExpiry'
 import type { ContractSort } from './contractFilter'
 import { STATUS_LABELS, isIssuedStatus } from './contractLabels'
 
-const COLUMNS: readonly { label: string; sort: ContractSort }[] = [
-  { label: 'Deal명', sort: 'dealName' },
+const COLUMNS: readonly { label: string; sort: ContractSort; widthClass?: string }[] = [
+  { label: 'Deal명', sort: 'dealName', widthClass: 'deal-list-name' },
   { label: '고객사명', sort: 'customer' },
-  { label: 'Vendor', sort: 'vendor' },
+  { label: 'Vendor', sort: 'vendor', widthClass: 'deal-list-vendor' },
   { label: '제품명', sort: 'product' },
   { label: '파트너사', sort: 'partner' },
   { label: '라이선스 시작일', sort: 'licenseStart' },
   { label: '라이선스 종료일', sort: 'licenseEnd' },
   { label: '상태', sort: 'status' },
-  { label: '담당영업', sort: 'salesOwner' },
-  { label: '기술담당', sort: 'techOwner' },
+  { label: '담당영업', sort: 'salesOwner', widthClass: 'deal-list-owner' },
+  { label: '기술담당', sort: 'techOwner', widthClass: 'deal-list-owner' },
 ]
 
 interface ContractTableProps {
@@ -33,8 +33,11 @@ const dash = (value: string | null) => (value === null || value === '' ? '-' : v
 
 export function ContractTable({ rows, sort, order, onSort, today, onEdit }: ContractTableProps) {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll deal-list-scroll">
       <table className="contract-table" aria-label="계약 목록">
+        <colgroup>
+          {COLUMNS.map(({ sort, widthClass }) => <col key={sort} className={widthClass} />)}
+        </colgroup>
         <thead>
           <tr>
             {COLUMNS.map((column) => (

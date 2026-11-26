@@ -76,7 +76,7 @@ export function DealRowItem({ row, columnCount, canWrite, onSaved }: DealRowItem
         </td>
         <td>{userLabel(row.owner)}</td>
         <td>{row.vendor?.name ?? '—'}</td>
-        <td>{cell('forecastKey')}</td>
+        <td className="deal-forecast">{cell('forecastKey')}</td>
         <td className="num">{cell('revenueAmount')}</td>
         <td>{cell('revenueDate')}</td>
         <td>
