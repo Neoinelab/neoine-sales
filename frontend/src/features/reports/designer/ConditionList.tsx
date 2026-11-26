@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { ReportCatalog, ReportCombine } from '../../../shared/model/reportTypes'
 import { ConditionRow } from './ConditionRow'
-import { fieldByKey, filterableFields } from './state/columnRules'
+import { fieldByKey, filterableFields, isSelectableField } from './state/columnRules'
 import type { DesignerAction, DesignerState } from './state/designerState'
 import { idsOf, type IssueView } from './state/issueView'
 import type { ScopePrediction } from './state/scope'
@@ -22,7 +22,8 @@ const COMBINES: { value: ReportCombine; label: string }[] = [
 /** 조건 결합(AND/OR) 라디오와 조건 행 목록. 조건이 없으면 무엇이 대상인지 안내한다. */
 export function ConditionList({ state, catalog, scope, issues, dispatch }: ConditionListProps) {
   const radioName = useId()
-  const fields = filterableFields(catalog)
+  const fields = filterableFields(catalog).filter(isSelectableField)
+  const rowLabel = { deal: 'Deal', action: 'Action', comment: 'Comment' }[scope.rowScope]
   const first = fields[0]
   const full = state.conditions.length >= catalog.limits.conditionsMax
   return (
@@ -42,7 +43,7 @@ export function ConditionList({ state, catalog, scope, issues, dispatch }: Condi
           {m.text}
         </p>
       ))}
-      {state.conditions.length === 0 && <p className="hint">조건이 없으면 모든 {scope.rowScope === 'action' ? 'Action' : 'Deal'}이 대상입니다</p>}
+      {state.conditions.length === 0 && <p className="hint">조건이 없으면 모든 {rowLabel}이 대상입니다</p>}
       {state.conditions.map((condition, i) => {
         const field = fieldByKey(catalog, condition.field)
         if (!field) {
@@ -65,7 +66,7 @@ export function ConditionList({ state, catalog, scope, issues, dispatch }: Condi
             n={i + 1}
             condition={condition}
             field={field}
-            fields={fields}
+            fields={isSelectableField(field) ? fields : [...fields, field]}
             catalog={catalog}
             combine={state.combine}
             messages={issues.condition(condition.uid)}

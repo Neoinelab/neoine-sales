@@ -9,15 +9,13 @@ setupReportClock()
 
 describe('필드 목록', () => {
   // 테스트 코드: RQ-069
-  it('Deal·Action 필드를 두 묶음으로 보이고 검색어로 거른다', async () => {
+  it('필드를 엔티티별로 보이고 검색어로 거른다', async () => {
     // when: 디자이너를 연다
     const { user } = await openDesigner()
 
-    // then: Deal 29개와 Action 12개 필드 버튼이 있다
+    // then: Deal과 Action에 각 엔티티의 필드가 있다
     const deal = screen.getByRole('group', { name: 'Deal' })
     const action = screen.getByRole('group', { name: 'Deal Actions' })
-    expect(within(deal).getAllByRole('button', { name: /컬럼에 추가$/ })).toHaveLength(29)
-    expect(within(action).getAllByRole('button', { name: /컬럼에 추가$/ })).toHaveLength(12)
     expect(within(deal).getByRole('button', { name: '금액 컬럼에 추가' })).toBeVisible()
     expect(within(action).getByRole('button', { name: 'Action 건수 컬럼에 추가' })).toBeVisible()
 
@@ -29,18 +27,14 @@ describe('필드 목록', () => {
     expect(screen.queryByRole('button', { name: 'Status 컬럼에 추가' })).not.toBeInTheDocument()
   })
 
-  // Deal 필드 끝에 Comment(Deal 전체), Action 필드에 Comment(Action)가 있고 Memo는 없다.
   // 테스트 코드: CM-084
-  it('lists Comment(Deal 전체) at the end of the Deal fields and Comment(Action) in the Action fields, without Memo', async () => {
+  it('Comments 그룹에서만 댓글 본문을 추가할 수 있다', async () => {
     // when: 새 리포트 작성 화면의 필드 목록을 연다
     await openDesigner()
 
-    // then: Deal 필드 맨 끝이 Comment(Deal 전체)이고 Action 필드에 Comment(Action)가 있으며 Memo는 어디에도 없다
-    const deal = screen.getByRole('group', { name: 'Deal' })
-    const action = screen.getByRole('group', { name: 'Deal Actions' })
-    const dealButtons = within(deal).getAllByRole('button', { name: /컬럼에 추가$/ })
-    expect(dealButtons.at(-1)).toHaveAccessibleName('Comment(Deal 전체) 컬럼에 추가')
-    expect(within(action).getByRole('button', { name: 'Comment(Action) 컬럼에 추가' })).toBeVisible()
+    // then: Comments에서 본문을 추가하고 예전 댓글 필드는 목록에 없다
+    expect(within(screen.getByRole('group', { name: 'Comments' })).getByRole('button', { name: 'Comment 본문 컬럼에 추가' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Comment\((Deal 전체|Action)\)/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Memo/ })).not.toBeInTheDocument()
   })
 

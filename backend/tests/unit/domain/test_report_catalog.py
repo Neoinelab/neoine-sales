@@ -111,15 +111,15 @@ NUMERIC_AGGREGATES = {Aggregate.SUM, Aggregate.AVG, Aggregate.MIN, Aggregate.MAX
 COUNT_AGGREGATES = {Aggregate.COUNT, Aggregate.COUNT_DISTINCT}
 
 
-def test_catalog_has_the_41_fields_of_the_design() -> None:
-    """카탈로그는 설계 표의 41개 필드를 정해진 key 순서로 가진다.
+def test_catalog_has_the_fields_of_the_design() -> None:
+    """카탈로그는 세 엔티티의 필드를 정해진 순서로 가진다.
 
     테스트 코드: RQ-002
     """
     # when: 카탈로그의 key 목록을 읽는다
     keys = [f.key for f in FIELD_CATALOG]
-    # then: Deal 29개(마지막이 deal.comment) 뒤에 Action 12개(action.comment 포함) 순서다
-    assert keys == DEAL_KEYS + ACTION_KEYS
+    # then: Deal과 Action 뒤에 Comments 본문 필드가 있다
+    assert keys == DEAL_KEYS + ACTION_KEYS + ["comment.body"]
 
 
 def test_catalog_has_29_deal_fields_and_12_action_fields() -> None:

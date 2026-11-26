@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import type { ReportCatalog, ReportField, ReportFieldType } from '../../../shared/model/reportTypes'
+import { isSelectableField } from './state/columnRules'
 
 const KIND_LABEL: Record<ReportFieldType, string> = {
   text: '텍스트',
@@ -30,7 +31,7 @@ export function FieldPanel({ catalog, usedFields, columnsFull, conditionsFull, o
     else onAddColumn(field)
   }
   const needle = search.trim().toLowerCase()
-  const matches = (field: ReportField) => needle === '' || field.label.toLowerCase().includes(needle)
+  const matches = (field: ReportField) => isSelectableField(field) && (needle === '' || field.label.toLowerCase().includes(needle))
   const groups = catalog.entities
     .map((entity) => ({ entity, fields: catalog.fields.filter((f) => f.entity === entity.key && matches(f)) }))
     .filter((g) => g.fields.length > 0)

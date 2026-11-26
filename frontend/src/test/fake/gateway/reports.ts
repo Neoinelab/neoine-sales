@@ -160,11 +160,11 @@ function aggregateOf(field: ReportField, column: ReportColumnInput, grouped: boo
 /** 서버 `definition.py`와 같은 판정: Action 필드가 컬럼에 있으면 Action 행, 조건에만 있으면 EXISTS. */
 function scopeOf(catalog: ReportCatalog, input: ReportQueryInput, columns: ReportResultColumn[]) {
   const entityOf = (key: string) => catalog.fields.find((f) => f.key === key)?.entity
-  const rowScope = input.columns.some((c) => entityOf(c.field) === 'action') ? 'action' : 'deal'
-  const actionFilter =
-    rowScope === 'action' ? 'join' : input.conditions.some((c) => entityOf(c.field) === 'action') ? 'exists' : 'none'
+  const entities = [...input.columns, ...input.conditions].map((item) => entityOf(item.field))
+  const rowScope = entities.includes('comment') ? 'comment' : input.columns.some((c) => entityOf(c.field) === 'action') ? 'action' : 'deal'
+  const actionFilter = entities.includes('action') ? (rowScope === 'deal' ? 'exists' : 'join') : 'none'
   const dealNumbersOnce =
-    rowScope === 'action' &&
+    rowScope !== 'deal' &&
     columns.some((c) => c.group) &&
     columns.some(
       (c) =>

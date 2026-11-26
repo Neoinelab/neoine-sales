@@ -148,4 +148,4 @@ def definition_entities(raw: RawReportDefinition) -> tuple[Entity, ...]:
     """컬럼·조건에 쓰인 필드의 엔티티. Deal은 항상 첫째, 모르는 key는 건너뛴다."""
     keys = [c.field for c in raw.columns] + [c.field for c in raw.conditions]
     used = {spec.entity for key in keys if (spec := find_field(key)) is not None}
-    return (Entity.DEAL, *([Entity.ACTION] if Entity.ACTION in used else []))
+    return tuple(entity for entity in Entity if entity is Entity.DEAL or entity in used)

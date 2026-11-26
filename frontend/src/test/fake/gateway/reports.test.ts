@@ -32,18 +32,20 @@ const CANNED: ReportResult = {
 
 describe('reports Fake', () => {
   // 테스트 코드: RQ-107
-  it('41개 필드 카탈로그의 사본을 주며 호출자가 바꿔도 원본은 그대로다', async () => {
+  it('필드 카탈로그의 사본을 주며 호출자가 바꿔도 원본은 그대로다', async () => {
     // given: 로그인한 Fake 게이트웨이
     const { gateway } = await mockAs('kim')
 
     // when: 카탈로그를 읽어 필드를 비우고 다시 읽는다
     const first = await gateway.reports.fields()
+    const originalLength = first.fields.length
     first.fields.length = 0
     const second = await gateway.reports.fields()
 
-    // then: 다시 읽으면 필드 41개이고 원본도 41개다
-    expect(second.fields).toHaveLength(41)
-    expect(REPORT_CATALOG.fields).toHaveLength(41)
+    // then: 다시 읽은 카탈로그와 원본에 처음 필드가 모두 남아 있다
+    expect(originalLength).toBeGreaterThan(0)
+    expect(second.fields).toHaveLength(originalLength)
+    expect(REPORT_CATALOG.fields).toHaveLength(originalLength)
   })
 
   // 테스트 코드: RQ-106

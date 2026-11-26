@@ -3510,7 +3510,8 @@
       "Entity": {
         "enum": [
           "deal",
-          "action"
+          "action",
+          "comment"
         ],
         "title": "Entity",
         "type": "string"
@@ -6436,7 +6437,8 @@
         "description": "결과 행 1개가 가리키는 단위.",
         "enum": [
           "deal",
-          "action"
+          "action",
+          "comment"
         ],
         "title": "RowScope",
         "type": "string"

@@ -134,8 +134,8 @@ function normalizeChart(chart: ReportChartInput | null | undefined, definition: 
 
 function entitiesOf(input: ReportQueryInput): SavedReportSummary['entities'] {
   const keys = [...input.columns.map((c) => c.field), ...input.conditions.map((c) => c.field)]
-  const hasAction = keys.some((key) => REPORT_CATALOG.fields.find((f) => f.key === key)?.entity === 'action')
-  return hasAction ? ['deal', 'action'] : ['deal']
+  const entities = new Set(REPORT_CATALOG.fields.filter((f) => keys.includes(f.key)).map((f) => f.entity))
+  return REPORT_CATALOG.entities.map(({ key }) => key).filter((key) => key === 'deal' || entities.has(key))
 }
 
 export function createSavedReportsGateway(ctx: MockContext, engine: QueryEngine): SavedMethods {

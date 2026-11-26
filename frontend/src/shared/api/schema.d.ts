@@ -2620,7 +2620,7 @@ export interface components {
          * Entity
          * @enum {string}
          */
-        Entity: "deal" | "action";
+        Entity: "deal" | "action" | "comment";
         /**
          * FieldType
          * @enum {string}
@@ -3655,7 +3655,7 @@ export interface components {
          * @description 결과 행 1개가 가리키는 단위.
          * @enum {string}
          */
-        RowScope: "deal" | "action";
+        RowScope: "deal" | "action" | "comment";
         /**
          * SecurityMode
          * @enum {string}

@@ -9,6 +9,7 @@ from enum import StrEnum
 class Entity(StrEnum):
     DEAL = "deal"
     ACTION = "action"
+    COMMENT = "comment"
 
 
 class FieldType(StrEnum):

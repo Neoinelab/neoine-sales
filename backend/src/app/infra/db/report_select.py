@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 
 from app.infra.db.report_fields import direction_order
 from app.infra.db.report_grouped import grouped_select, grouped_totals_select
-from app.infra.db.report_joins import ACTIONS, DEALS
+from app.infra.db.report_joins import ACTIONS, COMMENTS, DEALS
 from app.infra.db.report_parts import ReportParts
 
 if TYPE_CHECKING:
@@ -34,6 +34,8 @@ def _plain_select(parts: ReportParts) -> Select[Any]:
     order.append(DEALS.c.deal_code.asc())
     if parts.is_action_scope():
         order.extend([ACTIONS.c.acted_on.asc(), ACTIONS.c.id.asc()])
+    if parts.is_comment_scope():
+        order.extend([COMMENTS.c.created_at.asc(), COMMENTS.c.id.asc()])
     where = parts.where()
     statement = select(*values, func.count().over().label(TOTAL_COUNT_LABEL))
     if where is not None:

@@ -41,7 +41,7 @@ export function reportsContract(make: MakeGateway): void {
       const catalog = await reports.fields()
 
       // then: Deal 29·Action 12이고 형식별 포맷·단위·기본 집계가 자기 선택지 안에 있다
-      expect(catalog.fields).toHaveLength(41)
+      expect(catalog.fields).toHaveLength(42)
       expect(catalog.fields.filter((f) => f.entity === 'deal')).toHaveLength(29)
       expect(catalog.fields.filter((f) => f.entity === 'action')).toHaveLength(12)
       for (const field of catalog.fields) {

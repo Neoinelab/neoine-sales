@@ -24,7 +24,11 @@ class OperatorShape(StrEnum):
     NONE = "none"
 
 
-ENTITY_LABELS: dict[Entity, str] = {Entity.DEAL: "Deal", Entity.ACTION: "Deal Actions"}
+ENTITY_LABELS: dict[Entity, str] = {
+    Entity.DEAL: "Deal",
+    Entity.ACTION: "Deal Actions",
+    Entity.COMMENT: "Comments",
+}
 
 FORMAT_LABELS: dict[Format, str] = {
     Format.YMD: "연-월-일",

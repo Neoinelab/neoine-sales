@@ -10,6 +10,7 @@ from sqlalchemy import and_
 from app.infra.db.models import DealActionRow
 from app.infra.db.models_auth import UserRow
 from app.infra.db.models_catalog import ActionTypeRow, BantLabelRow, CodeRow, VendorRow
+from app.infra.db.models_comment import DealCommentRow
 from app.infra.db.models_contact import ContactRow
 from app.infra.db.models_deal import DealBantLabelRow, DealPartnerRow, DealRow
 
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 
 DEALS = DealRow.__table__
 ACTIONS = DealActionRow.__table__
+COMMENTS = DealCommentRow.__table__
 
 
 class Joins:
@@ -43,11 +45,15 @@ class Joins:
         self._entries.append((alias, on(alias)))
         return alias
 
-    def source(self, *, with_actions: bool) -> FromClause:
-        """deals에서 시작해 (행 범위가 Action이면 Action을 안쪽 조인하고) 등록된 별칭을 붙인다."""
+    def source(self, *, with_actions: bool, with_comments: bool) -> FromClause:
         source: FromClause = DEALS
         if with_actions:
             source = source.join(ACTIONS, ACTIONS.c.deal_id == DEALS.c.id)
+        if with_comments:
+            linked = COMMENTS.c.deal_id == DEALS.c.id
+            if with_actions:
+                linked = and_(linked, COMMENTS.c.action_id == ACTIONS.c.id)
+            source = source.join(COMMENTS, linked)
         for alias, on in self._entries:
             source = source.join(alias, on, isouter=True)
         return source

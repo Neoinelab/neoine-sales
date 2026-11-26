@@ -21,6 +21,10 @@ export function filterableFields(catalog: ReportCatalog): ReportField[] {
   return catalog.fields.filter((f) => f.filterable)
 }
 
+export function isSelectableField(field: ReportField): boolean {
+  return field.key !== 'deal.comment' && field.key !== 'action.comment'
+}
+
 export function fieldByKey(catalog: ReportCatalog, key: string): ReportField | undefined {
   return catalog.fields.find((f) => f.key === key)
 }

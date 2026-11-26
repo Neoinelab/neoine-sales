@@ -30,6 +30,7 @@ class RowScope(StrEnum):
 
     DEAL = "deal"
     ACTION = "action"
+    COMMENT = "comment"
 
 
 class ActionFilter(StrEnum):
@@ -106,13 +107,22 @@ class ReportDefinition:
         return any(column.group for column in self.columns)
 
     def row_scope(self) -> RowScope:
-        """Action 필드(`action.count` 포함)가 컬럼에 하나라도 있으면 Action 1건이 한 행이다."""
+        if self.uses_entity(Entity.COMMENT):
+            return RowScope.COMMENT
         if any(column.field.entity is Entity.ACTION for column in self.columns):
             return RowScope.ACTION
         return RowScope.DEAL
 
+    def uses_entity(self, entity: Entity) -> bool:
+        return any(column.field.entity is entity for column in self.columns) or any(
+            condition.field.entity is entity for condition in self.conditions
+        )
+
     def action_filter(self) -> ActionFilter:
-        if self.row_scope() is RowScope.ACTION:
+        scope = self.row_scope()
+        if scope is RowScope.ACTION or (
+            scope is RowScope.COMMENT and self.uses_entity(Entity.ACTION)
+        ):
             return ActionFilter.JOIN
         if any(condition.field.entity is Entity.ACTION for condition in self.conditions):
             return ActionFilter.EXISTS
@@ -121,7 +131,7 @@ class ReportDefinition:
     def deal_numbers_once(self) -> bool:
         """Action 행 범위의 그룹핑에서 Deal 숫자 합계·평균을 그룹마다 Deal당 한 번 계산하는가."""
         return (
-            self.row_scope() is RowScope.ACTION
+            self.row_scope() is not RowScope.DEAL
             and self.is_grouped()
             and any(column.uses_deal_number_once() for column in self.columns)
         )

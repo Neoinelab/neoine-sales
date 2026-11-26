@@ -45,6 +45,15 @@ corepack 서명 오류(`Cannot find matching keyid`)가 나면 pnpm 명령 앞�
 tail -f logs/backend.log        # 로그 보기
 ```
 
+재시작은 대상 TCP 포트의 모든 리스너에 기본 SIGTERM을 보냅니다. 첫 인자로 `now`를 주면
+SIGKILL을 보냅니다. 포트가 닫힌 뒤에만 기존 시작 스크립트를 실행하며, 종료 대기는 최대 1분입니다.
+포트 확인에는 `lsof`가 필요합니다. 시작 옵션은 재시작 스크립트에도 전달할 수 있습니다.
+
+```bash
+./scripts/restart-backend.sh --profile dev
+./scripts/restart-frontend.sh now --host localhost
+```
+
 직접 띄우려면(터미널 2개, 종료 Ctrl+C):
 
 ```bash

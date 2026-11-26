@@ -6,13 +6,14 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.domain.report.definition import RowScope
+from app.domain.report.definition import ActionFilter, RowScope
 from app.domain.report.vocabulary import Aggregate, FieldType
 from app.infra.db.report_buckets import bucket
 from app.infra.db.report_conditions import where_clause
+from app.infra.db.report_fields import FieldSql
 from app.infra.db.report_fields_action import action_fields
 from app.infra.db.report_fields_deal import deal_fields
-from app.infra.db.report_joins import Joins
+from app.infra.db.report_joins import COMMENTS, Joins
 from app.infra.db.report_risk import RiskExprs
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from app.domain.report.definition import ReportColumn
     from app.domain.report.fields import FieldSpec
     from app.domain.report.resolve import ResolvedReport
-    from app.infra.db.report_fields import Expr, FieldSql
+    from app.infra.db.report_fields import Expr
 
 _DATE_TYPES = frozenset({FieldType.DATE, FieldType.DATETIME})
 _COUNTS = frozenset({Aggregate.COUNT, Aggregate.COUNT_DISTINCT})
@@ -46,10 +47,14 @@ class ReportParts:
         self._fields = {
             **deal_fields(self._joins, report.context, self._risk),
             **action_fields(self._joins),
+            "comment.body": FieldSql(lambda: COMMENTS.c.body),
         }
 
     def is_action_scope(self) -> bool:
-        return self.definition.row_scope() is RowScope.ACTION
+        return self.definition.action_filter() is ActionFilter.JOIN
+
+    def is_comment_scope(self) -> bool:
+        return self.definition.row_scope() is RowScope.COMMENT
 
     def field(self, spec: FieldSpec) -> FieldSql:
         return self._fields[spec.key]
@@ -81,4 +86,6 @@ class ReportParts:
         return where_clause(self.report, self._fields, self._risk)
 
     def source(self) -> FromClause:
-        return self._joins.source(with_actions=self.is_action_scope())
+        return self._joins.source(
+            with_actions=self.is_action_scope(), with_comments=self.is_comment_scope()
+        )

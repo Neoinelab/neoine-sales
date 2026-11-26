@@ -1,9 +1,9 @@
-import type { ReportCatalog, ReportCombine } from '../../../../shared/model/reportTypes'
+import type { ReportCatalog, ReportCombine, ReportEntity } from '../../../../shared/model/reportTypes'
 import { fieldByKey } from './columnRules'
 import type { DesignerState } from './designerState'
 
 export interface ScopePrediction {
-  rowScope: 'deal' | 'action'
+  rowScope: ReportEntity
   actionFilter: 'none' | 'exists' | 'join'
   dealNumbersOnce: boolean
 }
@@ -15,10 +15,11 @@ export interface ScopePrediction {
  */
 export function predictScope(state: DesignerState, catalog: ReportCatalog): ScopePrediction {
   const entityOf = (key: string) => fieldByKey(catalog, key)?.entity
-  const rowScope = state.columns.some((c) => entityOf(c.field) === 'action') ? 'action' : 'deal'
-  const actionFilter = rowScope === 'action' ? 'join' : state.conditions.some((c) => entityOf(c.field) === 'action') ? 'exists' : 'none'
+  const entities = [...state.columns, ...state.conditions].map((item) => entityOf(item.field))
+  const rowScope = entities.includes('comment') ? 'comment' : state.columns.some((c) => entityOf(c.field) === 'action') ? 'action' : 'deal'
+  const actionFilter = entities.includes('action') ? (rowScope === 'deal' ? 'exists' : 'join') : 'none'
   const dealNumbersOnce =
-    rowScope === 'action' &&
+    rowScope !== 'deal' &&
     state.columns.some((c) => c.group) &&
     state.columns.some((c) => !c.group && fieldByKey(catalog, c.field)?.dealNumber === true && (c.aggregate === 'sum' || c.aggregate === 'avg'))
   return { rowScope, actionFilter, dealNumbersOnce }
@@ -32,7 +33,11 @@ export interface ScopeText {
 export function describeScope(prediction: ScopePrediction, combine: ReportCombine): ScopeText {
   const notes: string[] = []
   let headline = '행 단위: Deal 1건'
-  if (prediction.rowScope === 'action') {
+  if (prediction.rowScope === 'comment') {
+    headline = prediction.actionFilter === 'join'
+      ? '행 단위: Comment 1건 · Action에 연결된 Comment만'
+      : '행 단위: Comment 1건 · Deal의 전체 Comment'
+  } else if (prediction.rowScope === 'action') {
     headline = '행 단위: Action 1건 · Deal과 Join(Action이 없는 Deal은 빠짐)'
   } else if (prediction.actionFilter === 'exists') {
     headline = '행 단위: Deal 1건 · 조건에 맞는 Action이 있는 Deal만'

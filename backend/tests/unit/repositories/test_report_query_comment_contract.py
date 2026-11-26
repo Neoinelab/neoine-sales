@@ -7,11 +7,45 @@ null이다. action.comment는 그 Action에 연결된 Comment만, deal.comment�
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from tests.support.report_defs import col, cond
 from tests.unit.repositories.report_case import kst
 
 if TYPE_CHECKING:
     from tests.unit.repositories.report_case import ReportCase
+
+
+@pytest.mark.parametrize("action_mode", ["none", "column", "condition"])
+async def test_comment_entity_uses_only_its_linked_action(
+    report_case: ReportCase, action_mode: str
+) -> None:
+    """댓글은 개별 행이고 Action 컬럼이나 조건이 있으면 연결된 댓글만 조회한다."""
+    # given: Deal 직접 댓글, 두 Action의 댓글, 댓글 없는 Action
+    deal = await report_case.add_deal(name="A")
+    first = await report_case.deals.add_action(deal, kst(2026, 10, 5, 9), action="첫 Action")
+    second = await report_case.deals.add_action(deal, kst(2026, 10, 5, 10), action="둘째 Action")
+    await report_case.deals.add_action(deal, kst(2026, 10, 5, 11), action="댓글 없음")
+    await report_case.deals.add_comment(deal.id, "직접 댓글", kst(2026, 10, 6, 8))
+    await report_case.deals.add_comment(deal.id, "첫 댓글", kst(2026, 10, 6, 9), action=first)
+    await report_case.deals.add_comment(deal.id, "둘째 댓글", kst(2026, 10, 6, 10), action=second)
+    columns = [col("deal.name"), col("comment.body")]
+    if action_mode == "column":
+        columns.append(col("action.action"))
+    conditions = (
+        [cond("action.action", "equals", "첫 Action")] if action_mode == "condition" else []
+    )
+
+    # when: 댓글 컬럼과 선택한 Action 조합으로 조회한다
+    rows = await report_case.rows(columns, conditions)
+
+    # then: 직접 댓글 포함 여부와 Action 연결이 정확하다
+    expected = {
+        "none": [("A", "직접 댓글"), ("A", "첫 댓글"), ("A", "둘째 댓글")],
+        "column": [("A", "첫 댓글", "첫 Action"), ("A", "둘째 댓글", "둘째 Action")],
+        "condition": [("A", "첫 댓글")],
+    }
+    assert rows == expected[action_mode]
 
 
 async def test_action_comment_joins_the_comments_of_that_action_in_writing_order(

@@ -25,6 +25,7 @@ function ReportRow({ report, viewer, onCopy, onDelete }: { report: SavedReportSu
       <td>
         <span className="report-tag tag-deal">Deal</span>
         {report.entities.includes('action') && <span className="report-tag tag-action">Actions</span>}
+        {report.entities.includes('comment') && <span className="report-tag">Comments</span>}
       </td>
       <td>{report.chartKind ? kindLabel(report.chartKind) : '—'}</td>
       <td>{userLabel(report.owner)}</td>

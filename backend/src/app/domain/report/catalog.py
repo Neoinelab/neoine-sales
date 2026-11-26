@@ -4,11 +4,16 @@ from typing import TYPE_CHECKING
 
 from app.domain.report.catalog_action import ACTION_FIELDS
 from app.domain.report.catalog_deal import DEAL_FIELDS
+from app.domain.report.fields import text_field
 
 if TYPE_CHECKING:
     from app.domain.report.fields import FieldSpec
 
-FIELD_CATALOG: tuple[FieldSpec, ...] = (*DEAL_FIELDS, *ACTION_FIELDS)
+FIELD_CATALOG: tuple[FieldSpec, ...] = (
+    *DEAL_FIELDS,
+    *ACTION_FIELDS,
+    text_field("comment.body", "Comment 본문"),
+)
 
 _BY_KEY: dict[str, FieldSpec] = {spec.key: spec for spec in FIELD_CATALOG}
 

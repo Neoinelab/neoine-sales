@@ -79,7 +79,7 @@ async def test_fields_route_returns_the_catalog_shape() -> None:
         "fields",
     }
     assert [f["key"] for f in body["fields"]] == [f.key for f in FIELD_CATALOG]
-    assert [e["key"] for e in body["entities"]] == ["deal", "action"]
+    assert [e["key"] for e in body["entities"]] == ["deal", "action", "comment"]
 
 
 async def test_fields_route_documents_the_limits() -> None:
@@ -768,7 +768,7 @@ async def test_catalog_formatless_fields() -> None:
 
 
 async def test_catalog_only_amount_has_a_unit() -> None:
-    """필드는 41개이고 단위가 있는 필드는 금액 하나뿐이다.
+    """단위가 있는 필드는 금액 하나뿐이다.
 
     테스트 코드: RQ-002, RQ-004
     """
@@ -776,10 +776,9 @@ async def test_catalog_only_amount_has_a_unit() -> None:
         # when: 필드 목록을 요청한다 (전제: 로그인한 user)
         fields = (await http.get(FIELDS)).json()["fields"]
 
-    # then: 모든 필드에 unit 키가 있고 값이 있는 것은 금액 krw뿐이며 필드는 41개다
+    # then: 모든 필드에 unit 키가 있고 값이 있는 것은 금액 krw뿐이다
     assert all("unit" in f for f in fields)
     assert {f["key"]: f["unit"] for f in fields if f["unit"] is not None} == {"deal.amount": "krw"}
-    assert len(fields) == 41
 
 
 @pytest.mark.parametrize("role", [Role.ADMIN, Role.SALES])

@@ -6,7 +6,7 @@ import type { UserRef } from './types'
  * 서버 응답 키는 `gateway/http/mappers/report.ts`가 이 모양으로 바꾼다.
  */
 
-export type ReportEntity = 'deal' | 'action'
+export type ReportEntity = 'deal' | 'action' | 'comment'
 export type ReportFieldType = 'text' | 'code' | 'user' | 'number' | 'date' | 'datetime'
 export type ReportFormat =
   | 'ymd'
@@ -137,7 +137,7 @@ export interface ReportResultColumn {
 }
 
 export interface ReportResult {
-  rowScope: 'deal' | 'action'
+  rowScope: ReportEntity
   actionFilter: 'none' | 'exists' | 'join'
   dealNumbersOnce: boolean
   columns: ReportResultColumn[]

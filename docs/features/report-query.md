@@ -30,6 +30,13 @@
 
 ## 2. 명세 (SDD)
 
+### Comments 엔티티
+
+- 디자이너의 필드 선택 목록은 Deal, Deal Actions, Comments로 구성한다. Comments의 `comment.body`는 댓글 본문이며 컬럼과 조건에 사용할 수 있다.
+- Comments 필드를 컬럼이나 조건에 사용하면 댓글 하나가 결과 한 행이다. Action 필드를 쓰지 않으면 Deal에 직접 작성한 댓글과 그 Deal의 모든 Action 댓글을 포함한다. Action 필드를 컬럼이나 조건에 쓰면 해당 Action에 연결된 댓글만 포함한다. 댓글 없는 Deal이나 Action은 댓글 행을 만들지 않는다.
+- 그룹과 전체 합계에서 Deal 및 Action 집계는 댓글 수에 따라 중복되지 않는다. 댓글 본문의 건수는 댓글 행을 센다.
+- 예전 저장 리포트의 `deal.comment`와 `action.comment`는 기존 문자열 결합 방식으로 계속 동작한다. 새 필드를 추가하는 선택 목록에서는 숨긴다.
+
 ### 2.1 용어
 
 | 용어 | 뜻 |

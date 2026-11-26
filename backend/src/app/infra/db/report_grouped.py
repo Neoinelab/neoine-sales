@@ -12,7 +12,7 @@ from sqlalchemy import case, distinct, func, null, select
 
 from app.domain.report.vocabulary import Aggregate, Entity
 from app.infra.db.report_fields import direction_order
-from app.infra.db.report_joins import ACTIONS, DEALS
+from app.infra.db.report_joins import ACTIONS, COMMENTS, DEALS
 
 if TYPE_CHECKING:
     from sqlalchemy import ColumnElement, Label, Select, Subquery
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.infra.db.report_parts import ReportParts
 
 _RANK = "deal_rank"
+_ACTION_RANK = "action_rank"
 _TOTAL_COUNT = "total_count"
 
 
@@ -83,9 +84,15 @@ def _plan_columns(
 def _base(parts: ReportParts, inner: _InnerColumns, partition: list[Expr]) -> Subquery:
     """FROM/JOIN/WHERE를 적용한 안쪽 하위 쿼리. Action 행 범위면 Deal당 순번 열을 더한다."""
     columns: list[Label[Any]] = [*inner.labels, DEALS.c.id.label("deal_id")]
-    if parts.is_action_scope():
-        rank = func.row_number().over(partition_by=[*partition, DEALS.c.id], order_by=ACTIONS.c.id)
+    if parts.is_action_scope() or parts.is_comment_scope():
+        row_id = COMMENTS.c.id if parts.is_comment_scope() else ACTIONS.c.id
+        rank = func.row_number().over(partition_by=[*partition, DEALS.c.id], order_by=row_id)
         columns.append(rank.label(_RANK))
+    if parts.is_comment_scope() and parts.is_action_scope():
+        action_rank = func.row_number().over(
+            partition_by=[*partition, ACTIONS.c.id], order_by=COMMENTS.c.id
+        )
+        columns.append(action_rank.label(_ACTION_RANK))
     where = parts.where()
     statement = select(*columns)
     if where is not None:
@@ -93,12 +100,13 @@ def _base(parts: ReportParts, inner: _InnerColumns, partition: list[Expr]) -> Su
     return statement.select_from(parts.source()).subquery("base")
 
 
-def _aggregate(
-    column: ReportColumn, ref: ColumnElement[Any], base: Subquery, *, ranked: bool
-) -> Expr:
+def _aggregate(column: ReportColumn, ref: ColumnElement[Any], base: Subquery) -> Expr:
     """집계식. Action 행 범위의 Deal 필드(합계·평균·건수)는 Deal당 한 번만 센다."""
-    once = ranked and column.field.entity is Entity.DEAL
-    first_only = case((base.c[_RANK] == 1, ref)) if once else ref
+    first_only = ref
+    if _RANK in base.c and column.field.entity is Entity.DEAL:
+        first_only = case((base.c[_RANK] == 1, ref))
+    if _ACTION_RANK in base.c and column.field.entity is Entity.ACTION:
+        first_only = case((base.c[_ACTION_RANK] == 1, ref))
     match column.aggregate:
         case Aggregate.SUM:
             return func.sum(first_only)
@@ -152,11 +160,7 @@ def grouped_select(parts: ReportParts) -> Select[Any]:
                 base.c[name] for name in (plan.group.key, plan.group.value, plan.group.order)
             )
         elif plan.measure is not None:
-            outer.append(
-                _aggregate(
-                    plan.column, base.c[plan.measure], base, ranked=parts.is_action_scope()
-                ).label(f"c{index}")
-            )
+            outer.append(_aggregate(plan.column, base.c[plan.measure], base).label(f"c{index}"))
     order = _order_by(parts, plans, base, outer)
     return (
         select(*outer, func.count().over().label(_TOTAL_COUNT))
@@ -176,9 +180,5 @@ def grouped_totals_select(parts: ReportParts) -> Select[Any]:
         if plan.measure is None:
             outer.append(null().label(f"c{index}"))
         else:
-            outer.append(
-                _aggregate(
-                    plan.column, base.c[plan.measure], base, ranked=parts.is_action_scope()
-                ).label(f"c{index}")
-            )
+            outer.append(_aggregate(plan.column, base.c[plan.measure], base).label(f"c{index}"))
     return select(*outer).select_from(base)

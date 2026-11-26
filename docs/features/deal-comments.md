@@ -869,9 +869,9 @@ Comment의 상태는 읽음 여부(`read_at`)뿐이다. 본문·소속 Deal·연
 - When 배지 함수에 0·1·99·100·250을 넣고, 삭제 판정에 (KIM sales·KIM 작성), (KIM sales·PARK 작성), (ROOT admin), (LEE user·LEE 작성)을 넣고, 읽음 처리 판정에 (KIM·Owner KIM), (ROOT·Owner KIM), (PARK·Owner KIM)을 넣는다
 - Then 배지는 없음·"1"·"99"·"99+"·"99+"이고, 삭제는 true·false·true·false이며, 읽음 처리는 true·false·false다
 
-### CM-084 화면: Reports 필드 목록에 Comment(Deal 전체)·Comment(Action)가 있고 Memo가 없다
+### CM-084 화면: Reports 필드 목록의 Comments 그룹에서 댓글 본문을 고른다
 - When Reports 새 리포트 작성 화면의 필드 목록을 연다
-- Then Deal 필드 끝에 "Comment(Deal 전체)"가, Action 필드에 "Comment(Action)"가 있고 "Memo"는 없다(서버 카탈로그 순서 그대로)
+- Then Comments 그룹에 "Comment 본문"이 있고, 기존 "Comment(Deal 전체)"·"Comment(Action)" 및 "Memo"는 새 필드 목록에 없다
 
 ### CM-085 Deal 목록 행의 unread_comment_count는 그 Deal의 읽지 않은 Comment 수이고 comment-counts의 unread와 같다
 - Given D에 PARK이 쓴 Deal Comment 1건과 A의 Action Comment 2건(모두 읽지 않음), KIM(Owner)이 쓴 Deal Comment 1건(읽음)이 있다. E에는 PARK이 쓴 Comment 1건(읽지 않음)이 있다. Comment가 없는 Deal F가 있다
