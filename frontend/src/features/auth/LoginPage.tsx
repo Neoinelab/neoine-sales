@@ -38,7 +38,9 @@ export function LoginPage() {
 
   return (
     <main className="login">
-      <h1>neoine-sales</h1>
+      <h1>
+        <img src="/images/salesX.png" alt="salesX" width={2172} height={724} />
+      </h1>
       <ErrorBanner error={login.error ?? config.error} />
       <form
         className="panel"

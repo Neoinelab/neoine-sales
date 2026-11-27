@@ -40,6 +40,7 @@ describe('로그인 화면 (AU)', () => {
     await openLogin()
 
     // then: 아이디·비밀번호 칸과 "로그인" 버튼 하나뿐이고 빠른 로그인·아무 비밀번호 안내가 없다
+    expect(screen.getByRole('img', { name: 'salesX' })).toHaveAttribute('src', '/images/salesX.png')
     expect(screen.getByLabelText('아이디')).toBeVisible()
     expect(screen.getByLabelText('비밀번호')).toBeVisible()
     expect(screen.queryByRole('region', { name: '빠른 로그인' })).not.toBeInTheDocument()
