@@ -7,16 +7,16 @@ import type { ContractSort } from './contractFilter'
 import { STATUS_LABELS, isIssuedStatus } from './contractLabels'
 
 const COLUMNS: readonly { label: string; sort: ContractSort; width: number }[] = [
-  { label: 'Deal명', sort: 'dealName', width: 22 },
-  { label: '고객사명', sort: 'customer', width: 8 },
-  { label: 'Vendor', sort: 'vendor', width: 10 },
-  { label: '제품명', sort: 'product', width: 12 },
-  { label: '파트너사', sort: 'partner', width: 8 },
-  { label: '라이선스 시작일', sort: 'licenseStart', width: 8 },
-  { label: '라이선스 종료일', sort: 'licenseEnd', width: 8 },
-  { label: '상태', sort: 'status', width: 8 },
-  { label: '담당영업', sort: 'salesOwner', width: 8 },
-  { label: '기술담당', sort: 'techOwner', width: 8 },
+  { label: 'Deal명', sort: 'dealName', width: 17.6 },
+  { label: '고객사명', sort: 'customer', width: 8.49 },
+  { label: 'Vendor', sort: 'vendor', width: 10.49 },
+  { label: '제품명', sort: 'product', width: 12.48 },
+  { label: '파트너사', sort: 'partner', width: 8.49 },
+  { label: '라이선스 시작일', sort: 'licenseStart', width: 8.49 },
+  { label: '라이선스 종료일', sort: 'licenseEnd', width: 8.49 },
+  { label: '상태', sort: 'status', width: 8.49 },
+  { label: '담당영업', sort: 'salesOwner', width: 8.49 },
+  { label: '기술담당', sort: 'techOwner', width: 8.49 },
 ]
 
 interface ContractTableProps {

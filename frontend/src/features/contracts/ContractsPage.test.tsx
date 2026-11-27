@@ -61,7 +61,7 @@ describe('목록 (AC2, AC19)', () => {
     expect(screen.getByText(`전체 ${contracts.length}건`)).toBeVisible()
     expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(COLUMNS)
     expect(Array.from(table().querySelectorAll('col'), (col) => col.style.width))
-      .toEqual(['22%', '8%', '10%', '12%', '8%', '8%', '8%', '8%', '8%', '8%'])
+      .toEqual(['17.6%', '8.49%', '10.49%', '12.48%', '8.49%', '8.49%', '8.49%', '8.49%', '8.49%', '8.49%'])
     expect(within(table()).queryByRole('columnheader', { name: '구분' })).not.toBeInTheDocument()
     expect(within(table()).queryByRole('columnheader', { name: 'Deal 코드' })).not.toBeInTheDocument()
   })

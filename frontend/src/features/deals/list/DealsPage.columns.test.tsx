@@ -53,7 +53,7 @@ describe('목록 열 정리: 헤더 (AC1·AC2)', () => {
 
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(HEADERS)
     expect(Array.from(screen.getByRole('table').querySelectorAll('col'), (col) => col.style.width))
-      .toEqual(['26%', '6%', '6%', '6%', '6%', '6%', '6%', '26%', '6%', '6%'])
+      .toEqual(['20.8%', '6.57%', '6.58%', '6.58%', '6.58%', '6.58%', '6.58%', '26.57%', '6.58%', '6.58%'])
     expect(screen.queryByRole('columnheader', { name: 'BANT' })).not.toBeInTheDocument()
   })
 
