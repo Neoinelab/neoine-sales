@@ -210,7 +210,7 @@ describe('업로드 검증', () => {
 
 describe('같은 이름 업로드', () => {
   // 테스트 코드: AT-048
-  it('같은 이름이면 묻고 "교체"를 누르면 설명이 바뀐다', async () => {
+  it('같은 이름이면 묻고 "덮어쓰기"를 누르면 설명이 바뀐다', async () => {
     // given: 본인이 올린 파일이 있는 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 같은 이름을 새 설명으로 올린다
@@ -218,8 +218,7 @@ describe('같은 이름 업로드', () => {
     // then: "같은 이름의 파일" 대화상자와 문구가 보인다
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
     expect(dialog).toHaveTextContent('같은 이름의 파일이 이미 있습니다: 견적서_한빛은행_v2.pdf')
-    // when: "교체"를 누른다
-    await userEvent.click(within(dialog).getByRole('button', { name: '교체' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: '덮어쓰기' }))
     // then: 대화상자가 닫히고 설명이 바뀌며 행 수는 그대로이고 "교체되었습니다" 알림이 보인다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(rowOf(panel, '견적서_한빛은행_v2.pdf')).toHaveTextContent('교체본'))
@@ -228,18 +227,19 @@ describe('같은 이름 업로드', () => {
   })
 
   // 테스트 코드: AT-048
-  it('"건너뛰기"를 누르면 목록이 그대로다', async () => {
+  it('"취소"를 누르면 목록이 그대로다', async () => {
     // given: 다른 sales의 파일이 있는 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
+    const send = vi.spyOn(gateway.attachments, 'upload')
     // when: 같은 이름을 올려 대화상자를 연다
     await upload(panel, file('제안서_ITDR.pptx', 5000), '교체본')
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
-    // when: "건너뛰기"를 누른다
-    await userEvent.click(within(dialog).getByRole('button', { name: '건너뛰기' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: '취소' }))
     // then: 대화상자가 닫히고 설명과 행 수가 그대로다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('ITDR 제안서(공유용)')
     expect(within(panel).getAllByRole('row')).toHaveLength(4)
+    expect(send.mock.calls.map((call) => call[1].onExists)).toEqual(['ask'])
   })
 })
 
@@ -309,7 +309,7 @@ describe('삭제 권한', () => {
 
 describe('같은 이름 교체 권한', () => {
   // 테스트 코드: AT-049
-  it('재직 중인 다른 sales의 파일이면 "교체"는 비활성이고 안내가 보인다', async () => {
+  it('재직 중인 다른 sales의 파일이면 "덮어쓰기"는 비활성이고 안내가 보인다', async () => {
     // given: sales로 연 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 다른 재직 sales의 파일과 같은 이름을 올린다
@@ -317,15 +317,14 @@ describe('같은 이름 교체 권한', () => {
     // then: 같은 이름 대화상자가 뜬다
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
 
-    // then: "교체"는 비활성, 안내가 보이고 "건너뛰기"는 활성이며 파일은 그대로다
-    expect(within(dialog).getByRole('button', { name: '교체' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '덮어쓰기' })).toBeDisabled()
     expect(within(dialog).getByText('본인이 올린 파일만 교체할 수 있습니다.')).toBeVisible()
-    expect(within(dialog).getByRole('button', { name: '건너뛰기' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: '취소' })).toBeEnabled()
     expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('ITDR 제안서(공유용)')
   })
 
   // 테스트 코드: AT-049
-  it('본인 파일이면 "교체"가 활성이고 안내가 없다', async () => {
+  it('본인 파일이면 "덮어쓰기"가 활성이고 안내가 없다', async () => {
     // given: sales로 연 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 본인 파일과 같은 이름을 올린다
@@ -333,13 +332,12 @@ describe('같은 이름 교체 권한', () => {
     // then: 같은 이름 대화상자가 뜬다
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
 
-    // then: "교체"가 활성이고 안내가 없다
-    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: '덮어쓰기' })).toBeEnabled()
     expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
   })
 
   // 테스트 코드: AT-049
-  it('퇴사한 sales의 파일이면 "교체"가 활성이고 안내가 없다', async () => {
+  it('퇴사한 sales의 파일이면 "덮어쓰기"가 활성이고 안내가 없다', async () => {
     // given: sales로 연 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 퇴사 sales의 파일과 같은 이름을 올린다
@@ -347,8 +345,7 @@ describe('같은 이름 교체 권한', () => {
     // then: 같은 이름 대화상자가 뜬다
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
 
-    // then: "교체"가 활성이고 안내가 없다
-    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: '덮어쓰기' })).toBeEnabled()
     expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
   })
 
@@ -358,8 +355,7 @@ describe('같은 이름 교체 권한', () => {
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 퇴사 sales의 파일과 같은 이름을 올리고
     await upload(panel, file('기술검토.xlsx', 5000), '새 검토')
-    // when: "교체"를 누른다
-    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '교체' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '덮어쓰기' }))
 
     // then: 설명이 바뀌고 업로더가 요청자(김영업)다
     await waitFor(() => expect(rowOf(panel, '기술검토.xlsx')).toHaveTextContent('새 검토'))
@@ -367,7 +363,7 @@ describe('같은 이름 교체 권한', () => {
   })
 
   // 테스트 코드: AT-049
-  it('admin은 다른 sales의 파일도 "교체"가 활성이고 안내가 없다', async () => {
+  it('admin은 다른 sales의 파일도 "덮어쓰기"가 활성이고 안내가 없다', async () => {
     // given: admin으로 연 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'admin')
     // when: 다른 sales의 파일과 같은 이름을 올린다
@@ -375,8 +371,7 @@ describe('같은 이름 교체 권한', () => {
     // then: 같은 이름 대화상자가 뜬다
     const dialog = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
 
-    // then: "교체"가 활성이고 안내가 없다
-    expect(within(dialog).getByRole('button', { name: '교체' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: '덮어쓰기' })).toBeEnabled()
     expect(within(dialog).queryByText('본인이 올린 파일만 교체할 수 있습니다.')).not.toBeInTheDocument()
   })
 
@@ -386,21 +381,19 @@ describe('같은 이름 교체 권한', () => {
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입', 'admin')
     // when: 다른 sales의 파일과 같은 이름을 올리고
     await upload(panel, file('제안서_ITDR.pptx', 5000), '관리자 교체')
-    // when: "교체"를 누른다
-    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '교체' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '덮어쓰기' }))
 
     // then: 설명이 바뀐다
     await waitFor(() => expect(rowOf(panel, '제안서_ITDR.pptx')).toHaveTextContent('관리자 교체'))
   })
 
   // 테스트 코드: AT-048
-  it('다른 sales의 파일이어도 "건너뛰기"는 권한 안내 없이 닫힌다', async () => {
+  it('다른 sales의 파일이어도 "취소"는 권한 안내 없이 닫힌다', async () => {
     // given: sales로 연 Deal의 업로드 폼
     const { panel } = await openPanel(1, '한빛은행 ITDR 도입')
     // when: 다른 sales의 파일과 같은 이름을 올리고
     await upload(panel, file('제안서_ITDR.pptx', 5000), '건너뛸 설명')
-    // when: "건너뛰기"를 누른다
-    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '건너뛰기' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '취소' }))
 
     // then: 대화상자가 닫히고 오류 알림이 없다
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

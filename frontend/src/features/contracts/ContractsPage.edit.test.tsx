@@ -305,14 +305,13 @@ describe('첨부 파일 (B6, AC20)', () => {
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('설명은 100자 이내로 입력하세요.')
   })
 
-  // 같은 이름이면 교체·건너뛰기를 묻고 교체를 고르면 replace로 올린다.
   // 테스트 코드: LC-072
-  it('asks to replace or skip on a 409 for the same name and replaces when 교체 is chosen', async () => {
-    // given: a.pdf가 있는 계약 대화상자
-    const c = withFiles()
-    const name = (await filesOf(c))[0]!.fileName
+  it('asks before overwriting a same-named file and replaces it when confirmed', async () => {
+    const { dlg } = await openEdit(clean())
+    const name = 'duplicate.pdf'
+    await upload(dlg, file(name), '원본')
+    await within(dlg).findByText(`업로드되었습니다: ${name}`)
     const send = vi.spyOn(gateway.licenseContracts.attachments, 'upload')
-    const { dlg } = await openEdit(c)
 
     // when: a.pdf를 올려 409를 받는다
     await upload(dlg, file(name, 5000), '교체본')
@@ -320,8 +319,7 @@ describe('첨부 파일 (B6, AC20)', () => {
     // then: 같은 이름의 파일 대화상자가 뜬다
     const confirm = await screen.findByRole('dialog', { name: '같은 이름의 파일' })
     expect(confirm).toHaveTextContent(`같은 이름의 파일이 이미 있습니다: ${name}`)
-    // when: 교체를 누른다
-    await userEvent.click(within(confirm).getByRole('button', { name: '교체' }))
+    await userEvent.click(within(confirm).getByRole('button', { name: '덮어쓰기' }))
     // then: replace 요청 뒤 교체본이 목록에 하나만 보인다
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '같은 이름의 파일' })).not.toBeInTheDocument())
     await waitFor(() => expect(within(dlg).getByRole('row', { name: new RegExp(name) })).toHaveTextContent('교체본'))
@@ -329,25 +327,21 @@ describe('첨부 파일 (B6, AC20)', () => {
     expect(within(dlg).getAllByRole('button', { name })).toHaveLength(1)
   })
 
-  // 건너뛰기를 고르면 skip 요청 뒤 목록이 그대로다.
   // 테스트 코드: LC-072
-  it('keeps the list as it was when 건너뛰기 is chosen (skip request)', async () => {
-    // given: a.pdf가 있는 계약 대화상자
-    const c = withFiles()
-    const before = await filesOf(c)
-    const name = before[0]!.fileName
+  it('keeps the original without sending another upload request when cancelled', async () => {
+    const { dlg } = await openEdit(clean())
+    const name = 'duplicate.pdf'
+    await upload(dlg, file(name), '원본')
+    await within(dlg).findByText(`업로드되었습니다: ${name}`)
     const send = vi.spyOn(gateway.licenseContracts.attachments, 'upload')
-    const { dlg } = await openEdit(c)
 
-    // when: a.pdf를 올려 409를 받고 건너뛰기를 누른다
-    await upload(dlg, file(name, 5000), '건너뛸 설명')
-    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '건너뛰기' }))
+    await upload(dlg, file(name, 5000), '새 설명')
+    await userEvent.click(within(await screen.findByRole('dialog', { name: '같은 이름의 파일' })).getByRole('button', { name: '취소' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '같은 이름의 파일' })).not.toBeInTheDocument())
-    // then: skip 요청이 가고 목록은 그대로다
-    expect(send.mock.calls.at(-1)?.[1].onExists).toBe('skip')
-    expect((await filesOf(c)).map((a) => a.id)).toEqual(before.map((a) => a.id))
-    expect(within(dlg).queryByText('건너뛸 설명')).not.toBeInTheDocument()
+    expect(send.mock.calls.map((call) => call[1].onExists)).toEqual(['ask'])
+    expect(within(dlg).getByRole('row', { name: /duplicate\.pdf/ })).toHaveTextContent('원본')
+    expect(within(dlg).queryByText('새 설명')).not.toBeInTheDocument()
   })
 
   // 저장 위치를 쓸 수 없다는 서버 문구를 보인다.

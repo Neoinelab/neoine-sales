@@ -131,7 +131,7 @@ Deal 삭제·권한·사용자
 - **LC-R32** 만료 임박 색: 발급 상태 계약만, 종료일 < 오늘+1개월이면 위험(`만료 1개월 미만`, 지난 날 포함), 종료일 < 오늘+2개월이면 주의(`만료 2개월 미만`). 오늘+N개월은 같은 날이 없으면 그 달 말일. 오늘은 서버 시계 기준. 상태 칸은 발급 상태면 `status-issued`, 종료면 `status-ended`.
 - **LC-R33** 계약 수정 대화상자(제목 `계약 수정 - <Deal명>`): Deal 정보(고객사명·Vendor·제품명·파트너사·담당영업)는 읽기 전용, 기술담당·점검주기·Note는 sales·admin만 편집. 라이선스 발급·갱신 버튼을 누르면 시작일·종료일 칸이 활성화되고 시작일로 포커스한다. 신규 기본값은 오늘부터 1년, 갱신 기본값은 기존 종료일 다음 날부터 기존 기간이다. 두 날짜를 직접 변경할 수 있고 종료일 포함 유지 일수를 표시한다. 미발급의 두 날짜는 빈 비활성 칸이며 기존 계약은 저장된 두 날짜를 그대로 표시한다. `저장`은 버튼을 누르지 않았으면 계약 칸 수정, 눌렀으면 두 날짜로 발급·갱신한다. 빈 날짜, 잘못된 날짜, 종료일이 시작일보다 빠른 경우에는 저장하지 않고 오류를 표시한다. Deal이 Won이 아니면(`dealIsWon` false) 발급·갱신 버튼은 비활성이고 힌트 `Won인 Deal의 계약만 발급하거나 갱신할 수 있습니다.`를 보인다. 종료 계약에는 발급·갱신·계약 종료 버튼이 없다. 성공하면 대화상자를 닫고 목록 위 알림(`계약을 수정했습니다.`·`라이선스를 발급했습니다.`·`라이선스를 갱신했습니다.`·`계약을 종료했습니다.`·`계약을 삭제했습니다.`), 서버 거절(409·422 등)은 대화상자 안 `role="alert"`로 보이고 닫히지 않는다. `취소`는 입력을 버린다. user에게는 `저장` 버튼이 없고 칸이 비활성이다.
 - **LC-R34** `계약 종료`(종료가 아닌 계약, sales·admin)는 확인 대화상자(제목 `계약 종료 확인`, `Deal <Deal명>의 계약을 종료합니다. 종료한 계약은 다시 발급·갱신할 수 없습니다.`, 버튼 `종료`) 뒤에 요청한다. `계약삭제`(admin에게만, 모든 상태)는 확인 대화상자(제목 `계약 삭제`, `Deal <Deal명>의 계약과 첨부 파일을 삭제합니다. 삭제한 계약은 복구할 수 없습니다.`, 버튼 `삭제`) 뒤에 요청한다. 확인 대화상자에서 취소하면 아무것도 바뀌지 않는다.
-- **LC-R35** 계약 첨부 영역(대화상자 안 `첨부 파일`): 목록(파일명·설명·크기·업로드한 사용자·업로드 시각), 파일명을 누르면 내려받기, 업로드 폼과 `관리` 열은 sales·admin에게만. 화면 규칙(파일 없음·차단 확장자·설명 100자)을 어기면 요청 없이 문구를 보인다. 409 `file-exists`면 `같은 이름의 파일` 확인(`교체`/`건너뛰기`, 교체 권한이 없으면 `교체` 비활성 + `본인이 올린 파일만 교체할 수 있습니다.`). 성공 알림 `업로드되었습니다: <이름>`·`교체되었습니다: <이름>`·`삭제되었습니다: <이름>`. 삭제는 확인(`첨부 파일 삭제`, `"<이름>" 파일을 삭제합니다.`) 뒤, 권한이 없는 행의 `삭제`는 비활성(title `본인이 올린 파일만 삭제할 수 있습니다.`). 서버 오류(503 등)는 서버 문구를 `role="alert"`로 보인다. 비었으면 `첨부된 파일이 없습니다.`.
+- **LC-R35** 계약 첨부 영역(대화상자 안 `첨부 파일`): 목록(파일명·설명·크기·업로드한 사용자·업로드 시각), 파일명을 누르면 내려받기, 업로드 폼과 `관리` 열은 sales·admin에게만. 화면 규칙(파일 없음·차단 확장자·설명 100자)을 어기면 요청 없이 문구를 보인다. 409 `file-exists`면 `같은 이름의 파일` 확인(`덮어쓰기`/`취소`, 교체 권한이 없으면 `덮어쓰기` 비활성 + `본인이 올린 파일만 교체할 수 있습니다.`). 취소하거나 Esc를 누르면 추가 요청 없이 확인창을 닫는다. 성공 알림 `업로드되었습니다: <이름>`·`교체되었습니다: <이름>`·`삭제되었습니다: <이름>`. 삭제는 확인(`첨부 파일 삭제`, `"<이름>" 파일을 삭제합니다.`) 뒤, 권한이 없는 행의 `삭제`는 비활성(title `본인이 올린 파일만 삭제할 수 있습니다.`). 서버 오류(503 등)는 서버 문구를 `role="alert"`로 보인다. 비었으면 `첨부된 파일이 없습니다.`.
 - **LC-R36** Won 이탈 확인(화면 4곳: Deal 폼 수정, 목록 인라인 편집, 상세 요약 바, Action 등록): 동기화 확인(Forecast/Status 선택) 뒤, 요청 전에 판정한다. Won 이탈이 아니면 묻지 않는다. Won 이탈이고 `hasIssuedLicenseContract`면 '확인' 버튼 하나뿐인 안내 대화상자(제목 `라이선스 계약 처리`, 본문 LC-R8 문구)를 띄우고 요청하지 않으며 값은 원래대로다. 발급 계약이 없고 `licenseContractCount` ≥ 1이면 `라이선스 계약 처리` 대화상자(`이 Deal의 라이선스 계약 N건도 삭제할까요?`, 버튼 `취소`·`유지`·`삭제`)를 띄운다: 삭제 → `deleteLicenseContracts: true`, 유지 → false로 요청, 취소 → 요청하지 않음. 계약이 0건이면 묻지 않고 요청한다. 화면 값이 오래되어 서버가 409를 주면 각 화면의 기존 오류 자리에 서버 문구를 보이고 편집 상태를 유지하며 Deal을 다시 읽어, 같은 변경을 다시 시도하면 안내 대화상자가 뜬다.
 - **LC-R37** Deal 삭제 확인 대화상자는 `라이선스 계약 N건`(0 포함)을 함께 지운다고 보여 준다.
 
@@ -278,7 +278,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 ### LC-UC10 계약 첨부 업로드
 - 행위자: sales·admin
 - 기본 흐름: 파일·설명 선택 → 업로드 → 계약 폴더에 저장(LC-R21·R25)
-- 대안: 같은 이름이면 교체/건너뛰기 선택(LC-R22)
+- 대안: 같은 이름이면 덮어쓰기·취소 선택(LC-R22)
 - 예외: 검증 실패 422, 저장 위치 없음 503, 없는 계약 404, 교체 권한 없음 403, 업로드 도중 계약 삭제 404
 - 결과: 첨부 행과 파일
 
@@ -374,7 +374,7 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 | LC-069 | 업로드 도중 계약이 지워지면 404로 끝나고 계약 폴더가 남지 않는다 | LC-R26, LC-UC10 | backend | `application/test_license_contract_folders.py::test_upload_when_the_contract_is_deleted_before_recording_removes_its_folder` |
 | LC-070 | 화면: 파일을 올리면 첨부 목록에 보인다 | LC-R35, LC-UC10 | frontend | `features/contracts/ContractsPage.edit.test.tsx > has a 첨부 파일 area and lists the contract files from the server`<br>`features/contracts/ContractsPage.edit.test.tsx > uploads a file through the gateway, lists it, and still lists it after reopening` |
 | LC-071 | 화면: 화면 규칙을 어긴 파일은 요청 없이 문구를 보인다 | LC-R35, LC-UC10 | frontend | `features/contracts/ContractsPage.edit.test.tsx > rejects an executable file with the Deal message`<br>`features/contracts/ContractsPage.edit.test.tsx > rejects a missing file and a description over 100 characters` |
-| LC-072 | 화면: 같은 이름이면 교체·건너뛰기를 묻는다 | LC-R35, LC-UC10 | frontend | `features/contracts/ContractsPage.edit.test.tsx > asks to replace or skip on a 409 for the same name and replaces when 교체 is chosen`<br>`features/contracts/ContractsPage.edit.test.tsx > keeps the list as it was when 건너뛰기 is chosen (skip request)` |
+| LC-072 | 화면: 같은 이름이면 덮어쓰기·취소를 묻는다 | LC-R35, LC-UC10 | frontend | `features/contracts/ContractsPage.edit.test.tsx > asks before overwriting a same-named file and replaces it when confirmed`<br>`features/contracts/ContractsPage.edit.test.tsx > keeps the original without sending another upload request when cancelled` |
 | LC-073 | 화면: 저장 위치를 쓸 수 없다는 서버 문구를 보인다 | LC-R35, LC-UC10 | frontend | `features/contracts/ContractsPage.edit.test.tsx > shows the 503 message when the storage location is unavailable` |
 | LC-074 | 모든 역할이 첨부 목록을 최신순으로 보고 내려받을 수 있다 | LC-R24, LC-UC11 | both | `application/test_license_contract_attachments.py::test_list_files_returns_newest_first`<br>`application/test_license_contract_attachments.py::test_download_opens_the_stored_content`<br>`application/test_license_contract_folders.py::test_download_reads_from_the_contract_folder`<br>외 4건 |
 | LC-075 | 저장 위치가 없거나 파일 내용이 없으면 다운로드가 실패한다 | LC-R24, LC-UC11 | backend | `application/test_license_contract_attachments.py::test_download_without_storage_settings_raises_unavailable`<br>`application/test_license_contract_folders.py::test_download_does_not_fall_back_to_the_deal_folder`<br>`web/test_license_contract_attachment_routes.py::test_download_without_a_storage_location_is_503`<br>외 3건 |
@@ -746,10 +746,10 @@ LC-R30~LC-R37. 화면은 게이트웨이(`gateway.licenseContracts`)로만 서�
 - When "setup.exe"를 고르고 업로드한다 / 파일 없이 업로드한다 / 설명 101자로 업로드한다
 - Then 요청이 가지 않고 Deal 첨부와 같은 문구가 `role="alert"`로 보인다
 
-### LC-072 화면: 같은 이름이면 교체·건너뛰기를 묻는다
+### LC-072 화면: 같은 이름이면 덮어쓰기·취소를 묻는다
 - Given "a.pdf"가 있는 계약 대화상자
-- When "a.pdf"를 올려 409를 받은 뒤 `교체`를 누른다 / `건너뛰기`를 누른다
-- Then `같은 이름의 파일` 대화상자(`같은 이름의 파일이 이미 있습니다: a.pdf`)가 떴고, 교체는 `replace` 요청 뒤 `교체되었습니다: a.pdf`, 건너뛰기는 `skip` 요청 뒤 목록이 그대로다. 남이 올린 파일이면 `교체`가 비활성이고 `본인이 올린 파일만 교체할 수 있습니다.`가 보인다
+- When "a.pdf"를 올려 409를 받은 뒤 `덮어쓰기` 또는 `취소`를 누른다
+- Then `같은 이름의 파일` 대화상자(`같은 이름의 파일이 이미 있습니다: a.pdf`)가 떴고, 덮어쓰기는 `replace`로 저장하고 `교체되었습니다: a.pdf`를 표시한다. 취소하면 추가 요청 없이 기존 파일을 유지한다. 남이 올린 파일이면 `덮어쓰기`가 비활성이고 `본인이 올린 파일만 교체할 수 있습니다.`가 보인다
 
 ### LC-073 화면: 저장 위치를 쓸 수 없다는 서버 문구를 보인다
 - Given 서버가 업로드에 503을 주는 상태

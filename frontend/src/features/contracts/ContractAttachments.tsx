@@ -38,7 +38,7 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
   const conflicting = conflict === null ? undefined : items.find((a) => a.fileName.normalize('NFC') === conflict.normalize('NFC'))
   const canReplace = conflicting === undefined || (viewer !== null && canDeleteAttachment(viewer, conflicting.uploadedBy))
 
-  async function send(onExists: OnExists) {
+  async function send(onExists: Exclude<OnExists, 'skip'>) {
     if (file === null) return
     setError(null)
     try {
@@ -98,7 +98,7 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
         <form aria-label="파일 업로드" className="contract-upload" onSubmit={submit} noValidate>
           <label className="field">
             <span>설명</span>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <input type="text" value={description} disabled={upload.isPending} onChange={(e) => setDescription(e.target.value)} />
           </label>
           <span className={count > MAX_FILE_DESCRIPTION ? 'dd-count over' : 'dd-count'}>
             {count}/{MAX_FILE_DESCRIPTION}
@@ -108,6 +108,7 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
             <input
               key={inputKey}
               type="file"
+              disabled={upload.isPending}
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null)
                 setError(null)
@@ -184,15 +185,12 @@ export function ContractAttachments({ contractId }: ContractAttachmentsProps) {
         <ConfirmDialog
           title="같은 이름의 파일"
           message={`같은 이름의 파일이 이미 있습니다: ${conflict}`}
-          confirmLabel="교체"
+          confirmLabel="덮어쓰기"
           confirmDisabled={!canReplace}
-          cancelLabel="건너뛰기"
+          cancelLabel="취소"
           busy={upload.isPending}
           onConfirm={() => void send('replace')}
-          onCancel={() => {
-            // 건너뛰기: 같은 이름 파일은 그대로 두고 'skip'으로 한 번 더 알린다(서버는 아무것도 바꾸지 않는다).
-            void send('skip')
-          }}
+          onCancel={() => setConflict(null)}
         >
           {!canReplace && <p className="hint">본인이 올린 파일만 교체할 수 있습니다.</p>}
         </ConfirmDialog>

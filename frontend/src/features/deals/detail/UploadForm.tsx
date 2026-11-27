@@ -15,7 +15,6 @@ interface UploadFormProps {
   onResult: (message: string) => void
 }
 
-/** 파일 업로드 폼: 파일 + 설명(100자, 글자수 표시). 화면에서 먼저 규칙을 검사하고, 같은 이름이면 교체/건너뛰기를 묻는다. */
 export function UploadForm({ dealCode, me, existing, onResult }: UploadFormProps) {
   const upload = useUploadAttachment()
   const [file, setFile] = useState<File | null>(null)
@@ -27,7 +26,7 @@ export function UploadForm({ dealCode, me, existing, onResult }: UploadFormProps
   const canReplace = conflicting === undefined || (me !== null && canDeleteAttachment({ id: me.id, role: me.role }, conflicting.uploadedBy))
   const count = charCount(description.trim())
 
-  async function send(onExists: OnExists) {
+  async function send(onExists: Exclude<OnExists, 'skip'>) {
     if (file === null) return
     setError(null)
     try {
@@ -66,6 +65,7 @@ export function UploadForm({ dealCode, me, existing, onResult }: UploadFormProps
           <input
             key={inputKey}
             type="file"
+            disabled={upload.isPending}
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null)
               setError(null)
@@ -74,7 +74,7 @@ export function UploadForm({ dealCode, me, existing, onResult }: UploadFormProps
         </label>
         <label className="field">
           <span>설명</span>
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <input type="text" value={description} disabled={upload.isPending} onChange={(e) => setDescription(e.target.value)} />
         </label>
         <span className={count > MAX_FILE_DESCRIPTION ? 'dd-count over' : 'dd-count'}>
           {count}/{MAX_FILE_DESCRIPTION}
@@ -92,9 +92,9 @@ export function UploadForm({ dealCode, me, existing, onResult }: UploadFormProps
         <ConfirmDialog
           title="같은 이름의 파일"
           message={`같은 이름의 파일이 이미 있습니다: ${conflict}`}
-          confirmLabel="교체"
+          confirmLabel="덮어쓰기"
           confirmDisabled={!canReplace}
-          cancelLabel="건너뛰기"
+          cancelLabel="취소"
           busy={upload.isPending}
           onConfirm={() => void send('replace')}
           onCancel={() => setConflict(null)}
